@@ -26,7 +26,13 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  # KHÔNG huỷ lượt đang chạy. Workflow này nghe hai loại sự kiện, nên một review gửi
+  # đúng lúc lượt của `pull_request` đang chạy sẽ huỷ lượt đó — và một check bị huỷ
+  # nằm lại trên commit dưới trạng thái CANCELLED, tính là không xanh y như thất bại.
+  #
+  # Job chỉ gọi vài API đọc, chạy vài giây, nên để hai lượt cùng chạy rẻ hơn nhiều so
+  # với việc phải giải thích một dấu đỏ không ai gây ra.
+  cancel-in-progress: false
 
 permissions:
   contents: read

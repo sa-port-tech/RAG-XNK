@@ -208,6 +208,25 @@ Năm đường dẫn của §8.6 giữ nguyên. Bốn nhóm bổ sung, kèm lý 
 | `/eval/gates.yml`, `/.github/quality-gates.yml` | Ngưỡng chặn merge nằm ở đây. Sửa được hai file này là sửa được cổng |
 | `/eval/golden-set/baseline.json` → `@ai-lead` | Do CI sinh ra, không phải thước đo. Bắt chuyên gia XNK duyệt từng lần cập nhật số liệu tự động là tiêu thời gian khan hiếm nhất của dự án vào việc không cần chuyên môn của họ |
 
+### 5.6.1 Một approval của Tech Lead là đủ cho mọi PR
+
+GitHub đòi approval từ chủ sở hữu của **từng** quy tắc CODEOWNERS mà PR khớp phải.
+Một PR chạm cả `.github/` lẫn `docs/` cần approval của hai nhóm khác nhau, và với đội
+11 người kiêm nhiệm thì việc gom đủ chữ ký làm PR nằm chờ nhiều ngày.
+
+Quyết định của đội: **`@tech-lead` đồng sở hữu mọi đường dẫn**, nên một approval của
+họ phủ hết mọi quy tắc. Các team chuyên môn vẫn có tên trên từng dòng — vẫn được tự
+động gán review, vẫn thấy thay đổi, và *Request changes* của họ vẫn chặn merge. Cái
+mất đi là approval của họ không còn **bắt buộc**.
+
+> ⚠️ Hệ quả nằm ở đúng ba chỗ: `prompts/`, `eval/golden-set/`, `bpmn/`. docs/14
+> §"Bẫy thường gặp" dựa vào CODEOWNERS để chặn kịch bản *"sửa golden set cho chỉ số
+> đẹp hơn"*, và §8.6 đặt chuyên gia XNK làm người duy nhất duyệt nội dung nghiệp vụ.
+> Từ nay Tech Lead một mình cũng merge được thay đổi ở ba thư mục đó.
+>
+> Khôi phục cổng chuyên gia cho riêng ba đường dẫn: xoá `@sa-port-tech/tech-lead`
+> khỏi đúng ba dòng đánh dấu 🔶 trong [`CODEOWNERS`](../.github/CODEOWNERS).
+
 ---
 
 ## 6. Bốn chỗ GitHub không làm được như tài liệu mô tả
@@ -224,7 +243,13 @@ hoặc `db/migrations/`". Ruleset chỉ nhận **một** con số cho cả nhán
 đội sẽ học cách duyệt cho xong cho nhanh — tức là làm hỏng chính cơ chế review.
 
 → Ruleset đặt 1; mức 2 do [`pr-governance.yml`](../.github/workflows/pr-governance.yml)
-thực thi bằng cách đọc danh sách file thay đổi và đếm approval còn hiệu lực. Ngưỡng
+thực thi bằng cách đọc danh sách file thay đổi và đếm approval còn hiệu lực.
+
+`pr-governance` **chỉ** đếm approval khi PR chạm `infra/` hoặc `db/migrations/`. Với PR
+thường nó không kiểm tra approval, vì ruleset đã làm việc đó và làm lại chỉ sinh hại:
+mọi PR đều có một lượt chạy đỏ ngay lúc vừa mở, lúc chưa ai kịp review. Approval sau đó
+tạo ra check run **thứ hai cùng tên trên cùng commit**, và lượt đỏ cũ nằm lại vĩnh viễn
+trong rollup — mỗi PR mang sẵn một dấu đỏ không xoá được, chỉ vì một phép kiểm tra thừa. Ngưỡng
 khai báo trong [`quality-gates.yml`](../.github/quality-gates.yml) → `pull_request`.
 
 `pr-governance` là workflow **thứ 8**, ngoài danh sách 7 của §8.1. Nó cũng gánh luôn
@@ -336,7 +361,35 @@ hẳn so với một lần CI đỏ.
 
 ---
 
-## 9. Sự cố thường gặp
+## 9. Năm chỗ API cư xử khác tài liệu
+
+Ghi lại vì cả năm đều đã làm hỏng một lần chạy thật, và cả năm đều báo lỗi theo kiểu
+không chỉ đúng nguyên nhân. Script trong `.github/setup/` đã xử lý sẵn; mục này để
+người sau không mất lại thời gian đó khi viết script mới.
+
+| Hiện tượng | Nguyên nhân thật | Cách đúng |
+|---|---|---|
+| `PATCH /repos/{repo}` với `security_and_analysis` trả **HTTP 422 "Invalid payload"** dù payload đúng tài liệu | GitHub đã chuyển sang **code security configuration** cấp tổ chức; endpoint cũ còn đó nhưng không nhận nữa | Gắn repo vào configuration của org: `POST /orgs/{org}/code-security/configurations/{id}/attach` |
+| Team tạo ra có slug khác slug mình đặt, và dòng CODEOWNERS trỏ tới nó **bị bỏ qua trong im lặng** | API sinh slug từ trường `name`, không nhận `slug`. `"DevOps / Platform"` → `devops-platform` | Đặt `name` sao cho slugify đúng bằng slug cần, rồi **đọc lại `.slug` trả về** và báo lỗi nếu lệch |
+| `-f` / `--raw-field` của `gh` bị từ chối với *"is not of type array/object"* | Cả hai gửi giá trị dưới dạng **chuỗi**; trường lồng nhau và biến GraphQL kiểu mảng cần JSON thật | Dựng body bằng `jq -n` rồi `gh api --input -` |
+| `GET /orgs/{org}/teams/{t}/repos/{owner}/{repo}` trả về rỗng dù team có quyền | Trả **HTTP 204 không kèm thân phản hồi**; muốn có `role_name` phải gửi `Accept` đặc biệt | Liệt kê `/teams/{t}/repos` rồi lọc theo `full_name` |
+| Quyền team đọc ra `write` trong khi đặt vào là `push` → so sánh luôn sai | Tên cũ khi **ghi** (`push`/`pull`), tên vai trò khi **đọc** (`write`/`read`) | Chuẩn hoá trước khi so sánh |
+
+Thêm hai chỗ thuộc về Windows chứ không về GitHub, nhưng cùng kiểu khó tìm:
+
+- **jq bản Windows xuất CRLF** (mở stdout ở chế độ text của C runtime). Chuỗi base64
+  đọc bằng `read` dính `\r`, và `base64 -d` báo đúng một dòng `invalid input` không
+  nói field nào.
+- **`python3` trên Windows thường là App Execution Alias của Microsoft Store**: có
+  trong `PATH`, `command -v` thấy, nhưng chạy thì mở cửa hàng ứng dụng. Phải gọi thử
+  mới phân biệt được. `print()` cũng xuất CRLF.
+
+`lib.sh` bọc sẵn `jq()` và `python_run()` để lọc `\r` mà vẫn giữ nguyên mã thoát —
+giữ mã thoát là bắt buộc vì `jq -e` được dùng làm điều kiện ở nhiều chỗ.
+
+---
+
+## 10. Sự cố thường gặp
 
 | Triệu chứng | Nguyên nhân | Xử lý |
 |---|---|---|

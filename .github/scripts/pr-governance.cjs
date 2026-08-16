@@ -126,24 +126,37 @@ module.exports = async ({ github, context, core, config }) => {
     files.some((file) => file.startsWith(prefix))
   );
 
-  const required = touched.length > 0 ? config.elevatedApprovals : config.defaultApprovals;
-  const approvers = await countApprovals(github, owner, repo, pr.number, pr.user.login);
-
-  if (touched.length > 0) {
-    notes.push(`PR chạm ${touched.map((p) => `\`${p}\``).join(", ")} → cần ${required} approval.`);
-  }
-
-  if (approvers.length < required) {
-    problems.push(
-      `Mới có ${approvers.length}/${required} approval` +
-        (approvers.length ? ` (${approvers.join(", ")})` : "") +
-        (touched.length
-          ? `.\n   PR chạm ${touched.join(", ")} — đây là thay đổi hạ tầng hoặc lược đồ dữ liệu, ` +
-            `hỏng thì không revert bằng một commit được (docs/01 §5.2).`
-          : ".")
+  // Chỉ kiểm tra approval khi PR chạm đường dẫn cần mức CAO HƠN mức của ruleset.
+  //
+  // Mức nền (≥1 approval) đã do ruleset thực thi ở phía GitHub. Kiểm tra lại ở đây
+  // không thêm gì, nhưng gây ra một hậu quả thật: PR nào cũng có một lượt chạy đỏ ở
+  // thời điểm vừa mở, lúc chưa ai kịp review. Approval sau đó tạo ra một check run
+  // THỨ HAI cùng tên trên cùng commit, và lượt đỏ cũ nằm lại vĩnh viễn trong rollup.
+  //
+  // Nói cách khác: mỗi PR đều mang sẵn một dấu đỏ không bao giờ xoá được, chỉ vì một
+  // phép kiểm tra thừa. Nên bỏ hẳn phần trùng lặp và giữ đúng phần ruleset không
+  // diễn đạt được — ngưỡng 2 approval theo đường dẫn.
+  if (touched.length === 0) {
+    notes.push(
+      `Không chạm ${config.elevatedPaths.map((p) => `\`${p}\``).join(" hay ")} → ` +
+        `áp mức approval mặc định của ruleset (${config.defaultApprovals}).`
     );
   } else {
-    notes.push(`Đủ approval: ${approvers.length}/${required}` + (approvers.length ? ` — ${approvers.join(", ")}` : ""));
+    const required = config.elevatedApprovals;
+    const approvers = await countApprovals(github, owner, repo, pr.number, pr.user.login);
+
+    notes.push(`PR chạm ${touched.map((p) => `\`${p}\``).join(", ")} → cần ${required} approval.`);
+
+    if (approvers.length < required) {
+      problems.push(
+        `Mới có ${approvers.length}/${required} approval` +
+          (approvers.length ? ` (${approvers.join(", ")})` : "") +
+          `.\n   PR chạm ${touched.join(", ")} — đây là thay đổi hạ tầng hoặc lược đồ dữ liệu, ` +
+          `hỏng thì không revert bằng một commit được (docs/01 §5.2).`
+      );
+    } else {
+      notes.push(`Đủ approval: ${approvers.length}/${required} — ${approvers.join(", ")}`);
+    }
   }
 
   // ── Kết luận ──────────────────────────────────────────────────────────────
