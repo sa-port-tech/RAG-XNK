@@ -55,7 +55,7 @@ while read -r label; do
     MISSING=1
   fi
 done < <(
-  $PY - "$REPO_ROOT/.github/ISSUE_TEMPLATE" <<'PY'
+  python_run - "$REPO_ROOT/.github/ISSUE_TEMPLATE" <<'PY'
 import pathlib, sys, yaml
 root = pathlib.Path(sys.argv[1])
 seen = set()

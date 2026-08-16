@@ -43,22 +43,34 @@ STATUS_FIELD_ID=$(gh project field-list "$NUMBER" --owner "$ORG" --format json \
 if [ -z "$STATUS_FIELD_ID" ] || [ "$STATUS_FIELD_ID" = "null" ]; then
   problem "Không tìm thấy field Status trên Project #$NUMBER."
 else
-  gh api graphql -f query='
-    mutation($field: ID!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) {
-      updateProjectV2Field(input: { fieldId: $field, singleSelectOptions: $options }) {
-        projectV2Field { ... on ProjectV2SingleSelectField { id options { name } } }
-      }
-    }' \
-    -f field="$STATUS_FIELD_ID" \
-    --raw-field options='[
-      {"name":"Backlog","color":"GRAY","description":"Đã ghi nhận, chưa đưa vào sprint"},
-      {"name":"Todo","color":"BLUE","description":"Đã vào sprint, đạt Definition of Ready"},
-      {"name":"In Progress","color":"YELLOW","description":"Đã có nhánh, đang làm"},
-      {"name":"In Review","color":"ORANGE","description":"PR đang mở, chờ review và CI"},
-      {"name":"Testing","color":"PURPLE","description":"Đã merge, chờ deploy và PO nghiệm thu trên dev"},
-      {"name":"Done","color":"GREEN","description":"Đã deploy dev và được PO nghiệm thu"}
-    ]' --silent
-  ok "Backlog → Todo → In Progress → In Review → Testing → Done"
+  # Biến GraphQL kiểu mảng phải nằm trong body JSON. Cả `-f` lẫn `--raw-field` của
+  # gh đều gửi giá trị dưới dạng CHUỖI, nên server trả lỗi "expected a key-value
+  # object" dù nội dung là JSON hợp lệ. Cách đúng là POST thẳng {query, variables}.
+  PAYLOAD=$(mktemp)
+  jq -n --arg field "$STATUS_FIELD_ID" '{
+    query: "mutation($field: ID!, $options: [ProjectV2SingleSelectFieldOptionInput!]!) { updateProjectV2Field(input: { fieldId: $field, singleSelectOptions: $options }) { projectV2Field { ... on ProjectV2SingleSelectField { id options { name } } } } }",
+    variables: {
+      field: $field,
+      options: [
+        {name: "Backlog",     color: "GRAY",   description: "Đã ghi nhận, chưa đưa vào sprint"},
+        {name: "Todo",        color: "BLUE",   description: "Đã vào sprint, đạt Definition of Ready"},
+        {name: "In Progress", color: "YELLOW", description: "Đã có nhánh, đang làm"},
+        {name: "In Review",   color: "ORANGE", description: "PR đang mở, chờ review và CI"},
+        {name: "Testing",     color: "PURPLE", description: "Đã merge, chờ deploy và PO nghiệm thu trên dev"},
+        {name: "Done",        color: "GREEN",  description: "Đã deploy dev và được PO nghiệm thu"}
+      ]
+    }
+  }' > "$PAYLOAD"
+
+  RESULT=$(gh api graphql --input "$PAYLOAD" 2>&1) || {
+    problem "Không đặt được cột Status: $RESULT"
+    rm -f "$PAYLOAD"
+  }
+  rm -f "$PAYLOAD"
+
+  if echo "$RESULT" | grep -q '"Backlog"'; then
+    ok "Backlog → Todo → In Progress → In Review → Testing → Done"
+  fi
 fi
 
 # ── Custom field ──────────────────────────────────────────────────────────────

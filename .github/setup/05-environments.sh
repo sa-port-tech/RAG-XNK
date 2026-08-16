@@ -47,12 +47,22 @@ for name in $(jq -r '.[].name' "$ENV_FILE"); do
   wait_timer=$(echo "$entry" | jq -r .wait_timer)
   prevent_self=$(echo "$entry" | jq -r .prevent_self_review)
 
-  gh api -X PUT "repos/$SLUG/environments/$name" \
-    -F wait_timer="$wait_timer" \
-    -F prevent_self_review="$prevent_self" \
-    --raw-field "reviewers=$reviewers" \
-    --raw-field 'deployment_branch_policy={"protected_branches":false,"custom_branch_policies":true}' \
-    --silent
+  # `-F` và `--raw-field` gửi mọi giá trị dưới dạng chuỗi, nên GitHub từ chối
+  # reviewers và deployment_branch_policy với lỗi "is not of type array/object".
+  # Trường lồng nhau phải đi trong body JSON thật.
+  jq -n \
+    --argjson wait "$wait_timer" \
+    --argjson self "$prevent_self" \
+    --argjson reviewers "$reviewers" \
+    '{
+      wait_timer: $wait,
+      prevent_self_review: $self,
+      reviewers: $reviewers,
+      deployment_branch_policy: {
+        protected_branches: false,
+        custom_branch_policies: true
+      }
+    }' | gh api -X PUT "repos/$SLUG/environments/$name" --input - --silent
 
   reviewer_count=$(echo "$reviewers" | jq 'length')
   if [ "$reviewer_count" -gt 0 ]; then

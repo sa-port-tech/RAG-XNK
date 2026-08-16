@@ -24,12 +24,22 @@ while read -r slug name description permission; do
   if exists "orgs/$ORG/teams/$slug"; then
     info "$slug — đã có"
   else
-    gh api -X POST "orgs/$ORG/teams" \
+    # GitHub tự sinh slug từ `name`, không nhận slug do mình đặt. Nếu tên hiển thị
+    # chứa dấu gạch chéo, dấu chấm hay ngoặc — ví dụ "DevOps / Platform" — slug thu
+    # được là `devops-platform`, không phải `devops-lead`, và dòng CODEOWNERS trỏ tới
+    # `@org/devops-lead` sẽ bị bỏ qua trong im lặng. Vì vậy phải đọc lại slug thật.
+    ACTUAL=$(gh api -X POST "orgs/$ORG/teams" \
       -f name="$name" \
       -f description="$description" \
       -f privacy=closed \
       -f notification_setting=notifications_enabled \
-      --silent
+      --jq .slug)
+
+    if [ "$ACTUAL" != "$slug" ]; then
+      problem "Tạo team '$name' ra slug '$ACTUAL', nhưng CODEOWNERS cần '$slug'."
+      info "    Sửa trường 'name' trong data/teams.json thành chuỗi slugify đúng bằng '$slug'."
+      continue
+    fi
     ok "$slug — đã tạo"
   fi
 

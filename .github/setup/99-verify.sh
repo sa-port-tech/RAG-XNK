@@ -213,7 +213,7 @@ done < <(jq -r '.[] | [(.slug|@base64), (.permission|@base64)] | @tsv' "$SETUP_D
 
 # ── Cổng eval ──────────────────────────────────────────────────────────────────
 step "Cổng eval (docs/09 E7-05)"
-EVAL_ENABLED=$($PY "$REPO_ROOT/.github/scripts/gates.py" get enabled --file "$REPO_ROOT/eval/gates.yml" 2>/dev/null || echo "?")
+EVAL_ENABLED=$(python_run "$REPO_ROOT/.github/scripts/gates.py" get enabled --file "$REPO_ROOT/eval/gates.yml" 2>/dev/null || echo "?")
 if [ "$EVAL_ENABLED" = "true" ]; then
   pass "eval/gates.yml enabled: true — cổng đang chặn merge thật"
 else

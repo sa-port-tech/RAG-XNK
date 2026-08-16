@@ -46,6 +46,20 @@ require_jq() {
     || die "Không tìm thấy jq. Cài bằng: winget install --id jqlang.jq"
 }
 
+# Bọc jq để loại ký tự CR khỏi đầu ra.
+#
+# Bản jq biên dịch cho Windows mở stdout ở chế độ text của C runtime, nên mỗi dòng
+# kết thúc bằng CRLF thay vì LF. Hậu quả không hiện ra ngay: chuỗi base64 đọc bằng
+# `read` sẽ dính \r ở cuối và `base64 -d` từ chối với đúng một dòng "invalid input",
+# không nói field nào, không nói dòng nào.
+#
+# Giữ nguyên dạng luồng (không dùng $(…)) để `while read` vẫn nhận được dòng cuối,
+# và trả lại đúng mã thoát của jq — `jq -e` được dùng làm điều kiện ở nhiều chỗ.
+jq() {
+  command jq "$@" | tr -d '\r'
+  return "${PIPESTATUS[0]}"
+}
+
 # Tìm trình thông dịch Python dùng được.
 #
 # Trên Windows, `python3` thường là App Execution Alias của Microsoft Store: nó tồn
@@ -66,6 +80,17 @@ require_python() {
   detect_python
   $PY -c 'import yaml' > /dev/null 2>&1 \
     || die "Thiếu PyYAML. Cài bằng: $PY -m pip install pyyaml"
+}
+
+# Chạy Python và loại CR khỏi đầu ra — cùng lý do với hàm jq() ở trên: trên Windows,
+# print() kết thúc dòng bằng CRLF, và một tên nhãn đọc ra thành "type: bug\r" sẽ
+# không khớp bất cứ thứ gì, với thông báo lỗi không hề nhắc tới ký tự thừa.
+#
+# Không đặt tên hàm là `py`: khi detect_python chọn "py -3", thân hàm gọi $PY sẽ tự
+# gọi lại chính nó.
+python_run() {
+  $PY "$@" | tr -d '\r'
+  return "${PIPESTATUS[0]}"
 }
 
 # Gọi GitHub API, trả về thân phản hồi; im lặng khi lỗi để nơi gọi tự xử lý.

@@ -44,9 +44,35 @@ gh api -X PUT "repos/$SLUG/automated-security-fixes" --silent && ok "Dependabot 
 step "Bật quét bí mật và chặn đẩy bí mật"
 # Chặn ngay lúc push là điểm khác biệt quan trọng: quét sau khi đã lên repo công khai
 # thì bí mật đã lộ rồi, xoay vòng khoá là việc bắt buộc chứ không phải tuỳ chọn.
-gh api -X PATCH "repos/$SLUG" \
-  --raw-field 'security_and_analysis={"secret_scanning":{"status":"enabled"},"secret_scanning_push_protection":{"status":"enabled"}}' \
-  --silent && ok "Secret scanning + push protection"
+#
+# Không dùng `PATCH repos/{repo}` với `security_and_analysis` — GitHub đã chuyển sang
+# mô hình "code security configuration" ở cấp tổ chức và endpoint cũ trả về HTTP 422
+# "Invalid security_and_analysis payload" dù payload đúng tài liệu. Cách còn hiệu lực
+# là gắn repo vào một configuration của org.
+CONFIG_ID=$(api "orgs/$ORG/code-security/configurations" \
+  | jq -r '[.[] | select(.secret_scanning == "enabled" and .secret_scanning_push_protection == "enabled")][0].id // empty')
+
+if [ -z "$CONFIG_ID" ]; then
+  warn "Org $ORG chưa có code security configuration nào bật secret scanning + push protection."
+  info "Tạo tại: https://github.com/organizations/$ORG/settings/security_products"
+else
+  REPO_ID=$(api "repos/$SLUG" --jq .id)
+  gh api -X POST "orgs/$ORG/code-security/configurations/$CONFIG_ID/attach" \
+    -f scope=selected -F "selected_repository_ids[]=$REPO_ID" --silent
+
+  # Việc gắn chạy bất đồng bộ; đọc lại để khẳng định thay vì tin vào HTTP 2xx.
+  for _ in 1 2 3 4 5 6; do
+    STATUS=$(api "repos/$SLUG" --jq '.security_and_analysis.secret_scanning_push_protection.status')
+    [ "$STATUS" = "enabled" ] && break
+    sleep 3
+  done
+
+  if [ "$STATUS" = "enabled" ]; then
+    ok "Secret scanning + push protection (configuration #$CONFIG_ID)"
+  else
+    problem "Đã gắn configuration #$CONFIG_ID nhưng push protection vẫn '$STATUS'."
+  fi
+fi
 
 step "Bật nhận báo cáo lỗ hổng riêng tư"
 gh api -X PUT "repos/$SLUG/private-vulnerability-reporting" --silent \
