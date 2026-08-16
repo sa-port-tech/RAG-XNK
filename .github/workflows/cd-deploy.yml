@@ -187,10 +187,87 @@ jobs:
             VERSION=${{ needs.plan.outputs.version }}
             GIT_SHA=${{ github.sha }}
 
-  deploy:
-    name: Deploy ${{ needs.plan.outputs.environment }}
+  migrate:
+    name: Áp migration lược đồ
     needs: [plan, build]
     if: ${{ always() && needs.plan.outputs.services != '[]' && needs.build.result == 'success' }}
+    runs-on: ubuntu-latest
+    # Cùng environment với deploy: với `production`, cổng duyệt phải chặn TRƯỚC khi lược
+    # đồ bị đổi, không phải sau. Migration là thay đổi khó lùi nhất trong cả quy trình.
+    environment:
+      name: ${{ needs.plan.outputs.environment }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      # Vì sao là ECS one-off task chứ không phải Database.Migrate() lúc service khởi
+      # động: một service có nhiều replica, và nhiều replica cùng chạy migration lúc boot
+      # sẽ tranh nhau. Cũng không chạy từ runner của GitHub Actions — làm vậy buộc phải mở
+      # RDS cho dải IP của GitHub, trái với docs/00 §12 (service nằm trong private subnet).
+      # Xem ADR-0002.
+      - name: Kiểm tra đã có hạ tầng migration chưa
+        id: guard
+        env:
+          TASK_DEF: ${{ vars.ECS_MIGRATION_TASK_DEFINITION }}
+        run: |
+          if [ -z "$TASK_DEF" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=migrate::Chưa cấu hình biến ECS_MIGRATION_TASK_DEFINITION — bỏ qua bước migration. Task definition này được tạo trong story E1-06; tới lúc đó đặt biến ở repository variables."
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Lấy quyền AWS qua OIDC
+        if: ${{ steps.guard.outputs.ready == 'true' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: cd-migrate-${{ github.run_id }}
+
+      - name: Chạy migration bằng một task rời
+        if: ${{ steps.guard.outputs.ready == 'true' }}
+        env:
+          CLUSTER: ${{ vars.ECS_CLUSTER }}
+          TASK_DEF: ${{ vars.ECS_MIGRATION_TASK_DEFINITION }}
+          SUBNETS: ${{ vars.ECS_SUBNET_IDS }}
+          SECURITY_GROUPS: ${{ vars.ECS_SECURITY_GROUP_IDS }}
+        run: |
+          set -euo pipefail
+
+          # assignPublicIp=ENABLED vì prototype chạy single-AZ public subnet, không có NAT
+          # Gateway (docs/00 §3.3). Khi lên production có NAT thì đổi thành DISABLED.
+          arn=$(aws ecs run-task \
+            --cluster "$CLUSTER" \
+            --task-definition "$TASK_DEF" \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[$SUBNETS],securityGroups=[$SECURITY_GROUPS],assignPublicIp=ENABLED}" \
+            --started-by "cd-deploy-${GITHUB_RUN_ID}" \
+            --query 'tasks[0].taskArn' --output text)
+
+          echo "Task: $arn"
+          aws ecs wait tasks-stopped --cluster "$CLUSTER" --tasks "$arn"
+
+          exit_code=$(aws ecs describe-tasks --cluster "$CLUSTER" --tasks "$arn" \
+            --query 'tasks[0].containers[0].exitCode' --output text)
+          reason=$(aws ecs describe-tasks --cluster "$CLUSTER" --tasks "$arn" \
+            --query 'tasks[0].stoppedReason' --output text)
+
+          # `aws ecs wait` xanh khi task DỪNG, không phải khi task THÀNH CÔNG. Không kiểm
+          # tra exit code ở đây thì một migration hỏng vẫn cho deploy chạy tiếp, và service
+          # mới sẽ khởi động trên một lược đồ dở dang.
+          if [ "$exit_code" != "0" ]; then
+            echo "::error title=migrate::Migration thất bại (exit=$exit_code): $reason"
+            exit 1
+          fi
+          echo "✓ Migration áp xong."
+
+  deploy:
+    name: Deploy ${{ needs.plan.outputs.environment }}
+    needs: [plan, build, migrate]
+    if: ${{ always() && needs.plan.outputs.services != '[]' && needs.build.result == 'success' && needs.migrate.result == 'success' }}
     runs-on: ubuntu-latest
     # GitHub Environment là nơi cắm luật duyệt. Với `production`, environment có
     # required reviewers nên job này DỪNG chờ người bấm duyệt — và không có cách nào
