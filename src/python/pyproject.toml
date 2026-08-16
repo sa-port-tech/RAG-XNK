@@ -1,0 +1,113 @@
+# uv workspace cho ba service Python.
+#
+# ci-python chạy toàn bộ lệnh từ thư mục này (`working-directory: src/python`) và gọi
+# `uv sync --all-extras --dev` một lần cho mọi service. Vì vậy đây là nơi duy nhất khai
+# công cụ (ruff, mypy, pytest) — mỗi service chỉ khai phụ thuộc runtime của riêng nó.
+#
+# ⚠️ Vì sao cả ba service đều phải tồn tại, kể cả khi mới chỉ làm `retrieval`:
+# ci-python gom cả ba vào matrix khi PR chạm file này hoặc uv.lock (xem "shared" trong
+# paths-filter), rồi thất bại nếu thư mục service không có. Xoá bớt một thư mục ở đây là
+# làm đỏ CI của mọi PR sau đó.
+
+[project]
+name = "xnk-python"
+version = "0.0.0"
+description = "Workspace gốc — không phải package cài được, chỉ để gom ba service."
+requires-python = "==3.12.*"
+dependencies = [
+    "ingestion",
+    "retrieval",
+    "generation",
+]
+
+[tool.uv]
+# Gốc workspace không tự đóng gói; nó chỉ tồn tại để `uv sync` cài cả ba member.
+package = false
+
+[tool.uv.workspace]
+members = ["ingestion", "retrieval", "generation"]
+
+[tool.uv.sources]
+ingestion = { workspace = true }
+retrieval = { workspace = true }
+generation = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
+    "pytest>=8.3.0",
+    "pytest-cov>=6.0.0",
+    # TestClient của Starlette chạy trên httpx2 (Starlette 1.6 đã bỏ httpx bản 0.x và
+    # phát cảnh báo deprecation khi thấy nó). Test đồng bộ nên không cần pytest-asyncio.
+    "httpx2>=2.10.0",
+]
+
+# ─── ruff ────────────────────────────────────────────────────────────────────────
+# CI gọi `ruff check <service>` và `ruff format --check --diff <service>` từ thư mục này.
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes
+    "I",        # isort — thứ tự import ổn định, bớt xung đột merge vô nghĩa
+    "N",        # pep8-naming
+    "UP",       # pyupgrade
+    "B",        # bugbear
+    "A",        # che khuất builtin
+    "C4",       # comprehension
+    "SIM",      # đơn giản hoá
+    "TID",      # import tuyệt đối
+    "RUF",
+    # Bắt lỗi đặc thù async — nhóm này tồn tại vì lệnh blocking trong hàm async là
+    # loại lỗi chỉ lộ ra dưới tải, tức là ở production chứ không phải ở CI.
+    "ASYNC",
+]
+ignore = [
+    # Xung đột trực tiếp với ruff format.
+    "E501",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Test được phép dùng assert trần và tên dài mô tả tình huống.
+"**/tests/**" = ["S101"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.isort]
+# Không khai thì ruff xếp `retrieval` chung nhóm với `fastapi`, và dòng trống ngăn cách
+# giữa thư viện ngoài với mã của chính dự án bị coi là lỗi định dạng.
+known-first-party = ["ingestion", "retrieval", "generation"]
+
+# ─── mypy ────────────────────────────────────────────────────────────────────────
+# quality-gates.yml đặt python.enforce_types = true, nên mypy là cổng chặn merge.
+# Bật strict ngay từ đầu: nới ra sau này thì dễ, siết vào sau khi đã có 10.000 dòng
+# không chú thích kiểu thì gần như không ai làm.
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+warn_unused_ignores = true
+show_error_codes = true
+pretty = true
+# ⚠️ KHÔNG bật explicit_package_bases ở đây. Bố cục là `<service>/<service>/` — với
+# explicit_package_bases, mypy lấy src/python làm gốc và thấy cùng một file dưới hai tên
+# ("retrieval" và "retrieval.retrieval"), rồi dừng với lỗi "Source file found twice".
+# Để mặc định thì mypy suy ra gốc package bằng cách đi ngược theo __init__.py, ra đúng
+# một tên module cho mỗi file.
+
+# ─── pytest ──────────────────────────────────────────────────────────────────────
+# CI truyền đường dẫn service vào nên KHÔNG đặt testpaths ở đây — đặt vào sẽ ghi đè
+# ý định "chỉ chạy test của service bị đụng" và làm matrix mất tác dụng.
+[tool.pytest.ini_options]
+addopts = "-q --strict-markers --strict-config"
+xfail_strict = true
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+branch = true
+omit = ["*/tests/*"]

@@ -1,0 +1,24 @@
+# ingestion — crawler, parser PDF/DOCX, phân rã Điều/Khoản, trích metadata hiệu lực.
+# Ghi dữ liệu QUA API của corpus-service, không nối thẳng database (docs/00 §4.2).
+#
+# Công cụ (ruff/mypy/pytest) khai ở ../pyproject.toml, không lặp lại ở đây.
+
+[project]
+name = "ingestion"
+version = "0.1.0"
+description = "Nạp dữ liệu — crawl, parse, phân rã cấu trúc pháp lý"
+requires-python = "==3.12.*"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    # Khai tường minh dù FastAPI đã kéo theo: kiểu dữ liệu của service phụ thuộc
+    # trực tiếp vào pydantic, nên nó là phụ thuộc bậc nhất chứ không phải tình cờ.
+    "pydantic>=2.9.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["ingestion"]
