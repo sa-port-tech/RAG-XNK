@@ -81,7 +81,32 @@ else
 fi
 
 if gh secret list --repo "$SLUG" --json name --jq '.[].name' 2>/dev/null | grep -qx "PROJECT_TOKEN"; then
-  pass "secrets.PROJECT_TOKEN đã đặt"
+  pass "secrets.PROJECT_TOKEN có tồn tại"
+
+  # API không cho đọc giá trị secret — chỉ biết được TÊN. Một secret đặt hụt (bấm
+  # Enter mà chưa dán gì) vẫn hiện ra ở đây y hệt một secret đúng, và bước kiểm tra
+  # này sẽ báo xanh trong khi board hoàn toàn không chạy. Đó là kiểu sai nguy hiểm
+  # nhất của một bộ đối chiếu: nói rằng mọi thứ ổn.
+  #
+  # Nguồn sự thật duy nhất là lần chạy thật gần nhất của project-automation.
+  LAST=$(gh run list --repo "$SLUG" --workflow project-automation --limit 1 \
+    --json conclusion,url --jq '.[0] | "\(.conclusion // "đang chạy")\t\(.url)"' 2>/dev/null || true)
+  LAST_RESULT=${LAST%%$'\t'*}
+  LAST_URL=${LAST#*$'\t'}
+
+  case "$LAST_RESULT" in
+    success)
+      pass "project-automation chạy thật thành công — token dùng được"
+      ;;
+    "")
+      warn "project-automation chưa chạy lần nào — chưa khẳng định được token dùng được."
+      ;;
+    *)
+      miss "project-automation gần nhất kết thúc '$LAST_RESULT' — token có thể rỗng hoặc thiếu quyền."
+      info "    $LAST_URL"
+      info "    Đặt lại: gh secret set PROJECT_TOKEN --repo $SLUG   (dán giá trị khi được hỏi)"
+      ;;
+  esac
 else
   miss "secrets.PROJECT_TOKEN chưa đặt — project-automation sẽ hỏng ở bước kiểm tra cấu hình"
 fi
