@@ -1,0 +1,415 @@
+# cd-deploy — build image → ECR → deploy → smoke test (docs/00 §8.3 ⑦, docs/09 E1-10)
+#
+# Xác thực với AWS bằng OIDC federation, tuyệt đối không dùng access key dài hạn
+# (docs/00 §8.5). Không có `secrets.AWS_ACCESS_KEY_ID` ở bất kỳ đâu trong file này,
+# và script .github/setup/09-verify.sh kiểm tra lại điều đó trên repo thật.
+#
+# Đẩy lên `main` chỉ deploy `dev`, tự động, không chờ ai. `staging` và `production`
+# chỉ đi tới được bằng workflow_dispatch, và GitHub Environment `production` có
+# required reviewers nên job sẽ dừng chờ người duyệt (docs/00 §8.3 ⑦). Prototype chỉ
+# dùng dev; đường đi lên hai môi trường kia viết sẵn để Phase 1 không phải dựng lại.
+name: cd-deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Môi trường triển khai
+        type: choice
+        options: [dev, staging, production]
+        default: dev
+      services:
+        description: "Danh sách service, cách nhau bằng dấu cách. Bỏ trống = mọi service."
+        type: string
+        default: ""
+
+concurrency:
+  # Không huỷ giữa chừng: huỷ một lần deploy đang chạy có thể để ECS ở trạng thái
+  # nửa vời với hai revision task definition cùng sống.
+  group: cd-deploy-${{ github.event.inputs.environment || 'dev' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    name: Xác định phạm vi triển khai
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.select.outputs.services }}
+      service_names: ${{ steps.select.outputs.service_names }}
+      deploy_web: ${{ steps.select.outputs.deploy_web }}
+      image_tag: ${{ steps.version.outputs.image_tag }}
+      version: ${{ steps.version.outputs.version }}
+      environment: ${{ steps.version.outputs.environment }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Dựng nhãn phiên bản
+        id: version
+        run: |
+          # docs/00 §8.3 ⑦: tag {semver}-{git-sha}. semver lấy từ file VERSION trong
+          # repo để nó là một quyết định có review, không phải một con số CI tự bịa.
+          version=$(tr -d ' \n\r' < VERSION)
+          if ! echo "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error file=VERSION::Nội dung file VERSION ('$version') không phải semver."
+            exit 1
+          fi
+          short_sha="${GITHUB_SHA::7}"
+          {
+            echo "version=$version"
+            echo "image_tag=${version}-${short_sha}"
+            echo "environment=${{ github.event.inputs.environment || 'dev' }}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Chọn service cần build
+        id: select
+        run: |
+          manifest=.github/services.json
+          requested="${{ github.event.inputs.services }}"
+
+          if [ -n "$requested" ]; then
+            # workflow_dispatch chỉ định thẳng — kiểm tra tên có thật trước khi chạy.
+            selected="[]"
+            for name in $requested; do
+              if ! jq -e --arg n "$name" '.services[] | select(.name == $n)' "$manifest" > /dev/null; then
+                echo "::error::Service '$name' không có trong $manifest."
+                exit 1
+              fi
+              selected=$(echo "$selected" | jq -c --arg n "$name" '. + [$n]')
+            done
+            deploy_web=false
+          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            selected=$(jq -c '[.services[].name]' "$manifest")
+            deploy_web=true
+          else
+            # Đẩy lên main: chỉ build service có file thay đổi. Đây là path filter của
+            # tầng CD, dùng đúng danh mục service mà CI dùng.
+            base="${{ github.event.before }}"
+            if [ -z "$base" ] || [ "$base" = "0000000000000000000000000000000000000000" ]; then
+              base=$(git rev-parse "${GITHUB_SHA}^") || base="$GITHUB_SHA"
+            fi
+            changed=$(git diff --name-only "$base" "$GITHUB_SHA")
+            echo "File thay đổi:"; echo "$changed"
+
+            selected="[]"
+            while read -r name path; do
+              [ -z "$name" ] && continue
+              if echo "$changed" | grep -q "^${path}/"; then
+                selected=$(echo "$selected" | jq -c --arg n "$name" '. + [$n]')
+              fi
+            done < <(jq -r '.services[] | "\(.name) \(.path)"' "$manifest")
+
+            # Thư viện dùng chung đổi thì mọi service .NET phải build lại.
+            shared_path=$(jq -r '.libraries[0].path' "$manifest")
+            if echo "$changed" | grep -q "^${shared_path}/"; then
+              selected=$(jq -c '[.services[] | select(.stack == "dotnet") | .name]' "$manifest")
+              echo "Thư viện dùng chung thay đổi — build lại toàn bộ service .NET."
+            fi
+
+            web_path=$(jq -r '.sites[0].path' "$manifest")
+            if echo "$changed" | grep -q -e "^${web_path}/" -e "^${shared_path}/"; then
+              deploy_web=true
+            else
+              deploy_web=false
+            fi
+          fi
+
+          {
+            echo "services=$selected"
+            echo "service_names=$(echo "$selected" | jq -r 'join(" ")')"
+            echo "deploy_web=$deploy_web"
+          } >> "$GITHUB_OUTPUT"
+          echo "Sẽ build: $selected · web: $deploy_web"
+
+  build:
+    name: Build ${{ matrix.service }}
+    needs: plan
+    if: ${{ needs.plan.outputs.services != '[]' }}
+    runs-on: ubuntu-latest
+    environment: ${{ needs.plan.outputs.environment }}
+    permissions:
+      contents: read
+      id-token: write   # ← bắt buộc để lấy OIDC token. Không có dòng này, OIDC không chạy.
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJSON(needs.plan.outputs.services) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Đọc thông tin service
+        id: svc
+        run: |
+          {
+            echo "path=$(jq -r --arg n '${{ matrix.service }}' '.services[] | select(.name==$n) | .path' .github/services.json)"
+            echo "ecr=$(jq -r --arg n '${{ matrix.service }}' '.services[] | select(.name==$n) | .ecr_repository' .github/services.json)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Kiểm tra Dockerfile tồn tại
+        run: |
+          if [ ! -f "${{ steps.svc.outputs.path }}/Dockerfile" ]; then
+            echo "::error::Thiếu ${{ steps.svc.outputs.path }}/Dockerfile — mỗi service phải tự mô tả cách đóng gói (story E1-11)."
+            exit 1
+          fi
+
+      - name: Lấy quyền AWS qua OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: cd-build-${{ matrix.service }}-${{ github.run_id }}
+
+      - name: Đăng nhập ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build và đẩy image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ steps.svc.outputs.path }}/Dockerfile
+          push: true
+          provenance: false
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ steps.svc.outputs.ecr }}:${{ needs.plan.outputs.image_tag }}
+            ${{ steps.ecr.outputs.registry }}/${{ steps.svc.outputs.ecr }}:${{ needs.plan.outputs.environment }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          build-args: |
+            VERSION=${{ needs.plan.outputs.version }}
+            GIT_SHA=${{ github.sha }}
+
+  deploy:
+    name: Deploy ${{ needs.plan.outputs.environment }}
+    needs: [plan, build]
+    if: ${{ always() && needs.plan.outputs.services != '[]' && needs.build.result == 'success' }}
+    runs-on: ubuntu-latest
+    # GitHub Environment là nơi cắm luật duyệt. Với `production`, environment có
+    # required reviewers nên job này DỪNG chờ người bấm duyệt — và không có cách nào
+    # đi vòng qua nó bằng cách sửa file workflow, vì luật nằm ở phía GitHub chứ không
+    # nằm trong repo (docs/00 §8.5).
+    environment:
+      name: ${{ needs.plan.outputs.environment }}
+      url: ${{ vars.BASE_URL }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lấy quyền AWS qua OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: cd-deploy-${{ github.run_id }}
+
+      - name: Đăng nhập ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Cập nhật task definition và triển khai
+        env:
+          SERVICES: ${{ needs.plan.outputs.service_names }}
+          IMAGE_TAG: ${{ needs.plan.outputs.image_tag }}
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          CLUSTER: ${{ vars.ECS_CLUSTER }}
+          BLUE_GREEN: ${{ vars.USE_CODEDEPLOY_BLUE_GREEN }}
+        run: |
+          set -euo pipefail
+          for name in $SERVICES; do
+            svc=$(jq -r --arg n "$name" '.services[] | select(.name==$n)' .github/services.json)
+            family=$(echo "$svc" | jq -r '.ecs_service')
+            ecr=$(echo "$svc" | jq -r '.ecr_repository')
+            image="${REGISTRY}/${ecr}:${IMAGE_TAG}"
+
+            echo "::group::$name → $image"
+
+            # Lấy task definition đang chạy rồi chỉ thay image. Không giữ bản sao task
+            # definition trong repo: hạ tầng do CDK sở hữu (docs/00 §7), giữ thêm một
+            # bản trong repo là tạo ra hai nguồn sự thật sẽ lệch nhau.
+            aws ecs describe-task-definition --task-definition "$family" \
+              --query 'taskDefinition' > taskdef-raw.json
+
+            # Đổi image ở container trùng tên service; nếu task definition đặt tên khác
+            # thì lùi về container đầu tiên. Sửa mù index 0 sẽ ghi nhầm image vào
+            # sidecar khi service có nhiều container.
+            container=$(jq -r --arg n "$name" '
+              (.containerDefinitions[] | select(.name == $n) | .name)
+              // .containerDefinitions[0].name' taskdef-raw.json)
+            echo "Container: $container"
+
+            jq --arg img "$image" --arg c "$container" '
+              .containerDefinitions = [
+                .containerDefinitions[] | if .name == $c then .image = $img else . end
+              ]
+              | del(.taskDefinitionArn, .revision, .status, .requiresAttributes,
+                    .compatibilities, .registeredAt, .registeredBy, .deregisteredAt)
+            ' taskdef-raw.json > "taskdef-${name}.json"
+
+            new_arn=$(aws ecs register-task-definition \
+              --cli-input-json "file://taskdef-${name}.json" \
+              --query 'taskDefinition.taskDefinitionArn' --output text)
+            echo "Task definition mới: $new_arn"
+
+            if [ "${BLUE_GREEN:-false}" = "true" ]; then
+              # Blue/green qua CodeDeploy, tự rollback theo CloudWatch Alarm (docs/00 §8.3 ⑦).
+              port=$(echo "$svc" | jq -r '.container_port')
+
+              # AppSpec dựng bằng jq rồi truyền qua --cli-input-json. Dạng viết tắt
+              # "revisionType=...,appSpecContent={content=...}" vỡ ngay khi nội dung có
+              # dấu ngoặc kép hoặc xuống dòng — mà YAML thì luôn có cả hai.
+              appspec=$(jq -n --arg td "$new_arn" --arg c "$container" --argjson p "$port" '{
+                version: "0.0",
+                Resources: [{
+                  TargetService: {
+                    Type: "AWS::ECS::Service",
+                    Properties: {
+                      TaskDefinition: $td,
+                      LoadBalancerInfo: { ContainerName: $c, ContainerPort: $p }
+                    }
+                  }
+                }]
+              }')
+
+              jq -n \
+                --arg app "${CLUSTER}-${name}" \
+                --arg dg "${CLUSTER}-${name}-dg" \
+                --arg spec "$appspec" \
+                --arg desc "cd-deploy ${IMAGE_TAG}" \
+                '{
+                  applicationName: $app,
+                  deploymentGroupName: $dg,
+                  description: $desc,
+                  revision: {
+                    revisionType: "AppSpecContent",
+                    appSpecContent: { content: $spec }
+                  }
+                }' > "codedeploy-${name}.json"
+
+              deployment_id=$(aws deploy create-deployment \
+                --cli-input-json "file://codedeploy-${name}.json" \
+                --query 'deploymentId' --output text)
+              echo "CodeDeploy: $deployment_id"
+              aws deploy wait deployment-successful --deployment-id "$deployment_id"
+            else
+              aws ecs update-service \
+                --cluster "$CLUSTER" \
+                --service "$family" \
+                --task-definition "$new_arn" \
+                --force-new-deployment > /dev/null
+            fi
+
+            echo "::endgroup::"
+          done
+
+          if [ "${BLUE_GREEN:-false}" != "true" ]; then
+            echo "Chờ các service ổn định…"
+            # shellcheck disable=SC2086
+            aws ecs wait services-stable --cluster "$CLUSTER" --services $(
+              for name in $SERVICES; do
+                jq -r --arg n "$name" '.services[] | select(.name==$n) | .ecs_service' .github/services.json
+              done | tr '\n' ' '
+            )
+          fi
+
+      - name: Smoke test
+        env:
+          BASE_URL: ${{ vars.BASE_URL }}
+          SERVICES: ${{ needs.plan.outputs.service_names }}
+        run: bash .github/scripts/smoke_test.sh
+
+  deploy-web:
+    name: Deploy Blazor (S3 + CloudFront)
+    needs: [plan, build]
+    if: ${{ always() && needs.plan.outputs.deploy_web == 'true' && needs.build.result != 'failure' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ needs.plan.outputs.environment }}
+      url: ${{ vars.BASE_URL }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Đọc cấu hình
+        id: cfg
+        run: |
+          python3 -m pip install --quiet pyyaml
+          {
+            echo "dotnet_version=$(python3 .github/scripts/gates.py get runtimes.dotnet)"
+            echo "project=$(python3 .github/scripts/gates.py get sites.0.project --file .github/services.json)"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ steps.cfg.outputs.dotnet_version }}
+
+      - name: Publish
+        env:
+          TELERIK_LICENSE: ${{ secrets.TELERIK_LICENSE }}
+        run: dotnet publish "${{ steps.cfg.outputs.project }}" -c Release -o artifacts/web
+
+      - name: Lấy quyền AWS qua OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: cd-web-${{ github.run_id }}
+
+      - name: Đồng bộ lên S3
+        run: |
+          set -euo pipefail
+          # Tài sản có vân tay trong tên được cache dài; index.html thì không, nếu không
+          # người dùng sẽ giữ mãi bản cũ sau khi deploy.
+          aws s3 sync artifacts/web/wwwroot "s3://${{ vars.WEB_BUCKET }}" \
+            --delete --cache-control "public,max-age=31536000,immutable" \
+            --exclude "index.html" --exclude "*.json"
+          aws s3 sync artifacts/web/wwwroot "s3://${{ vars.WEB_BUCKET }}" \
+            --cache-control "no-cache,no-store,must-revalidate" \
+            --exclude "*" --include "index.html" --include "*.json"
+
+      - name: Vô hiệu hoá cache CloudFront
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id "${{ vars.WEB_DISTRIBUTION_ID }}" \
+            --paths "/*" > /dev/null
+
+  release:
+    name: Tạo GitHub Release
+    needs: [plan, deploy]
+    # docs/00 §8.3 ⑦: tạo Release kèm changelog. Chỉ làm ở production — tạo release
+    # cho mỗi lần deploy dev sẽ biến trang Releases thành log build.
+    if: ${{ needs.plan.outputs.environment == 'production' && needs.deploy.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Tạo release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v${{ needs.plan.outputs.version }}"
+          if gh release view "$tag" > /dev/null 2>&1; then
+            echo "Release $tag đã tồn tại — bỏ qua."
+            exit 0
+          fi
+          # --generate-notes dựng changelog từ tiêu đề PR đã squash merge. Đây chính là
+          # lý do pr-governance bắt tiêu đề PR theo Conventional Commits.
+          gh release create "$tag" \
+            --title "$tag" \
+            --generate-notes \
+            --target "${{ github.sha }}"

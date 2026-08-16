@@ -1,0 +1,256 @@
+# eval-regression — cổng chất lượng nghiệp vụ (docs/09 E7-05 · E7-06, docs/14)
+#
+# Đây là cổng quan trọng nhất trong toàn bộ CI của dự án. Nó trả lời câu hỏi mà không
+# unit test nào trả lời được: thay đổi này có làm hệ thống trích dẫn văn bản hết hiệu
+# lực không.
+#
+#   Stale Citation Rate  = 0        → chặn merge tuyệt đối
+#   Recall@10            ≥ 0,90     → chặn merge
+#   Bất kỳ chỉ số nào tụt > 2% so với baseline trên main → chặn merge
+#
+# Ngưỡng nằm trong eval/gates.yml, không nằm trong file này — sửa ngưỡng phải qua
+# CODEOWNERS của @ai-lead và @tech-lead.
+name: eval-regression
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Dò đường dẫn thay đổi
+    runs-on: ubuntu-latest
+    outputs:
+      eval: ${{ steps.filter.outputs.eval }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            eval:
+              - 'prompts/**'
+              - 'src/python/retrieval/**'
+              - 'src/python/generation/**'
+              - 'eval/**'
+              # Loại trừ chính baseline: PR do CI mở để cập nhật baseline không cần
+              # chạy lại eval, và loại trừ ở đây cắt đứt vòng lặp tự kích hoạt.
+              - '!eval/golden-set/baseline.json'
+              - '!eval/reports/**'
+              - '.github/workflows/eval-regression.yml'
+              - '.github/scripts/eval_gate.py'
+
+  evaluate:
+    name: Chạy golden set và đối chiếu cổng
+    needs: changes
+    if: ${{ needs.changes.outputs.eval == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    outputs:
+      blocked: ${{ steps.gate.outputs.blocked }}
+      enabled: ${{ steps.gate.outputs.enabled }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cài phụ thuộc của cổng
+        run: python3 -m pip install --quiet pyyaml
+
+      - name: Đọc cấu hình cổng
+        id: cfg
+        run: |
+          {
+            echo "enabled=$(python3 .github/scripts/gates.py get enabled --file eval/gates.yml)"
+            echo "entrypoint=$(python3 .github/scripts/gates.py get runner.entrypoint --file eval/gates.yml)"
+            echo "output=$(python3 .github/scripts/gates.py get runner.output --file eval/gates.yml)"
+            echo "timeout=$(python3 .github/scripts/gates.py get runner.timeout_minutes --file eval/gates.yml)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Kiểm tra bộ đo eval đã tồn tại chưa
+        id: harness
+        run: |
+          entrypoint="${{ steps.cfg.outputs.entrypoint }}"
+          if [ -f "$entrypoint" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            if [ "${{ steps.cfg.outputs.enabled }}" = "true" ]; then
+              echo "::error file=eval/gates.yml::Cổng eval đang bật (enabled: true) nhưng không tìm thấy bộ đo tại '$entrypoint'."
+              exit 1
+            fi
+            echo "::warning file=eval/gates.yml::Chưa có bộ đo eval tại '$entrypoint' (story E7-03, E7-04). Cổng đang tắt nên bỏ qua."
+          fi
+
+      - name: Cấu hình quyền AWS cho Bedrock
+        # LLM-as-judge (E7-04) gọi model qua Bedrock. Dùng OIDC, không có access key
+        # dài hạn — cùng nguyên tắc với cd-deploy (docs/00 §8.5).
+        if: ${{ steps.harness.outputs.present == 'true' && vars.EVAL_AWS_ROLE_ARN != '' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.EVAL_AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: eval-regression-${{ github.run_id }}
+
+      - name: Chạy toàn bộ golden set
+        if: ${{ steps.harness.outputs.present == 'true' }}
+        timeout-minutes: ${{ fromJSON(steps.cfg.outputs.timeout) }}
+        run: |
+          python3 -m pip install --quiet uv
+          uv sync --directory src/python --all-extras --dev
+          mkdir -p "$(dirname "${{ steps.cfg.outputs.output }}")"
+          # Lệnh lấy từ eval/gates.yml → runner.command, không viết cứng ở đây.
+          mapfile -t cmd < <(python3 .github/scripts/gates.py json runner.command --file eval/gates.yml | jq -r '.[]')
+          echo "Chạy: ${cmd[*]}"
+          "${cmd[@]}"
+
+      - name: Dựng kết quả rỗng khi chưa có bộ đo
+        if: ${{ steps.harness.outputs.present != 'true' }}
+        run: |
+          # Không có bộ đo thì không có số liệu. Ghi rõ null thay vì bịa số 0 — số 0 sẽ
+          # trông như "hoàn hảo" ở Stale Citation Rate và tạo cảm giác an toàn giả.
+          mkdir -p "$(dirname "${{ steps.cfg.outputs.output }}")"
+          python3 - <<'PY'
+          import json, os, pathlib
+          out = pathlib.Path(os.environ["OUTPUT"])
+          out.write_text(json.dumps({"question_count": 0, "metrics": {}}, indent=2), encoding="utf-8")
+          PY
+        env:
+          OUTPUT: ${{ steps.cfg.outputs.output }}
+
+      - name: Đối chiếu cổng
+        id: gate
+        run: |
+          python3 .github/scripts/eval_gate.py check \
+            --results "${{ steps.cfg.outputs.output }}" \
+            --comment-out eval/reports/pr-comment.md
+
+      - name: Tìm comment cũ của bot
+        if: ${{ github.event_name == 'pull_request' }}
+        id: find
+        uses: peter-evans/find-comment@v3
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          comment-author: github-actions[bot]
+          body-includes: "Eval regression — golden set"
+
+      - name: Đăng bảng so sánh trước/sau vào PR
+        # docs/09 E7-06. Cập nhật đúng một comment thay vì thêm mới mỗi lần push —
+        # một PR chạy lại 10 lần không nên để lại 10 bảng số liệu.
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          comment-id: ${{ steps.find.outputs.comment-id }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body-path: eval/reports/pr-comment.md
+          edit-mode: replace
+
+      - name: Lưu báo cáo
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report-${{ github.run_id }}
+          path: eval/reports
+          retention-days: 90
+
+  update-baseline:
+    name: Cập nhật baseline trên main
+    needs: [changes, evaluate]
+    # docs/09 E7-05 AC cuối: baseline cập nhật khi merge vào main.
+    if: >-
+      ${{ github.event_name == 'push'
+          && github.ref == 'refs/heads/main'
+          && needs.changes.outputs.eval == 'true'
+          && needs.evaluate.result == 'success'
+          && needs.evaluate.outputs.enabled == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Tải kết quả của lần chạy vừa rồi
+        uses: actions/download-artifact@v4
+        with:
+          name: eval-report-${{ github.run_id }}
+          path: eval/reports
+
+      - name: Ghi baseline mới
+        run: |
+          python3 -m pip install --quiet pyyaml
+          python3 .github/scripts/eval_gate.py write-baseline \
+            --results "$(python3 .github/scripts/gates.py get runner.output --file eval/gates.yml)"
+
+      - name: Mở PR cập nhật baseline
+        # Cố ý KHÔNG push thẳng vào main. Ruleset cấm push trực tiếp và điều đó không
+        # có ngoại lệ nào — kể cả cho CI. Mở bypass cho GitHub Actions sẽ biến "cấm push
+        # trực tiếp" thành "cấm push trực tiếp, trừ khi viết được một workflow", tức là
+        # không cấm gì cả.
+        #
+        # PR này không tự kích hoạt lại eval-regression vì baseline.json bị loại khỏi
+        # bộ lọc đường dẫn ở job `changes`.
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: chore/eval-baseline
+          base: main
+          # Ruleset bắt buộc signed commits. Action này tạo commit qua GitHub API khi
+          # bật sign-commits, nên commit được GitHub ký — nếu không, PR do CI mở sẽ
+          # không bao giờ merge được.
+          sign-commits: true
+          commit-message: "chore(eval): cập nhật baseline sau ${{ github.sha }}"
+          title: "chore(eval): cập nhật baseline golden set"
+          body: |
+            Baseline chỉ số eval trên `main` được cập nhật tự động sau khi merge
+            ${{ github.sha }}.
+
+            Sinh bởi [lần chạy này](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}).
+            Không sửa tay nội dung `baseline.json` trong PR này.
+          labels: |
+            type: chore
+            automated
+          add-paths: eval/golden-set/baseline.json
+          delete-branch: true
+
+  eval-regression:
+    name: eval-regression
+    needs: [changes, evaluate]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Tổng hợp kết quả
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS"
+          failed=$(echo "$RESULTS" | jq -r 'to_entries[]
+            | select(.value.result == "failure" or .value.result == "cancelled")
+            | .key')
+          if [ -n "$failed" ]; then
+            echo "::error::Cổng eval chặn merge. Xem bảng so sánh trong comment của PR."
+            exit 1
+          fi
+          if [ "${{ needs.evaluate.result }}" = "skipped" ]; then
+            echo "PR không đụng prompts/, retrieval/, generation/ hay eval/ — cổng eval không áp dụng."
+          elif [ "${{ needs.evaluate.outputs.enabled }}" != "true" ]; then
+            echo "::warning::Cổng eval đang TẮT trong eval/gates.yml — kết quả chỉ để tham khảo."
+          fi
+          echo "eval-regression đạt."

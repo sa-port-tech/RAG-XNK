@@ -1,0 +1,55 @@
+# Ngưỡng chất lượng do CI thực thi.
+#
+# Vì sao tách ra file riêng: ngưỡng là quyết định của đội, không phải chi tiết cài đặt
+# của workflow. Để trong file này thì việc nới ngưỡng luôn hiện thành một dòng diff mà
+# CODEOWNERS phải duyệt, thay vì lẫn vào một thay đổi workflow dài.
+#
+# Nguyên tắc bánh cóc: các ngưỡng dưới đây chỉ được đi lên. Nới ngưỡng xuống phải nêu
+# lý do trong PR và được @sa-port-tech/tech-lead duyệt.
+#
+# Ngưỡng eval (Stale Citation Rate, Recall@10, biên trượt 2%) KHÔNG nằm ở đây —
+# chúng nằm trong eval/gates.yml vì thuộc quyền của AI Engineer và chuyên gia XNK.
+
+runtimes:
+  dotnet: "9.0.x"
+  python: "3.12"
+  node: "20"
+
+dotnet:
+  # Khởi điểm 0 vì Sprint 0 chưa có code (E1-11 mới dựng skeleton).
+  # Nâng lên 60 khi kết thúc Sprint 1, 70 khi kết thúc Sprint 2.
+  coverage_min_line_percent: 0
+  # Cảnh báo trình biên dịch và phân tích tĩnh được coi là lỗi.
+  warnings_as_errors: true
+  # `dotnet format --verify-no-changes` phải sạch.
+  enforce_format: true
+
+python:
+  coverage_min_line_percent: 0
+  # ruff check + ruff format --check + mypy đều phải sạch.
+  enforce_lint: true
+  enforce_format: true
+  enforce_types: true
+
+blazor:
+  # Ngân sách kích thước gói WASM sau nén Brotli, tính trên toàn bộ wwwroot/_framework.
+  # Căn cứ: nhân viên tra cứu tại cảng/kho dùng mạng di động (docs/00 §6).
+  # Vượt ngân sách thì CI đỏ — buộc phải xử lý bằng trimming/lazy loading, không lờ đi.
+  bundle_budget_brotli_kb: 3500
+  # Cảnh báo khi đã dùng quá tỉ lệ này của ngân sách, chưa chặn merge.
+  bundle_warn_at_percent: 85
+
+pull_request:
+  # Tiêu đề PR theo Conventional Commits — squash merge dùng nó làm dòng changelog
+  # cho GitHub Release ở docs/00 §8.3 ⑦.
+  require_conventional_title: true
+  # PR phải có `Closes #<n>` — nếu không, issue không tự chuyển cột (docs/00 §8.3 ④⑥).
+  require_linked_issue: true
+  # docs/01 §5.2: "≥1 approval (≥2 nếu chạm infra/ hoặc db/migrations/)".
+  # Ruleset của GitHub chỉ đặt được một con số approval cho cả nhánh, không phân biệt
+  # theo đường dẫn — nên mức 2 approval được workflow pr-governance thực thi.
+  default_required_approvals: 1
+  elevated_required_approvals: 2
+  elevated_paths:
+    - "infra/"
+    - "db/migrations/"

@@ -1,0 +1,100 @@
+# Cổng chất lượng eval — nguồn sự thật cho workflow eval-regression.
+#
+# Căn cứ: docs/14 §"Ngưỡng và hành vi", docs/09 E7-05, docs/01 §9.1.
+# CODEOWNERS: @sa-port-tech/ai-lead + @sa-port-tech/tech-lead.
+#
+# ⚠️ Sửa file này là sửa thước đo của cả dự án. Nới ngưỡng để PR của mình xanh là
+# hành vi mà docs/14 §"Bẫy thường gặp" gọi thẳng tên: gian lận với chính mình.
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# CÔNG TẮC CỔNG
+#
+# enabled: false  → workflow vẫn chạy, vẫn báo cáo, nhưng KHÔNG chặn merge.
+# enabled: true   → cổng có hiệu lực đầy đủ.
+#
+# Đang tắt vì bộ đo chưa tồn tại: E7-03 (Recall@10, MRR, Stale Citation Rate) và
+# E7-04 (Citation Precision, Groundedness) chưa làm. Bật lên trong chính PR hoàn
+# thành E7-04 — đó là một dòng diff, và CODEOWNERS phải duyệt nó.
+#
+# 🔴 Chừng nào dòng dưới còn là false, tuyên bố "không ai merge được thay đổi làm
+#    hệ thống trích dẫn văn bản hết hiệu lực" (E7-05) CHƯA thành hiện thực.
+# ─────────────────────────────────────────────────────────────────────────────────
+enabled: false
+
+runner:
+  # Lệnh chạy toàn bộ golden set. Phải ghi kết quả ra `output` theo đúng lược đồ ở §metrics.
+  command: ["python", "-m", "eval.harness", "--all", "--output", "eval/reports/latest.json"]
+  # Workflow kiểm tra file này tồn tại trước khi gọi lệnh, để báo lỗi rõ ràng thay vì
+  # ném ModuleNotFoundError.
+  entrypoint: "eval/harness/__main__.py"
+  output: "eval/reports/latest.json"
+  timeout_minutes: 45
+
+baseline:
+  path: "eval/golden-set/baseline.json"
+  # Baseline được ghi lại mỗi khi merge vào main (docs/09 E7-05 AC cuối).
+  update_on_branch: "main"
+  # Golden set đổi thì baseline cũ vô nghĩa — docs/14: "Thêm câu mới → chạy lại baseline.
+  # Không so sánh chỉ số qua hai phiên bản golden set khác nhau."
+  invalidate_when_golden_set_changes: true
+
+regression:
+  # docs/14: "Bất kỳ chỉ số nào tụt > 2% so với baseline → chặn merge".
+  # Hiểu theo nghĩa tương đối: giảm quá 2% giá trị baseline.
+  max_relative_drop_percent: 2.0
+  blocking: true
+
+# ─────────────────────────────────────────────────────────────────────────────────
+# CHỈ SỐ
+#
+# key       — khoá trong file kết quả JSON của runner
+# direction — higher_is_better | lower_is_better
+# absolute  — ngưỡng tuyệt đối; thiếu nghĩa là chỉ xét trượt so với baseline
+# blocking  — true chặn merge, false chỉ cảnh báo (đúng cột "hành vi" của docs/14)
+# ─────────────────────────────────────────────────────────────────────────────────
+metrics:
+  - key: stale_citation_rate
+    label: "Stale Citation Rate"
+    direction: lower_is_better
+    absolute: { max: 0.0 }
+    blocking: true
+    format: percent
+    note: >-
+      Chặn merge tuyệt đối. Đây là quy tắc BR-02 — hệ thống trích dẫn điều khoản đã hết
+      hiệu lực thì câu trả lời sai về mặt pháp lý, dù đọc vào rất thuyết phục.
+
+  - key: recall_at_10
+    label: "Recall@10"
+    direction: higher_is_better
+    absolute: { min: 0.90 }
+    blocking: true
+    format: ratio
+
+  - key: mrr
+    label: "MRR"
+    direction: higher_is_better
+    blocking: false
+    format: ratio
+    note: Không có ngưỡng tuyệt đối; chỉ xét mức trượt so với baseline.
+
+  - key: citation_precision
+    label: "Citation Precision"
+    direction: higher_is_better
+    absolute: { min: 0.90 }
+    blocking: false
+    format: ratio
+    note: docs/14 xếp mức "cảnh báo" — LLM-as-judge còn nhiễu, 20% được người chấm lại.
+
+  - key: correct_refusal_rate
+    label: "Correct Refusal Rate"
+    direction: higher_is_better
+    absolute: { min: 0.90 }
+    blocking: false
+    format: ratio
+    note: Quy tắc BR-07 — không đủ căn cứ thì phải từ chối, không được đoán.
+
+  - key: groundedness
+    label: "Groundedness"
+    direction: higher_is_better
+    blocking: false
+    format: ratio

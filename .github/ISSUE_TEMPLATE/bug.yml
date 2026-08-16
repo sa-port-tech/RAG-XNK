@@ -1,0 +1,126 @@
+name: 🐞 Bug
+description: Hệ thống chạy sai so với AC đã chốt.
+title: "[Bug] "
+labels: ["type: bug", "status: triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        > **Trước khi mở:** tìm issue trùng bằng nhãn `type: bug`.
+        > Nếu là **sai sót nội dung văn bản pháp luật** (thiếu văn bản, sai trạng thái hiệu lực,
+        > trích xuất lỗi) thì dùng form **📕 Corpus** chứ không phải form này.
+
+  - type: textarea
+    id: mo-ta
+    attributes:
+      label: Mô tả
+      description: Một đoạn ngắn — hệ thống làm sai cái gì.
+      placeholder: Khi hỏi về thủ tục X, câu trả lời trích Điều 25 TT 38/2015 mà không kèm ngày hiệu lực.
+    validations:
+      required: true
+
+  - type: textarea
+    id: tai-hien
+    attributes:
+      label: Các bước tái hiện
+      description: Đánh số. Người khác phải làm lại được y hệt.
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: ky-vong
+    attributes:
+      label: Kỳ vọng
+      description: Trích AC của story liên quan nếu có.
+    validations:
+      required: true
+
+  - type: textarea
+    id: thuc-te
+    attributes:
+      label: Thực tế
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      description: Quyết định workflow CI nào chạy và ai được CODEOWNERS gán review.
+      options:
+        - ingestion
+        - retrieval
+        - generation
+        - web
+        - infra
+        - bpmn
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: |
+        P0 = chặn sprint hoặc vi phạm quy tắc nghiệp vụ chặn merge (docs/16 §3).
+      options:
+        - P0
+        - P1
+        - P2
+        - P3
+    validations:
+      required: true
+
+  - type: dropdown
+    id: moi-truong
+    attributes:
+      label: Môi trường
+      options:
+        - dev
+        - staging
+        - production
+        - máy cá nhân
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: vi-pham-nghiep-vu
+    attributes:
+      label: Có vi phạm quy tắc nghiệp vụ nào không?
+      description: |
+        Tham chiếu ma trận truy vết (docs/16 §3). **Tích bất kỳ ô nào ở đây thì
+        issue mặc nhiên là P0 và bắt buộc chuyên gia XNK xác nhận trước khi đóng.**
+      options:
+        - label: "BR-02 — Trả về điều khoản đã hết hiệu lực"
+        - label: "BR-01 — Khẳng định không có trích dẫn hoặc thiếu ngày hiệu lực"
+        - label: "BR-04 — Khẳng định mã HS mà không kèm cảnh báo"
+        - label: "BR-05 — Nêu thuế suất ưu đãi mà không nêu điều kiện"
+        - label: "BR-07 — Trả lời bừa khi không đủ căn cứ, đáng lẽ phải từ chối"
+        - label: "BR-11 — Dữ liệu rò rỉ giữa các tenant"
+
+  - type: input
+    id: cau-hoi-goc
+    attributes:
+      label: Câu hỏi gốc của người dùng
+      description: Dán nguyên văn. Nếu tái hiện được thì đây là ứng viên cho golden set.
+
+  - type: textarea
+    id: log
+    attributes:
+      label: Log / trace / ảnh chụp
+      description: Trace ID từ Jaeger, log CloudWatch, ảnh màn hình. Xoá dữ liệu định danh trước khi dán.
+      render: text
+
+  - type: checkboxes
+    id: xac-nhan
+    attributes:
+      label: Xác nhận
+      options:
+        - label: Tôi đã tìm và không thấy issue trùng.
+          required: true
+        - label: Tôi đã xoá mọi dữ liệu định danh cá nhân và bí mật khỏi log dán ở trên.
+          required: true

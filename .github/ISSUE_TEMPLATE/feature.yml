@@ -1,0 +1,140 @@
+name: ✨ Story / Feature
+description: Một hạng mục backlog. Form này chính là Definition of Ready (docs/01 §5.1).
+title: "[Story] "
+labels: ["type: story", "status: triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        > **Form này là Definition of Ready dạng máy đọc được.**
+        > Story không điền đủ các trường bắt buộc thì không được đưa vào Sprint Planning.
+
+  - type: input
+    id: story-id
+    attributes:
+      label: Mã story trong backlog
+      description: Ví dụ `E3-05`. Bỏ trống nếu đây là story mới chưa có trong docs/09.
+      placeholder: E3-05
+
+  - type: textarea
+    id: user-story
+    attributes:
+      label: User story
+      description: "Định dạng bắt buộc: `Là… tôi muốn… để…` (docs/01 §5.1)."
+      value: |
+        Là **<vai trò>**, tôi muốn **<năng lực>**, để **<giá trị nhận được>**.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: |
+        Dạng Given / When / Then. **Mỗi AC phải kiểm chứng được bằng máy hoặc bằng chuyên gia** —
+        AC không kiểm chứng được là AC chưa viết xong.
+      value: |
+        - [ ] Given <bối cảnh>, When <hành động>, Then <kết quả quan sát được>
+        - [ ] Given …, When …, Then …
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - ingestion
+        - retrieval
+        - generation
+        - web
+        - infra
+        - bpmn
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - P0
+        - P1
+        - P2
+        - P3
+    validations:
+      required: true
+
+  - type: dropdown
+    id: story-points
+    attributes:
+      label: Story Points
+      description: Thang Fibonacci. Story > 13 điểm phải tách nhỏ trước khi vào sprint.
+      options:
+        - "1"
+        - "2"
+        - "3"
+        - "5"
+        - "8"
+        - "13"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Phase
+      options:
+        - Prototype
+        - Phase 1
+        - Production
+    validations:
+      required: true
+
+  - type: dropdown
+    id: expert-review-required
+    attributes:
+      label: Expert Review Required
+      description: |
+        Story có **chạm nghiệp vụ XNK** không? Nếu có, chuyên gia phải xác nhận AC đúng nghiệp vụ
+        trước Sprint Planning, và xác nhận lại kết quả trước khi đóng (docs/01 §5.1 và §5.2).
+        Đây là điều kiện hay bị bỏ qua nhất và tốn kém nhất khi bỏ qua.
+      options:
+        - "Có"
+        - "Không"
+    validations:
+      required: true
+
+  - type: textarea
+    id: business-rules
+    attributes:
+      label: Quy tắc nghiệp vụ liên quan
+      description: Mã BR trong ma trận truy vết (docs/16 §3). Ghi rõ để truy vết được tới test và chỉ số.
+      placeholder: BR-02, BR-03
+
+  - type: textarea
+    id: phu-thuoc
+    attributes:
+      label: Phụ thuộc
+      description: |
+        Liệt kê issue phải xong trước. **DoR yêu cầu không phụ thuộc vào story chưa hoàn thành
+        ngoài sprint hiện tại** — nếu có, story này chưa Ready.
+      placeholder: "#12, #34"
+
+  - type: textarea
+    id: ngoai-pham-vi
+    attributes:
+      label: Ngoài phạm vi của story này
+      description: Chống scope creep khi thực hiện. Ghi rõ cái gì cố tình KHÔNG làm ở đây.
+
+  - type: checkboxes
+    id: dor
+    attributes:
+      label: Definition of Ready
+      description: Đủ 4 ô này story mới được kéo sang cột "Todo".
+      options:
+        - label: Viết theo định dạng `Là… tôi muốn… để…`
+        - label: AC dạng Given/When/Then, kiểm chứng được bằng máy hoặc bằng chuyên gia
+        - label: Đã ước lượng story point
+        - label: Không phụ thuộc vào story chưa hoàn thành ngoài sprint hiện tại
+        - label: "Nếu chạm nghiệp vụ XNK: chuyên gia đã review và xác nhận AC đúng nghiệp vụ"

@@ -1,0 +1,98 @@
+name: 🎓 Expert Review — yêu cầu chuyên gia XNK xác nhận
+description: Đặt lịch một hạng mục cho Expert Review Session (thứ 5 hàng tuần, docs/01 §6).
+title: "[Expert Review] "
+labels: ["type: expert-review", "needs: expert-review", "status: triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        > Chuyên gia XNK chỉ có **20% × 2 người**. Đây là nguồn lực khan hiếm nhất của dự án
+        > (rủi ro R1). Mỗi issue mở ở đây là một khoản chi vào quỹ thời gian đó — nêu **đúng
+        > một câu hỏi cần quyết**, đừng gộp nhiều việc.
+
+  - type: dropdown
+    id: doi-tuong
+    attributes:
+      label: Đối tượng cần review
+      options:
+        - AC của một story
+        - Câu hỏi + đáp án chuẩn trong golden set
+        - System prompt
+        - Đồ thị hiệu lực của một cụm văn bản
+        - Thuật ngữ trong từ điển XNK
+        - Bảng tra cứu có cấu trúc (thuế / HS / Incoterms / loại hình)
+        - Mô hình quy trình BPMN
+        - Chấm điểm câu trả lời (phiếu 1–5)
+    validations:
+      required: true
+
+  - type: input
+    id: lien-quan
+    attributes:
+      label: Issue / PR / tài liệu liên quan
+      placeholder: "#42, docs/12-ma-tran-incoterms-2020.md §3"
+    validations:
+      required: true
+
+  - type: textarea
+    id: cau-hoi
+    attributes:
+      label: Câu hỏi cần chuyên gia trả lời
+      description: |
+        Viết thành câu hỏi đóng, trả lời được bằng "đúng/sai" hoặc bằng một lựa chọn.
+        Câu hỏi mở kiểu "chuyên gia xem giúp" sẽ tốn cả buổi mà không ra quyết định.
+      placeholder: |
+        Khi câu hỏi không nêu mốc thời gian, hệ thống có được mặc định dùng ngày hôm nay
+        làm mốc xét hiệu lực không, hay phải hỏi lại người dùng?
+    validations:
+      required: true
+
+  - type: textarea
+    id: phuong-an
+    attributes:
+      label: Các phương án đội đã cân nhắc
+      description: Nêu sẵn 2–3 phương án để chuyên gia chọn thay vì phải tự nghĩ ra.
+      value: |
+        - Phương án A —
+        - Phương án B —
+
+  - type: textarea
+    id: hau-qua
+    attributes:
+      label: Quyết định này ảnh hưởng tới cái gì
+      description: Story nào bị chặn, bao nhiêu câu golden set phải sửa lại.
+
+  - type: dropdown
+    id: han
+    attributes:
+      label: Cần trả lời trước
+      options:
+        - Buổi Expert Review gần nhất (thứ 5)
+        - Trước Sprint Planning kế tiếp
+        - Trước Sprint Review
+        - Không gấp
+    validations:
+      required: true
+
+  - type: dropdown
+    id: chan
+    attributes:
+      label: Đang chặn công việc nào không?
+      options:
+        - "Có — có người đang ngồi chờ câu trả lời này"
+        - "Không — chuẩn bị trước cho sprint sau"
+    validations:
+      required: true
+
+  - type: textarea
+    id: ket-luan
+    attributes:
+      label: Kết luận của chuyên gia
+      description: |
+        **Chuyên gia điền phần này**, kèm tên người kết luận và ngày.
+        Issue chỉ được đóng khi phần này có nội dung — kết luận nói miệng trong buổi họp
+        mà không ghi lại thì coi như chưa có.
+      placeholder: |
+        Kết luận: …
+        Căn cứ: …
+        Người kết luận: … — Ngày: …

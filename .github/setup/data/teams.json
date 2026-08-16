@@ -1,0 +1,56 @@
+[
+  {
+    "slug": "product-owner",
+    "name": "Product Owner",
+    "description": "N1 — Tối ưu giá trị sản phẩm, sở hữu backlog, nghiệm thu increment trên môi trường dev.",
+    "permission": "push"
+  },
+  {
+    "slug": "business-analyst",
+    "name": "Business Analyst",
+    "description": "N3 — Chi tiết hoá story, sở hữu tài liệu nghiệp vụ. Không quyết định ưu tiên.",
+    "permission": "push"
+  },
+  {
+    "slug": "tech-lead",
+    "name": "Tech Lead",
+    "description": "N4 — Kiến trúc sư giải pháp. Chủ sở hữu mặc định của toàn repo trong CODEOWNERS.",
+    "permission": "maintain"
+  },
+  {
+    "slug": "devops-lead",
+    "name": "DevOps / Platform",
+    "description": "N9 — Hạ tầng CDK, CI/CD, OIDC federation, kiểm soát chi phí AWS.",
+    "permission": "maintain"
+  },
+  {
+    "slug": "data-lead",
+    "name": "Data Engineer",
+    "description": "N5 — Đồ thị hiệu lực và lược đồ dữ liệu. Vị trí quan trọng nhất của dự án.",
+    "permission": "push"
+  },
+  {
+    "slug": "backend-lead",
+    "name": "Backend Engineer (.NET)",
+    "description": "N6 — Service .NET 9, cách ly tenant, tích hợp Camunda qua external task.",
+    "permission": "push"
+  },
+  {
+    "slug": "ai-lead",
+    "name": "AI/ML Engineer",
+    "description": "N7 — Retrieval, generation, prompt và toàn bộ bộ đo eval.",
+    "permission": "push"
+  },
+  {
+    "slug": "frontend-lead",
+    "name": "Frontend Engineer (Blazor)",
+    "description": "N8 — Blazor WASM + Telerik, giao diện tra cứu trên điện thoại.",
+    "permission": "push"
+  },
+  {
+    "slug": "xnk-expert-team",
+    "name": "Chuyên gia nghiệp vụ XNK",
+    "description": "N10 — Hai chuyên gia, 20% mỗi người. Người duy nhất có thẩm quyền xác nhận nội dung nghiệp vụ: prompt, golden set, BPMN, đồ thị hiệu lực.",
+    "permission": "push"
+  }
+]

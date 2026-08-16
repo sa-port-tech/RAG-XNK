@@ -1,0 +1,99 @@
+{
+  "$comment": [
+    "Danh mục service — nguồn sự thật duy nhất cho path filter của CI và ma trận build của CD.",
+    "Thêm service mới thì sửa đúng file này; không sửa rải rác trong từng workflow.",
+    "docs/00 §8.1 (cấu trúc monorepo) và docs/09 E1-11 (skeleton 7 service, mỗi service có healthcheck).",
+    "Xnk.Shared là thư viện dùng chung, không deploy — nằm ở mục libraries.",
+    "Xnk.Web là Blazor WASM, phân phối qua S3 + CloudFront chứ không phải ECS — nằm ở mục sites."
+  ],
+  "services": [
+    {
+      "name": "identity-tenant",
+      "stack": "dotnet",
+      "path": "src/dotnet/Xnk.IdentityTenant",
+      "project": "src/dotnet/Xnk.IdentityTenant/Xnk.IdentityTenant.csproj",
+      "ecr_repository": "xnk/identity-tenant",
+      "ecs_service": "xnk-identity-tenant",
+      "health_path": "/health/ready",
+      "container_port": 8080
+    },
+    {
+      "name": "chat",
+      "stack": "dotnet",
+      "path": "src/dotnet/Xnk.Chat",
+      "project": "src/dotnet/Xnk.Chat/Xnk.Chat.csproj",
+      "ecr_repository": "xnk/chat",
+      "ecs_service": "xnk-chat",
+      "health_path": "/health/ready",
+      "container_port": 8080
+    },
+    {
+      "name": "corpus",
+      "stack": "dotnet",
+      "path": "src/dotnet/Xnk.Corpus",
+      "project": "src/dotnet/Xnk.Corpus/Xnk.Corpus.csproj",
+      "ecr_repository": "xnk/corpus",
+      "ecs_service": "xnk-corpus",
+      "health_path": "/health/ready",
+      "container_port": 8080
+    },
+    {
+      "name": "workflow-worker",
+      "stack": "dotnet",
+      "path": "src/dotnet/Xnk.WorkflowWorker",
+      "project": "src/dotnet/Xnk.WorkflowWorker/Xnk.WorkflowWorker.csproj",
+      "ecr_repository": "xnk/workflow-worker",
+      "ecs_service": "xnk-workflow-worker",
+      "health_path": "/health/ready",
+      "container_port": 8080
+    },
+    {
+      "name": "ingestion",
+      "stack": "python",
+      "path": "src/python/ingestion",
+      "ecr_repository": "xnk/ingestion",
+      "ecs_service": "xnk-ingestion",
+      "health_path": "/health/ready",
+      "container_port": 8000
+    },
+    {
+      "name": "retrieval",
+      "stack": "python",
+      "path": "src/python/retrieval",
+      "ecr_repository": "xnk/retrieval",
+      "ecs_service": "xnk-retrieval",
+      "health_path": "/health/ready",
+      "container_port": 8000
+    },
+    {
+      "name": "generation",
+      "stack": "python",
+      "path": "src/python/generation",
+      "ecr_repository": "xnk/generation",
+      "ecs_service": "xnk-generation",
+      "health_path": "/health/ready",
+      "container_port": 8000
+    }
+  ],
+  "sites": [
+    {
+      "name": "web",
+      "stack": "blazor",
+      "path": "src/dotnet/Xnk.Web",
+      "project": "src/dotnet/Xnk.Web/Xnk.Web.csproj",
+      "publish_dir": "wwwroot",
+      "bucket_variable": "WEB_BUCKET",
+      "distribution_variable": "WEB_DISTRIBUTION_ID"
+    }
+  ],
+  "libraries": [
+    {
+      "name": "shared",
+      "stack": "dotnet",
+      "path": "src/dotnet/Xnk.Shared",
+      "project": "src/dotnet/Xnk.Shared/Xnk.Shared.csproj"
+    }
+  ],
+  "solution": "src/dotnet/Xnk.sln",
+  "python_root": "src/python"
+}

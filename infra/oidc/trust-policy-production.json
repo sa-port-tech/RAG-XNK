@@ -1,0 +1,27 @@
+{
+  "_comment": [
+    "Khoá theo `environment:production`, KHÔNG theo `ref`. Đây là điểm khiến cổng duyệt",
+    "thủ công của docs/00 §8.3 ⑦ có hiệu lực thật: GitHub chỉ phát ra claim này cho job",
+    "khai báo `environment: production`, mà environment đó có required reviewers ở phía",
+    "GitHub. Sửa workflow file không tạo ra được claim mà người sửa không có quyền.",
+    "",
+    "Khoá JSON bắt đầu bằng dấu gạch dưới bị IAM bỏ qua, nên chú thích này an toàn."
+  ],
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "GitHubActionsDeployProduction",
+      "Effect": "Allow",
+      "Principal": {
+        "Federated": "arn:aws:iam::<AWS_ACCOUNT_ID>:oidc-provider/token.actions.githubusercontent.com"
+      },
+      "Action": "sts:AssumeRoleWithWebIdentity",
+      "Condition": {
+        "StringEquals": {
+          "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
+          "token.actions.githubusercontent.com:sub": "repo:sa-port-tech/RAG-XNK:environment:production"
+        }
+      }
+    }
+  ]
+}

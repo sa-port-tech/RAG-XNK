@@ -1,0 +1,71 @@
+# pr-governance — luật PR mà Ruleset của GitHub không diễn đạt được
+#
+# ⚠️ Workflow này KHÔNG có trong danh sách 7 workflow ở docs/00 §8.1. Nó được thêm vì
+# nếu không có nó thì ba yêu cầu sau chỉ tồn tại trên giấy:
+#
+#   · docs/01 §5.2 — "≥1 approval, ≥2 nếu chạm infra/ hoặc db/migrations/"
+#     Ruleset chỉ đặt được MỘT con số approval cho cả nhánh main, không phân biệt
+#     theo đường dẫn. Đặt cứng 2 cho mọi PR là cách sai: nó bắt cả PR sửa lỗi chính
+#     tả phải chờ hai người, và đội sẽ học cách duyệt cho xong cho nhanh.
+#
+#   · docs/00 §8.3 ④ — PR phải có "Closes #123" thì issue mới tự chuyển cột.
+#
+#   · docs/00 §8.3 ⑦ — Release có changelog. Squash merge lấy tiêu đề PR làm thông
+#     điệp commit, nên changelog chỉ đọc được nếu tiêu đề PR có kỷ luật.
+#
+# Ngưỡng nằm trong .github/quality-gates.yml → pull_request.
+name: pr-governance
+
+on:
+  pull_request:
+    types: [opened, reopened, edited, synchronize, ready_for_review]
+  # Approval là một sự kiện riêng. Không lắng nghe nó thì check sẽ mãi đỏ sau khi
+  # người thứ hai bấm duyệt, cho tới khi có ai đó push thêm một commit vô nghĩa.
+  pull_request_review:
+    types: [submitted, dismissed, edited]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  pr-governance:
+    name: pr-governance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Đọc cấu hình
+        id: cfg
+        run: |
+          python3 -m pip install --quiet pyyaml
+          g=".github/scripts/gates.py"
+          {
+            echo "conventional=$(python3 $g get pull_request.require_conventional_title)"
+            echo "linked=$(python3 $g get pull_request.require_linked_issue)"
+            echo "default_approvals=$(python3 $g get pull_request.default_required_approvals)"
+            echo "elevated_approvals=$(python3 $g get pull_request.elevated_required_approvals)"
+            echo "elevated_paths=$(python3 $g json pull_request.elevated_paths)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Kiểm tra luật
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const check = require('./.github/scripts/pr-governance.cjs');
+            await check({
+              github,
+              context,
+              core,
+              config: {
+                requireConventionalTitle: ${{ steps.cfg.outputs.conventional }},
+                requireLinkedIssue: ${{ steps.cfg.outputs.linked }},
+                defaultApprovals: ${{ steps.cfg.outputs.default_approvals }},
+                elevatedApprovals: ${{ steps.cfg.outputs.elevated_approvals }},
+                elevatedPaths: ${{ steps.cfg.outputs.elevated_paths }},
+              },
+            });

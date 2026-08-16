@@ -1,0 +1,26 @@
+{
+  "_comment": [
+    "Baseline chỉ số eval trên nhánh main. Workflow eval-regression đọc file này để",
+    "phát hiện chỉ số tụt quá biên cho phép (eval/gates.yml → regression).",
+    "",
+    "File này do CI ghi, KHÔNG sửa tay. Muốn thay đổi baseline thì sửa hệ thống cho",
+    "chỉ số tốt lên rồi merge — đó là cách duy nhất hợp lệ.",
+    "",
+    "status = not-established: chưa từng có lần chạy nào trên main. Ở trạng thái này,",
+    "cổng trượt-so-với-baseline không áp dụng, nhưng các ngưỡng TUYỆT ĐỐI vẫn áp dụng.",
+    "Lần chạy thành công đầu tiên trên main sẽ thay toàn bộ nội dung file này."
+  ],
+  "status": "not-established",
+  "generated_at": null,
+  "commit": null,
+  "golden_set_fingerprint": null,
+  "golden_set_question_count": 0,
+  "metrics": {
+    "stale_citation_rate": null,
+    "recall_at_10": null,
+    "mrr": null,
+    "citation_precision": null,
+    "correct_refusal_rate": null,
+    "groundedness": null
+  }
+}

@@ -1,0 +1,105 @@
+# ci-bpmn — validate BPMN · CHẶN Java Delegate lọt vào (docs/09 E1-15, docs/00 §8.3 ④)
+#
+# Đây là workflow bảo vệ một quyết định kiến trúc, không phải một quy ước code style.
+# docs/00 xếp "dùng Java Delegate trong BPMN" vào nhóm những việc KHÔNG được làm: nó
+# khoá quy trình vào Camunda 7 và JVM, loại service .NET/Python khỏi cuộc chơi, và
+# khiến đường chuyển sang Camunda 8 sau này gần như bất khả thi.
+#
+# Quyết định kiến trúc chỉ nằm trong tài liệu là quyết định sẽ bị vi phạm. Ở đây nó
+# nằm trong CI.
+name: ci-bpmn
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Dò đường dẫn thay đổi
+    runs-on: ubuntu-latest
+    outputs:
+      bpmn: ${{ steps.filter.outputs.bpmn }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            bpmn:
+              - 'bpmn/**'
+              - '.github/workflows/ci-bpmn.yml'
+              - '.github/scripts/validate_bpmn.py'
+
+  validate:
+    name: Kiểm tra mô hình BPMN
+    needs: changes
+    if: ${{ needs.changes.outputs.bpmn == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Kiểm tra chính sách và cấu trúc
+        run: |
+          # --format github biến từng vi phạm thành annotation gắn đúng dòng trong diff,
+          # để người sửa không phải đọc log.
+          python3 .github/scripts/validate_bpmn.py bpmn/ --format github
+
+      - name: Tự kiểm chứng bộ kiểm tra
+        run: |
+          # Một bộ kiểm tra hỏng thầm lặng còn tệ hơn không có bộ kiểm tra: nó phát ra
+          # tín hiệu xanh sai. Bước này ném một mô hình có Java Delegate vào validator
+          # và bắt buộc nó phải ĐỎ. Nếu bước này xanh, cổng chống Java Delegate đã hỏng.
+          tmp="$(mktemp -d)"
+          cat > "$tmp/delegate.bpmn" <<'XML'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                            xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                            id="Definitions_SelfTest">
+            <bpmn:process id="P9-tu-kiem-chung" name="Tu kiem chung" isExecutable="true">
+              <bpmn:startEvent id="Start_1" />
+              <bpmn:serviceTask id="Task_1" camunda:class="vn.saport.Delegate" />
+              <bpmn:endEvent id="End_1" />
+              <bpmn:sequenceFlow id="Flow_1" sourceRef="Start_1" targetRef="Task_1" />
+              <bpmn:sequenceFlow id="Flow_2" sourceRef="Task_1" targetRef="End_1" />
+            </bpmn:process>
+          </bpmn:definitions>
+          XML
+          if python3 .github/scripts/validate_bpmn.py "$tmp/delegate.bpmn" > /dev/null 2>&1; then
+            echo "::error file=.github/scripts/validate_bpmn.py::Validator KHÔNG bắt được Java Delegate. Cổng bảo vệ kiến trúc đang hỏng."
+            exit 1
+          fi
+          echo "Validator bắt đúng Java Delegate."
+
+  ci-bpmn:
+    name: ci-bpmn
+    needs: [changes, validate]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Tổng hợp kết quả
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS"
+          failed=$(echo "$RESULTS" | jq -r 'to_entries[]
+            | select(.value.result == "failure" or .value.result == "cancelled")
+            | .key')
+          if [ -n "$failed" ]; then
+            echo "::error::Job thất bại: $(echo "$failed" | tr '\n' ' ')"
+            exit 1
+          fi
+          echo "ci-bpmn đạt."

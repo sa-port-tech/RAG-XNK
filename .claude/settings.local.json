@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm -rf \"G:/My Drive/SAỐ\")",
+      "Read(//g/My Drive/**)"
+    ]
+  }
+}

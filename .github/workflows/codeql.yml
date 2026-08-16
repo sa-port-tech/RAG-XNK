@@ -1,0 +1,128 @@
+# codeql — quét bảo mật mã nguồn (docs/00 §8.3 ④)
+#
+# CodeQL miễn phí trên repo công khai. Đây là một trong những lý do repo được đặt
+# public thay vì private-free: trên repo riêng tư, code scanning yêu cầu GitHub
+# Advanced Security.
+#
+# Corpus văn bản pháp luật KHÔNG nằm trong git (docs/00 §8.1), nên repo công khai
+# không làm lộ dữ liệu nghiệp vụ nào.
+name: codeql
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    # 02:00 thứ Hai giờ UTC ≈ 09:00 giờ Việt Nam. Quét định kỳ bắt được lỗ hổng mới
+    # công bố trong mã không thay đổi — thứ mà quét theo PR không bao giờ thấy.
+    - cron: "0 2 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Dò ngôn ngữ bị thay đổi
+    runs-on: ubuntu-latest
+    outputs:
+      languages: ${{ steps.matrix.outputs.languages }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            csharp:
+              - 'src/dotnet/**'
+            python:
+              - 'src/python/**'
+              - '.github/scripts/**'
+            actions:
+              - '.github/workflows/**'
+
+      - name: Dựng matrix ngôn ngữ
+        id: matrix
+        env:
+          CSHARP: ${{ steps.filter.outputs.csharp }}
+          PYTHON: ${{ steps.filter.outputs.python }}
+          ACTIONS: ${{ steps.filter.outputs.actions }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" = "schedule" ] || [ "$EVENT" = "workflow_dispatch" ]; then
+            # Quét định kỳ phải quét tất cả, kể cả phần không ai đụng tới.
+            languages='["csharp","python","actions"]'
+          else
+            languages=$(jq -cn \
+              --arg cs "$CSHARP" --arg py "$PYTHON" --arg ac "$ACTIONS" \
+              '[{l:"csharp",v:$cs},{l:"python",v:$py},{l:"actions",v:$ac}]
+               | map(select(.v == "true") | .l)')
+          fi
+          echo "languages=$languages" >> "$GITHUB_OUTPUT"
+          echo "Sẽ quét: $languages"
+
+  analyze:
+    name: Phân tích ${{ matrix.language }}
+    needs: changes
+    if: ${{ needs.changes.outputs.languages != '[]' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write   # ← bắt buộc để đẩy kết quả lên tab Security
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ${{ fromJSON(needs.changes.outputs.languages) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cài .NET
+        if: ${{ matrix.language == 'csharp' }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Khởi tạo CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          # security-and-quality rộng hơn bộ mặc định. Với hệ thống trả lời câu hỏi
+          # pháp luật cho nhiều tenant, chi phí một vài cảnh báo thừa rẻ hơn nhiều so
+          # với một lỗ hổng lọt qua.
+          queries: security-and-quality
+
+      - name: Tự dựng mã
+        uses: github/codeql-action/autobuild@v3
+        if: ${{ matrix.language == 'csharp' }}
+
+      - name: Phân tích
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
+
+  codeql:
+    name: codeql
+    needs: [changes, analyze]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Tổng hợp kết quả
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS"
+          failed=$(echo "$RESULTS" | jq -r 'to_entries[]
+            | select(.value.result == "failure" or .value.result == "cancelled")
+            | .key')
+          if [ -n "$failed" ]; then
+            echo "::error::Job thất bại: $(echo "$failed" | tr '\n' ' ')"
+            exit 1
+          fi
+          echo "codeql đạt."

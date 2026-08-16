@@ -1,0 +1,125 @@
+name: 📕 Corpus — sai sót văn bản pháp luật
+description: Thiếu văn bản, sai trạng thái hiệu lực, sai quan hệ sửa đổi, trích xuất lỗi.
+title: "[Corpus] "
+labels: ["type: corpus", "component: ingestion", "status: triage", "needs: expert-review"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        > **Đây là loại issue nghiêm trọng nhất của dự án.**
+        > Đồ thị hiệu lực sai thì mọi câu trả lời dựa trên nó đều sai, kể cả khi retrieval và
+        > generation hoạt động hoàn hảo. Mọi issue ở đây đều bắt buộc chuyên gia XNK xác nhận
+        > trước khi đóng — kể cả khi sửa xong về mặt kỹ thuật.
+
+  - type: input
+    id: so-hieu
+    attributes:
+      label: Số hiệu văn bản
+      description: Ghi đầy đủ đúng như trên văn bản gốc.
+      placeholder: 38/2015/TT-BTC
+    validations:
+      required: true
+
+  - type: dropdown
+    id: loai-van-ban
+    attributes:
+      label: Loại văn bản
+      options:
+        - Luật
+        - Nghị định
+        - Thông tư
+        - Thông tư liên tịch
+        - Quyết định
+        - Công văn
+        - Văn bản hợp nhất (VBHN)
+        - Khác
+    validations:
+      required: true
+
+  - type: input
+    id: nguon
+    attributes:
+      label: Link nguồn gốc
+      description: |
+        Ưu tiên `vbpl.vn` — đây là nguồn gốc cho metadata hiệu lực (docs/00 §9.1).
+        Nếu dùng nguồn khác, nêu rõ lý do ở phần bằng chứng.
+      placeholder: https://vbpl.vn/...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: loai-van-de
+    attributes:
+      label: Loại vấn đề
+      options:
+        - Thiếu văn bản trong corpus
+        - Sai trạng thái hiệu lực (còn/hết hiệu lực)
+        - Sai ngày hiệu lực
+        - Sai hoặc thiếu quan hệ sửa đổi / bổ sung / thay thế
+        - Thiếu điều khoản trong văn bản đã ingest
+        - Trích xuất sai nội dung (OCR / parse lỗi)
+        - Sai phân cấp Điều / Khoản / Điểm
+        - Bản hợp nhất không được ưu tiên đúng
+    validations:
+      required: true
+
+  - type: input
+    id: dieu-khoan
+    attributes:
+      label: Điều / Khoản / Điểm cụ thể
+      description: Bỏ trống nếu vấn đề áp cho toàn văn bản.
+      placeholder: Điều 25 khoản 3 điểm b
+
+  - type: textarea
+    id: hien-trang
+    attributes:
+      label: Hệ thống đang thể hiện thế nào
+      description: Dán nguyên văn nội dung sai mà hệ thống trả về hoặc lưu trong DB.
+    validations:
+      required: true
+
+  - type: textarea
+    id: dung-phai-la
+    attributes:
+      label: Đúng phải là thế nào
+      description: Trích dẫn nguyên văn từ nguồn gốc, kèm link neo tới đúng đoạn nếu có.
+    validations:
+      required: true
+
+  - type: textarea
+    id: bang-chung
+    attributes:
+      label: Bằng chứng
+      description: |
+        Ảnh chụp trang `vbpl.vn`, số hiệu văn bản sửa đổi, ngày công báo.
+        Khẳng định không kèm bằng chứng thì chuyên gia không xác nhận được.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: anh-huong
+    attributes:
+      label: Mức ảnh hưởng
+      options:
+        - "P0 — Hệ thống đang trích dẫn nội dung hết hiệu lực (vi phạm BR-02)"
+        - "P1 — Câu trả lời thiếu căn cứ nhưng không sai"
+        - "P2 — Sai sót không ảnh hưởng câu trả lời hiện tại"
+        - "P3 — Ghi nhận để xử lý ở Phase 1"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: golden-set
+    attributes:
+      label: Golden set
+      options:
+        - label: Trường hợp này nên trở thành **câu bẫy** trong golden set (docs/14).
+        - label: Đã có câu hỏi tương ứng trong golden set rồi.
+
+  - type: checkboxes
+    id: xac-nhan
+    attributes:
+      label: Xác nhận
+      options:
+        - label: Tôi đã đối chiếu với nguồn gốc, không phải trí nhớ.
+          required: true

@@ -1,0 +1,45 @@
+# Chuẩn hoá xuống dòng.
+#
+# Đội phát triển làm việc trên Windows nhưng CI chạy trên Linux. Nếu để Git tự chuyển
+# sang CRLF khi checkout, script shell sẽ hỏng ngay dòng đầu tiên với thông báo
+# `\r: command not found` — một lỗi tốn nửa buổi để tìm ra vì nội dung file trông
+# hoàn toàn bình thường.
+#
+# Vì vậy: LF ở mọi nơi, kể cả trong thư mục làm việc trên Windows. Mọi công cụ trong
+# dự án này (Git Bash, VS Code, .NET, Python, Docker) đều đọc LF không vấn đề gì.
+* text=auto eol=lf
+
+# Những loại file bắt buộc LF — hỏng thật nếu bị chuyển
+*.sh    text eol=lf
+*.py    text eol=lf
+*.cjs   text eol=lf
+*.js    text eol=lf
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.json  text eol=lf
+*.bpmn  text eol=lf
+Dockerfile text eol=lf
+*.env   text eol=lf
+
+# Script riêng của Windows thì ngược lại
+*.bat   text eol=crlf
+*.cmd   text eol=crlf
+*.ps1   text eol=crlf
+
+# Nhị phân — không đụng vào
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.ico   binary
+*.pdf   binary
+*.woff  binary
+*.woff2 binary
+*.wasm  binary
+*.dll   binary
+*.so    binary
+*.zip   binary
+
+# Sinh tự động — thu gọn trong diff của PR để review tập trung vào phần người viết
+eval/golden-set/baseline.json linguist-generated=true
+.github/setup/data/ruleset-main.rendered.json linguist-generated=true

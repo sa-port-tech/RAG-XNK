@@ -1,0 +1,36 @@
+[
+  { "name": "type: bug",           "color": "d73a4a", "description": "Hệ thống chạy sai so với AC đã chốt" },
+  { "name": "type: story",         "color": "0e8a16", "description": "Hạng mục backlog theo định dạng Là… tôi muốn… để…" },
+  { "name": "type: corpus",        "color": "b60205", "description": "Sai sót nội dung văn bản pháp luật — loại nghiêm trọng nhất" },
+  { "name": "type: expert-review",  "color": "5319e7", "description": "Cần chuyên gia XNK kết luận" },
+  { "name": "type: spike",         "color": "1d76db", "description": "Nghiên cứu có timebox, đầu ra là báo cáo" },
+  { "name": "type: chore",         "color": "cfd3d7", "description": "Việc dọn dẹp, không đổi hành vi sản phẩm" },
+  { "name": "type: adr",           "color": "0052cc", "description": "Quyết định kiến trúc cần ghi lại" },
+
+  { "name": "P0", "color": "b60205", "description": "Chặn sprint hoặc vi phạm quy tắc nghiệp vụ chặn merge" },
+  { "name": "P1", "color": "d93f0b", "description": "Cao — ảnh hưởng Sprint Goal" },
+  { "name": "P2", "color": "fbca04", "description": "Trung bình" },
+  { "name": "P3", "color": "c2e0c6", "description": "Thấp — làm khi có chỗ trống" },
+
+  { "name": "component: ingestion",  "color": "6f42c1", "description": "Thu thập, trích xuất, chunk hoá văn bản" },
+  { "name": "component: retrieval",  "color": "6f42c1", "description": "Hybrid search + lọc hiệu lực" },
+  { "name": "component: generation", "color": "6f42c1", "description": "Sinh câu trả lời và guardrail" },
+  { "name": "component: web",        "color": "6f42c1", "description": "Blazor WASM + Telerik" },
+  { "name": "component: infra",      "color": "6f42c1", "description": "AWS CDK, CI/CD, môi trường" },
+  { "name": "component: bpmn",       "color": "6f42c1", "description": "Quy trình Camunda" },
+
+  { "name": "status: triage",        "color": "ededed", "description": "Chưa được PO phân loại" },
+  { "name": "status: blocked",       "color": "000000", "description": "Đang chờ thứ khác — ghi rõ chờ gì trong issue" },
+  { "name": "status: carry-over",    "color": "e99695", "description": "Không xong trong sprint, chuyển sang sprint sau" },
+
+  { "name": "needs: expert-review",  "color": "d4c5f9", "description": "Chuyên gia XNK phải xác nhận trước khi đóng" },
+  { "name": "needs: golden-set",     "color": "d4c5f9", "description": "Nên trở thành câu hỏi trong golden set" },
+  { "name": "needs: adr",            "color": "d4c5f9", "description": "Quyết định ở đây phải ghi thành ADR" },
+
+  { "name": "BR-02 hiệu lực",        "color": "b60205", "description": "Chạm quy tắc không trả về điều khoản hết hiệu lực" },
+  { "name": "BR-11 cách ly tenant",  "color": "b60205", "description": "Chạm ranh giới bảo mật giữa các tenant" },
+
+  { "name": "automated",             "color": "ededed", "description": "Do CI mở, không sửa tay" },
+  { "name": "good first issue",      "color": "7057ff", "description": "Phù hợp cho người mới vào dự án" },
+  { "name": "documentation",         "color": "0075ca", "description": "Chỉ đụng tài liệu" }
+]

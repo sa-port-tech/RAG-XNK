@@ -1,0 +1,176 @@
+# ci-python — ruff · mypy · pytest (docs/00 §8.3 ④)
+#
+# Ba service Python (ingestion · retrieval · generation) được kiểm tra độc lập nhau
+# qua matrix, và mỗi service chỉ chạy khi chính nó bị đụng. Đây là "path filter" ở
+# mức chi tiết mà docs/00 §8.3 yêu cầu: sửa `generation` thì không phải chờ test của
+# `ingestion`.
+#
+# Về việc luôn chạy workflow rồi mới lọc: xem ghi chú đầu file ci-dotnet.yml.
+name: ci-python
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Dò service bị thay đổi
+    runs-on: ubuntu-latest
+    outputs:
+      any: ${{ steps.filter.outputs.any }}
+      services: ${{ steps.matrix.outputs.services }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            any:
+              - 'src/python/**'
+              - '.github/workflows/ci-python.yml'
+              - '.github/quality-gates.yml'
+            ingestion:
+              - 'src/python/ingestion/**'
+            retrieval:
+              - 'src/python/retrieval/**'
+            generation:
+              - 'src/python/generation/**'
+            shared:
+              - 'src/python/pyproject.toml'
+              - 'src/python/uv.lock'
+              - '.github/workflows/ci-python.yml'
+
+      - name: Dựng matrix service
+        id: matrix
+        env:
+          IS_INGESTION: ${{ steps.filter.outputs.ingestion }}
+          IS_RETRIEVAL: ${{ steps.filter.outputs.retrieval }}
+          IS_GENERATION: ${{ steps.filter.outputs.generation }}
+          IS_SHARED: ${{ steps.filter.outputs.shared }}
+        run: |
+          # Đụng file dùng chung thì phải chạy lại toàn bộ — thay đổi ở pyproject
+          # hay lock file ảnh hưởng mọi service.
+          if [ "$IS_SHARED" = "true" ]; then
+            selected='["ingestion","retrieval","generation"]'
+          else
+            selected=$(jq -cn \
+              --arg ing "$IS_INGESTION" --arg ret "$IS_RETRIEVAL" --arg gen "$IS_GENERATION" \
+              '[{n:"ingestion",v:$ing},{n:"retrieval",v:$ret},{n:"generation",v:$gen}]
+               | map(select(.v == "true") | .n)')
+          fi
+          echo "services=$selected" >> "$GITHUB_OUTPUT"
+          echo "Service sẽ kiểm tra: $selected"
+
+  quality:
+    name: ${{ matrix.service }} · ruff · mypy · pytest
+    needs: changes
+    if: ${{ needs.changes.outputs.services != '[]' && needs.changes.outputs.services != '' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: ${{ fromJSON(needs.changes.outputs.services) }}
+    defaults:
+      run:
+        working-directory: src/python
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Đọc cấu hình
+        id: gates
+        working-directory: .
+        run: |
+          python3 -m pip install --quiet pyyaml
+          {
+            echo "python_version=$(python3 .github/scripts/gates.py get runtimes.python)"
+            echo "coverage_min=$(python3 .github/scripts/gates.py get python.coverage_min_line_percent)"
+            echo "lint=$(python3 .github/scripts/gates.py get python.enforce_lint)"
+            echo "format=$(python3 .github/scripts/gates.py get python.enforce_format)"
+            echo "types=$(python3 .github/scripts/gates.py get python.enforce_types)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Kiểm tra thư mục service tồn tại
+        working-directory: .
+        run: |
+          if [ ! -d "src/python/${{ matrix.service }}" ]; then
+            echo "::error::Không tìm thấy src/python/${{ matrix.service }} (khai báo trong .github/services.json)."
+            exit 1
+          fi
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "src/python/**/pyproject.toml"
+
+      - name: Cài Python và phụ thuộc
+        run: |
+          uv python install "${{ steps.gates.outputs.python_version }}"
+          uv sync --all-extras --dev
+
+      - name: ruff check
+        if: ${{ steps.gates.outputs.lint == 'true' }}
+        run: uv run ruff check --output-format=github "${{ matrix.service }}"
+
+      - name: ruff format
+        if: ${{ steps.gates.outputs.format == 'true' }}
+        run: uv run ruff format --check --diff "${{ matrix.service }}"
+
+      - name: mypy
+        if: ${{ steps.gates.outputs.types == 'true' }}
+        run: uv run mypy "${{ matrix.service }}"
+
+      - name: pytest + coverage
+        run: |
+          uv run pytest "${{ matrix.service }}" \
+            --cov="${{ matrix.service }}" \
+            --cov-report=xml:../../artifacts/coverage-${{ matrix.service }}.xml \
+            --cov-report=term-missing \
+            --junitxml=../../artifacts/pytest-${{ matrix.service }}.xml
+
+      - name: Cổng coverage
+        working-directory: .
+        run: |
+          python3 .github/scripts/coverage_gate.py \
+            --label "python/${{ matrix.service }}" \
+            --min "${{ steps.gates.outputs.coverage_min }}" \
+            'artifacts/coverage-${{ matrix.service }}.xml'
+
+      - name: Lưu kết quả test
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-test-results-${{ matrix.service }}
+          path: artifacts
+          retention-days: 14
+
+  ci-python:
+    # Context được khai báo required trong ruleset. Luôn chạy, luôn báo cáo.
+    name: ci-python
+    needs: [changes, quality]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Tổng hợp kết quả
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS"
+          failed=$(echo "$RESULTS" | jq -r 'to_entries[]
+            | select(.value.result == "failure" or .value.result == "cancelled")
+            | .key')
+          if [ -n "$failed" ]; then
+            echo "::error::Job thất bại: $(echo "$failed" | tr '\n' ' ')"
+            exit 1
+          fi
+          echo "ci-python đạt."

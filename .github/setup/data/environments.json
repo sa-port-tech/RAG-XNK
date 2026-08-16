@@ -1,0 +1,59 @@
+[
+  {
+    "name": "dev",
+    "comment": "Môi trường duy nhất của prototype. Deploy tự động sau mỗi lần merge vào main, không chờ duyệt — docs/00 §8.3 ⑦.",
+    "wait_timer": 0,
+    "prevent_self_review": false,
+    "reviewer_teams": [],
+    "branch_policies": ["main"],
+    "variables": {
+      "AWS_REGION": "ap-southeast-1",
+      "USE_CODEDEPLOY_BLUE_GREEN": "false"
+    },
+    "pending_variables": {
+      "AWS_ROLE_ARN": "ARN của IAM role XnkGitHubDeployDev — có sau khi CDK chạy (E1-04, E1-07)",
+      "ECS_CLUSTER": "Tên cụm ECS — có sau E1-06",
+      "BASE_URL": "URL của ALB môi trường dev — dùng cho smoke test",
+      "WEB_BUCKET": "Tên S3 bucket chứa Blazor WASM",
+      "WEB_DISTRIBUTION_ID": "ID của CloudFront distribution"
+    }
+  },
+  {
+    "name": "staging",
+    "comment": "Phase 1. Deploy được nhưng chỉ từ main và chỉ bằng workflow_dispatch.",
+    "wait_timer": 0,
+    "prevent_self_review": false,
+    "reviewer_teams": [],
+    "branch_policies": ["main"],
+    "variables": {
+      "AWS_REGION": "ap-southeast-1",
+      "USE_CODEDEPLOY_BLUE_GREEN": "false"
+    },
+    "pending_variables": {
+      "AWS_ROLE_ARN": "ARN của XnkGitHubDeployStaging trong AWS account staging",
+      "ECS_CLUSTER": "Tên cụm ECS staging",
+      "BASE_URL": "URL môi trường staging",
+      "WEB_BUCKET": "S3 bucket staging",
+      "WEB_DISTRIBUTION_ID": "CloudFront distribution staging"
+    }
+  },
+  {
+    "name": "production",
+    "comment": "Phase 1. Có required reviewers — đây là chỗ cắm cổng duyệt thủ công của docs/00 §8.3 ⑦, và nó nằm ở phía GitHub nên không sửa workflow file để đi vòng được.",
+    "wait_timer": 5,
+    "prevent_self_review": true,
+    "reviewer_teams": ["devops-lead", "tech-lead", "product-owner"],
+    "branch_policies": ["main"],
+    "variables": {
+      "AWS_REGION": "ap-southeast-1",
+      "USE_CODEDEPLOY_BLUE_GREEN": "true"
+    },
+    "pending_variables": {
+      "AWS_ROLE_ARN": "ARN của XnkGitHubDeployProduction trong AWS account production",
+      "ECS_CLUSTER": "Tên cụm ECS production",
+      "BASE_URL": "URL production",
+      "WEB_BUCKET": "S3 bucket production",
+      "WEB_DISTRIBUTION_ID": "CloudFront distribution production"
+    }
+  }
+]

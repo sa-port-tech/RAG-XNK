@@ -1,0 +1,122 @@
+# ci-blazor — build WASM · kiểm tra kích thước bundle (docs/00 §8.3 ④)
+#
+# Tách khỏi ci-dotnet vì hai lý do: Blazor publish chậm hơn hẳn build thư viện, và
+# ngân sách kích thước gói là một cổng riêng mà chỉ frontend quan tâm. Gộp chung sẽ
+# bắt mọi PR .NET phải chờ bước publish WASM.
+name: ci-blazor
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Dò đường dẫn thay đổi
+    runs-on: ubuntu-latest
+    outputs:
+      web: ${{ steps.filter.outputs.web }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            web:
+              - 'src/dotnet/Xnk.Web/**'
+              - 'src/dotnet/Xnk.Shared/**'
+              - '.github/workflows/ci-blazor.yml'
+              - '.github/quality-gates.yml'
+
+  build:
+    name: Publish WASM · ngân sách bundle
+    needs: changes
+    if: ${{ needs.changes.outputs.web == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Đọc cấu hình
+        id: gates
+        run: |
+          python3 -m pip install --quiet pyyaml
+          {
+            echo "dotnet_version=$(python3 .github/scripts/gates.py get runtimes.dotnet)"
+            echo "budget_kb=$(python3 .github/scripts/gates.py get blazor.bundle_budget_brotli_kb)"
+            echo "warn_at=$(python3 .github/scripts/gates.py get blazor.bundle_warn_at_percent)"
+            echo "project=$(python3 .github/scripts/gates.py get sites.0.project --file .github/services.json)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Kiểm tra project tồn tại
+        run: |
+          project="${{ steps.gates.outputs.project }}"
+          if [ ! -f "$project" ]; then
+            echo "::error file=.github/services.json::Không tìm thấy '$project'. Tạo trong story E1-11 hoặc sửa .github/services.json."
+            exit 1
+          fi
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ steps.gates.outputs.dotnet_version }}
+
+      - name: Cache gói NuGet
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-blazor-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/Directory.Packages.props') }}
+          restore-keys: nuget-blazor-${{ runner.os }}-
+
+      - name: Publish
+        env:
+          # Giấy phép Telerik UI for Blazor được tiêm lúc build từ Secrets, không commit
+          # vào repo (docs/00 §6). Trước Sprint 3 secret này chưa tồn tại và bản trial
+          # tự áp dụng — đó là lý do bước này không bắt buộc có giá trị.
+          TELERIK_LICENSE: ${{ secrets.TELERIK_LICENSE }}
+        run: |
+          dotnet publish "${{ steps.gates.outputs.project }}" \
+            --configuration Release \
+            --output artifacts/web
+
+      - name: Cổng ngân sách bundle
+        run: |
+          python3 -m pip install --quiet brotli
+          python3 .github/scripts/bundle_budget.py \
+            --dir artifacts/web/wwwroot/_framework \
+            --budget-kb "${{ steps.gates.outputs.budget_kb }}" \
+            --warn-at "${{ steps.gates.outputs.warn_at }}"
+
+      - name: Lưu bản publish
+        uses: actions/upload-artifact@v4
+        with:
+          name: blazor-publish
+          path: artifacts/web
+          retention-days: 7
+
+  ci-blazor:
+    name: ci-blazor
+    needs: [changes, build]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Tổng hợp kết quả
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS"
+          failed=$(echo "$RESULTS" | jq -r 'to_entries[]
+            | select(.value.result == "failure" or .value.result == "cancelled")
+            | .key')
+          if [ -n "$failed" ]; then
+            echo "::error::Job thất bại: $(echo "$failed" | tr '\n' ' ')"
+            exit 1
+          fi
+          echo "ci-blazor đạt."

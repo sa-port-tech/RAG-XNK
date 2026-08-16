@@ -1,0 +1,199 @@
+# ci-dotnet — build · unit test · format · phân tích tĩnh (docs/00 §8.3 ④)
+#
+# Vì sao workflow chạy trên MỌI pull request thay vì dùng `on.pull_request.paths`:
+# ruleset trên `main` bắt buộc status check `ci-dotnet` phải xanh. Nếu lọc ở cấp
+# `on:`, workflow đơn giản không chạy khi PR không đụng .NET, check không bao giờ
+# báo cáo, và PR treo ở trạng thái "Expected — Waiting for status to be reported"
+# vĩnh viễn. Cách đúng là workflow luôn chạy, lọc đường dẫn ở cấp job, và job tổng
+# hợp `ci-dotnet` luôn báo cáo kết quả.
+name: ci-dotnet
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Dò đường dẫn thay đổi
+    runs-on: ubuntu-latest
+    outputs:
+      dotnet: ${{ steps.filter.outputs.dotnet }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            dotnet:
+              - 'src/dotnet/**'
+              - '!src/dotnet/Xnk.Web/**'
+              - '.github/workflows/ci-dotnet.yml'
+              - '.github/quality-gates.yml'
+              - '.github/services.json'
+
+  build:
+    name: Build · test · format
+    needs: changes
+    if: ${{ needs.changes.outputs.dotnet == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Đọc cấu hình từ quality-gates.yml
+        id: gates
+        run: |
+          python3 -m pip install --quiet pyyaml
+          {
+            echo "dotnet_version=$(python3 .github/scripts/gates.py get runtimes.dotnet)"
+            echo "coverage_min=$(python3 .github/scripts/gates.py get dotnet.coverage_min_line_percent)"
+            echo "warnaserror=$(python3 .github/scripts/gates.py get dotnet.warnings_as_errors)"
+            echo "enforce_format=$(python3 .github/scripts/gates.py get dotnet.enforce_format)"
+            echo "solution=$(python3 .github/scripts/gates.py get solution --file .github/services.json)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Kiểm tra solution tồn tại
+        run: |
+          sln="${{ steps.gates.outputs.solution }}"
+          if [ ! -f "$sln" ]; then
+            echo "::error file=.github/services.json::Không tìm thấy solution '$sln'."
+            echo "::error::PR này đụng src/dotnet/ nhưng solution chưa tồn tại. Tạo nó trong story E1-11, hoặc sửa khoá 'solution' trong .github/services.json."
+            exit 1
+          fi
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ steps.gates.outputs.dotnet_version }}
+
+      - name: Cache gói NuGet
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', '**/Directory.Packages.props') }}
+          restore-keys: nuget-${{ runner.os }}-
+
+      - name: Restore
+        run: dotnet restore "${{ steps.gates.outputs.solution }}"
+
+      - name: Kiểm tra định dạng mã
+        if: ${{ steps.gates.outputs.enforce_format == 'true' }}
+        run: |
+          # --verify-no-changes: không sửa file, chỉ báo lỗi nếu có gì cần sửa.
+          dotnet format "${{ steps.gates.outputs.solution }}" --verify-no-changes --no-restore
+
+      - name: Build
+        run: |
+          args=(--configuration Release --no-restore)
+          if [ "${{ steps.gates.outputs.warnaserror }}" = "true" ]; then
+            # Bao gồm cả cảnh báo của bộ phân tích tĩnh .NET, không chỉ cảnh báo trình biên dịch.
+            args+=(-warnaserror -p:EnableNETAnalyzers=true -p:AnalysisLevel=latest)
+          fi
+          dotnet build "${{ steps.gates.outputs.solution }}" "${args[@]}"
+
+      - name: Unit test + coverage
+        run: |
+          dotnet test "${{ steps.gates.outputs.solution }}" \
+            --configuration Release --no-build \
+            --collect:"XPlat Code Coverage" \
+            --results-directory artifacts/test \
+            --logger "trx;LogFileName=dotnet-tests.trx" \
+            --logger "console;verbosity=normal"
+
+      - name: Cổng coverage
+        run: |
+          python3 .github/scripts/coverage_gate.py \
+            --label dotnet \
+            --min "${{ steps.gates.outputs.coverage_min }}" \
+            'artifacts/test/**/coverage.cobertura.xml'
+
+      - name: Lưu kết quả test
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: dotnet-test-results
+          path: artifacts/test
+          retention-days: 14
+
+  tenant-isolation:
+    name: Test cách ly tenant (BR-11)
+    needs: changes
+    if: ${{ needs.changes.outputs.dotnet == 'true' }}
+    runs-on: ubuntu-latest
+    # docs/16 §3 xếp BR-11 là một trong ba required check. Cách ly tenant là ranh giới
+    # bảo mật, không phải một tính năng — nên nó chạy trên PostgreSQL thật với pgvector
+    # chứ không phải trên in-memory provider, vì bộ lọc tenant nằm ở tầng SQL.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: ci-only-not-a-secret
+          POSTGRES_DB: xnk_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      XNK_TEST_CONNECTION: "Host=localhost;Port=5432;Database=xnk_test;Username=postgres;Password=ci-only-not-a-secret"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Đọc cấu hình
+        id: gates
+        run: |
+          python3 -m pip install --quiet pyyaml
+          {
+            echo "dotnet_version=$(python3 .github/scripts/gates.py get runtimes.dotnet)"
+            echo "solution=$(python3 .github/scripts/gates.py get solution --file .github/services.json)"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ steps.gates.outputs.dotnet_version }}
+
+      - name: Chạy nhóm test cách ly tenant
+        run: |
+          # TreatNoTestsAsError=true là cố ý. "Không có test nào khớp bộ lọc" phải là
+          # ĐỎ chứ không phải xanh — nếu không, cổng cách ly tenant sẽ tự tắt trong im
+          # lặng đúng vào lúc nó cần thiết nhất. PR .NET đầu tiên phải kèm ít nhất một
+          # test gắn [Trait("Category", "TenantIsolation")].
+          dotnet test "${{ steps.gates.outputs.solution }}" \
+            --configuration Release \
+            --filter "Category=TenantIsolation" \
+            --logger "console;verbosity=normal" \
+            -- RunConfiguration.TreatNoTestsAsError=true
+
+  ci-dotnet:
+    # Job tổng hợp — ĐÂY là context được khai báo required trong ruleset.
+    # Nó luôn chạy, nên luôn báo cáo, kể cả khi PR không đụng .NET.
+    name: ci-dotnet
+    needs: [changes, build, tenant-isolation]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Tổng hợp kết quả
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          echo "$RESULTS"
+          failed=$(echo "$RESULTS" | jq -r 'to_entries[]
+            | select(.value.result == "failure" or .value.result == "cancelled")
+            | .key')
+          if [ -n "$failed" ]; then
+            echo "::error::Job thất bại: $(echo "$failed" | tr '\n' ' ')"
+            exit 1
+          fi
+          skipped=$(echo "$RESULTS" | jq -r 'to_entries[]
+            | select(.value.result == "skipped") | .key' | tr '\n' ' ')
+          if [ -n "$skipped" ]; then
+            echo "PR không đụng src/dotnet/ — bỏ qua: $skipped"
+          fi
+          echo "ci-dotnet đạt."

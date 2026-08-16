@@ -1,0 +1,17 @@
+# Buộc mọi issue đi qua Issue Form có cấu trúc.
+# Lý do (docs/00 §8.2): dữ liệu tự do dạng markdown không đẩy được vào
+# custom field của Project board — mà board là nơi backlog sống thật.
+blank_issues_enabled: false
+
+contact_links:
+  - name: 📚 Tài liệu dự án
+    url: https://github.com/sa-port-tech/RAG-XNK/tree/main/docs
+    about: Đọc trước khi mở issue — phạm vi nghiệp vụ (03), backlog (09), thuật ngữ (11).
+
+  - name: 💬 Câu hỏi nghiệp vụ XNK
+    url: https://github.com/sa-port-tech/RAG-XNK/discussions
+    about: Câu hỏi chưa rõ thành yêu cầu thì thảo luận ở đây, đừng mở issue.
+
+  - name: 🔐 Báo cáo lỗ hổng bảo mật
+    url: https://github.com/sa-port-tech/RAG-XNK/security/advisories/new
+    about: KHÔNG mở issue công khai cho lỗ hổng bảo mật. Dùng Private Vulnerability Reporting.

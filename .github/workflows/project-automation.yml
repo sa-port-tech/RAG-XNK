@@ -1,0 +1,76 @@
+# project-automation — đồng bộ issue với Project board (docs/00 §8.2, §8.3)
+#
+# Board chỉ có giá trị khi nó phản ánh đúng hiện trạng mà không ai phải nhớ kéo thẻ.
+# Workflow này thực hiện năm chuyển trạng thái tự động; bước ② (Backlog → Todo trong
+# Sprint Planning) cố ý để con người quyết định.
+#
+# ── Vì sao cần PROJECT_TOKEN thay vì GITHUB_TOKEN ─────────────────────────────
+# GITHUB_TOKEN mặc định không có quyền ghi vào Projects v2 cấp tổ chức, và không có
+# khoá `permissions` nào cấp được quyền đó — giới hạn này nằm ở phía GitHub. Vì vậy
+# repo cần một fine-grained PAT với quyền:
+#     Organization permissions → Projects: Read and write
+#     Repository permissions   → Issues: Read, Pull requests: Read, Metadata: Read
+# Lưu ở Settings → Secrets and variables → Actions → Secrets: PROJECT_TOKEN.
+# Chi tiết và cách xoay vòng token: docs/17 §6.
+name: project-automation
+
+on:
+  issues:
+    types: [opened, reopened]
+  create:
+  pull_request:
+    types: [opened, reopened, ready_for_review, closed]
+  workflow_run:
+    workflows: [cd-deploy]
+    types: [completed]
+  workflow_dispatch:
+
+concurrency:
+  # Nối tiếp theo từng issue/PR để hai sự kiện gần nhau không ghi đè cột của nhau.
+  group: project-automation-${{ github.event.issue.number || github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  sync:
+    name: Đồng bộ Project board
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/scripts
+          sparse-checkout-cone-mode: false
+
+      - name: Kiểm tra cấu hình
+        env:
+          PROJECT_TOKEN: ${{ secrets.PROJECT_TOKEN }}
+          PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
+        run: |
+          missing=""
+          [ -z "$PROJECT_TOKEN" ]  && missing="$missing secrets.PROJECT_TOKEN"
+          [ -z "$PROJECT_NUMBER" ] && missing="$missing vars.PROJECT_NUMBER"
+          if [ -n "$missing" ]; then
+            echo "::error::Thiếu cấu hình:$missing — xem docs/17 §6. Chạy .github/setup/04-project.sh để lấy PROJECT_NUMBER."
+            exit 1
+          fi
+
+      - name: Đồng bộ
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PROJECT_TOKEN }}
+          script: |
+            const automate = require('./.github/scripts/project-automation.cjs');
+            await automate({
+              github,
+              context,
+              core,
+              org: context.repo.owner,
+              projectNumber: process.env.PROJECT_NUMBER,
+              deployStatus: 'Done',
+            });
+        env:
+          PROJECT_NUMBER: ${{ vars.PROJECT_NUMBER }}
