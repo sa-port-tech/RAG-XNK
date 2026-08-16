@@ -336,7 +336,35 @@ hẳn so với một lần CI đỏ.
 
 ---
 
-## 9. Sự cố thường gặp
+## 9. Năm chỗ API cư xử khác tài liệu
+
+Ghi lại vì cả năm đều đã làm hỏng một lần chạy thật, và cả năm đều báo lỗi theo kiểu
+không chỉ đúng nguyên nhân. Script trong `.github/setup/` đã xử lý sẵn; mục này để
+người sau không mất lại thời gian đó khi viết script mới.
+
+| Hiện tượng | Nguyên nhân thật | Cách đúng |
+|---|---|---|
+| `PATCH /repos/{repo}` với `security_and_analysis` trả **HTTP 422 "Invalid payload"** dù payload đúng tài liệu | GitHub đã chuyển sang **code security configuration** cấp tổ chức; endpoint cũ còn đó nhưng không nhận nữa | Gắn repo vào configuration của org: `POST /orgs/{org}/code-security/configurations/{id}/attach` |
+| Team tạo ra có slug khác slug mình đặt, và dòng CODEOWNERS trỏ tới nó **bị bỏ qua trong im lặng** | API sinh slug từ trường `name`, không nhận `slug`. `"DevOps / Platform"` → `devops-platform` | Đặt `name` sao cho slugify đúng bằng slug cần, rồi **đọc lại `.slug` trả về** và báo lỗi nếu lệch |
+| `-f` / `--raw-field` của `gh` bị từ chối với *"is not of type array/object"* | Cả hai gửi giá trị dưới dạng **chuỗi**; trường lồng nhau và biến GraphQL kiểu mảng cần JSON thật | Dựng body bằng `jq -n` rồi `gh api --input -` |
+| `GET /orgs/{org}/teams/{t}/repos/{owner}/{repo}` trả về rỗng dù team có quyền | Trả **HTTP 204 không kèm thân phản hồi**; muốn có `role_name` phải gửi `Accept` đặc biệt | Liệt kê `/teams/{t}/repos` rồi lọc theo `full_name` |
+| Quyền team đọc ra `write` trong khi đặt vào là `push` → so sánh luôn sai | Tên cũ khi **ghi** (`push`/`pull`), tên vai trò khi **đọc** (`write`/`read`) | Chuẩn hoá trước khi so sánh |
+
+Thêm hai chỗ thuộc về Windows chứ không về GitHub, nhưng cùng kiểu khó tìm:
+
+- **jq bản Windows xuất CRLF** (mở stdout ở chế độ text của C runtime). Chuỗi base64
+  đọc bằng `read` dính `\r`, và `base64 -d` báo đúng một dòng `invalid input` không
+  nói field nào.
+- **`python3` trên Windows thường là App Execution Alias của Microsoft Store**: có
+  trong `PATH`, `command -v` thấy, nhưng chạy thì mở cửa hàng ứng dụng. Phải gọi thử
+  mới phân biệt được. `print()` cũng xuất CRLF.
+
+`lib.sh` bọc sẵn `jq()` và `python_run()` để lọc `\r` mà vẫn giữ nguyên mã thoát —
+giữ mã thoát là bắt buộc vì `jq -e` được dùng làm điều kiện ở nhiều chỗ.
+
+---
+
+## 10. Sự cố thường gặp
 
 | Triệu chứng | Nguyên nhân | Xử lý |
 |---|---|---|
