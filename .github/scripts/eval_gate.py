@@ -163,6 +163,10 @@ def evaluate(gates: dict, results: dict, baseline: dict, comparable: bool) -> li
             "{\"metrics\": {\"recall_at_10\": 0.91, ...}}."
         )
 
+    # Không có khoá nào trong `metrics` nghĩa là bộ đo chưa tồn tại, chứ không phải
+    # hệ thống đo ra kết quả xấu.
+    no_data = not metrics
+
     base_metrics = baseline.get("metrics") or {}
     tolerance = float(gates["regression"]["max_relative_drop_percent"])
     regression_blocking = bool(gates["regression"].get("blocking", True))
@@ -181,9 +185,15 @@ def evaluate(gates: dict, results: dict, baseline: dict, comparable: bool) -> li
 
         if row.current is None:
             row.blocked = True
-            row.verdicts.append(
-                f"runner không xuất chỉ số `{spec['key']}` — cổng không thể kết luận"
-            )
+            # Phân biệt hai nguyên nhân khác hẳn nhau. Bộ đo chưa tồn tại là trạng
+            # thái bình thường của Sprint 0; runner có chạy nhưng thiếu một khoá là
+            # lỗi thật trong bộ đo, và gộp chung hai thứ sẽ che mất cái thứ hai.
+            if no_data:
+                row.verdicts.append("chưa có số liệu")
+            else:
+                row.verdicts.append(
+                    f"runner không xuất chỉ số `{spec['key']}` — cổng không thể kết luận"
+                )
             rows.append(row)
             continue
 
@@ -258,6 +268,14 @@ def render_report(
         )
         lines.append("")
 
+    if not (results.get("metrics") or {}):
+        lines.append(
+            "> ⏳ **Chưa có số liệu** — bộ đo eval chưa tồn tại (story E7-03, E7-04). "
+            "Các dòng dưới trống vì chưa có gì để đo, **không phải** vì hệ thống đo ra "
+            "kết quả xấu."
+        )
+        lines.append("")
+
     if not comparable:
         lines.append(f"> ℹ️ **Không so sánh được với baseline** — {reason_not_comparable}")
         lines.append("> Các ngưỡng tuyệt đối vẫn được áp dụng bình thường.")
@@ -285,7 +303,18 @@ def render_report(
     blocked = [r for r in rows if r.blocked]
     warned = [r for r in rows if r.warned and not r.blocked]
 
-    if blocked:
+    if blocked and not enabled:
+        # Cổng đang tắt thì check báo SUCCESS. Viết "Chặn merge" ở đây là để báo cáo
+        # tự mâu thuẫn với chính kết luận của nó — người đọc sẽ tin cái nào? Sau vài
+        # lần như vậy họ thôi đọc cả hai.
+        names = ", ".join(f"`{r.label}`" for r in blocked)
+        lines.append(f"### ⏸ Sẽ chặn merge khi cổng được bật — {names}")
+        lines.append("")
+        lines.append(
+            "PR này **không bị chặn** vì `eval/gates.yml` đang để `enabled: false`. "
+            "Danh sách trên là thứ phải xử lý xong trước khi bật cổng."
+        )
+    elif blocked:
         names = ", ".join(f"`{r.label}`" for r in blocked)
         lines.append(f"### ❌ Chặn merge — {names}")
         lines.append("")
