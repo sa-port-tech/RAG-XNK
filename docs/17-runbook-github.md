@@ -224,7 +224,13 @@ hoặc `db/migrations/`". Ruleset chỉ nhận **một** con số cho cả nhán
 đội sẽ học cách duyệt cho xong cho nhanh — tức là làm hỏng chính cơ chế review.
 
 → Ruleset đặt 1; mức 2 do [`pr-governance.yml`](../.github/workflows/pr-governance.yml)
-thực thi bằng cách đọc danh sách file thay đổi và đếm approval còn hiệu lực. Ngưỡng
+thực thi bằng cách đọc danh sách file thay đổi và đếm approval còn hiệu lực.
+
+`pr-governance` **chỉ** đếm approval khi PR chạm `infra/` hoặc `db/migrations/`. Với PR
+thường nó không kiểm tra approval, vì ruleset đã làm việc đó và làm lại chỉ sinh hại:
+mọi PR đều có một lượt chạy đỏ ngay lúc vừa mở, lúc chưa ai kịp review. Approval sau đó
+tạo ra check run **thứ hai cùng tên trên cùng commit**, và lượt đỏ cũ nằm lại vĩnh viễn
+trong rollup — mỗi PR mang sẵn một dấu đỏ không xoá được, chỉ vì một phép kiểm tra thừa. Ngưỡng
 khai báo trong [`quality-gates.yml`](../.github/quality-gates.yml) → `pull_request`.
 
 `pr-governance` là workflow **thứ 8**, ngoài danh sách 7 của §8.1. Nó cũng gánh luôn
