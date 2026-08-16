@@ -77,14 +77,16 @@ nên PR đầu tiên sẽ treo vĩnh viễn ở trạng thái chờ.
 
 ### 2.3 Cờ tạm thời phải tắt
 
-[`config.env`](../.github/setup/config.env) có `BOOTSTRAP_ADMIN_BYPASS=true`.
+[`config.env`](../.github/setup/config.env) có `BOOTSTRAP_ADMIN_BYPASS`. Khi dựng mới,
+đặt `true`; **đặt lại `false` và chạy lại `06-ruleset.sh` ngay khi org có người thứ hai.**
+`99-verify.sh` cảnh báo chừng nào cờ này còn bật.
 
 Lý do tồn tại: ruleset bật "require review from Code Owners", mà khi org mới có một
 người thì người đó vừa là tác giả PR vừa là code owner duy nhất — GitHub không cho tự
 duyệt PR của mình, nên **không PR nào merge được**.
 
-**Đặt lại thành `false` và chạy lại `06-ruleset.sh` ngay khi org có người thứ hai.**
-`99-verify.sh` cảnh báo chừng nào cờ này còn bật.
+> Trạng thái hiện tại của repo này: đã `false` từ 16/08/2026. `main` không còn actor
+> nào bypass được.
 
 ---
 
@@ -187,8 +189,14 @@ bằng số issue sẽ không kích hoạt được chuyển cột — `project-
 Thêm ngoài §8.4, vì thiếu chúng thì các luật trên vẫn lách được:
 `strict_required_status_checks_policy` (bắt nhánh cập nhật với `main` trước khi merge —
 nếu không, hai PR xanh độc lập vẫn hợp lại thành `main` đỏ),
-`dismiss_stale_reviews_on_push` và `require_last_push_approval` (approval phải áp cho
-đúng đoạn mã sẽ được merge, không phải cho phiên bản trước đó).
+`dismiss_stale_reviews_on_push` (approval phải áp cho đúng đoạn mã sẽ được merge,
+không phải cho phiên bản trước đó).
+
+`require_last_push_approval` cố ý để **`false`**. GitHub vốn đã cấm tác giả tự duyệt
+PR của mình — mặc định, không tắt được. Luật đó siết thêm một tầng: ai push commit
+cuối thì mất quyền duyệt, kể cả khi không phải tác giả PR. Ở quy mô hiện tại tầng đó
+chỉ trả giá mà không mua được gì — Tech Lead push một sửa nhỏ vào PR của người khác
+là lập tức không còn ai duyệt được. Bật lại khi đội đủ 3 người review lẫn nhau.
 
 ### 5.5 §8.5 — Xác thực GitHub Actions → AWS
 

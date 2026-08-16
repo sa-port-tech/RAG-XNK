@@ -39,6 +39,7 @@ fi
 RULES=$(jq -n \
   --argjson checks "$CHECKS_JSON" \
   --argjson approvals "$REQUIRED_APPROVALS" \
+  --argjson last_push "$REQUIRE_LAST_PUSH_APPROVAL" \
   '[
     { "type": "deletion" },
     { "type": "non_fast_forward" },
@@ -49,7 +50,7 @@ RULES=$(jq -n \
         "required_approving_review_count": $approvals,
         "dismiss_stale_reviews_on_push": true,
         "require_code_owner_review": true,
-        "require_last_push_approval": true,
+        "require_last_push_approval": $last_push,
         "required_review_thread_resolution": true
       }
     },
