@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    corpus-service — CRUD văn bản, hàng đợi review, API tra cứu có cấu trúc.
+    Sở hữu schema `corpus` và `lookup` (docs/00 §4.2).
+
+    Khai báo trong .github/services.json: cổng 8080, healthcheck /health/ready.
+    Đổi đường dẫn hay tên project ở đây thì phải sửa services.json cùng lúc, nếu không
+    ci-dotnet và cd-deploy sẽ đỏ với thông báo trỏ thẳng vào file đó.
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>Xnk.Corpus</RootNamespace>
+    <UserSecretsId>xnk-corpus-dev</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Pgvector.EntityFrameworkCore" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" />
+    <!--
+      Chỉ dùng bộ sinh OpenAPI có sẵn trong ASP.NET Core 9 (MapOpenApi → /openapi/v1.json),
+      không thêm Swashbuckle. Quyết định code-first ở ADR-0003 chỉ cần TÀI LIỆU hợp đồng,
+      không cần thêm một giao diện web và một phụ thuộc phải theo kịp từng bản .NET.
+    -->
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Xnk.Shared/Xnk.Shared.csproj" />
+  </ItemGroup>
+
+</Project>
