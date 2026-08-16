@@ -24,9 +24,10 @@ jobs:
     name: Dò đường dẫn thay đổi
     runs-on: ubuntu-latest
     outputs:
-      web: ${{ steps.filter.outputs.web }}
+      run: ${{ steps.decide.outputs.run }}
     steps:
       - uses: actions/checkout@v4
+
       - uses: dorny/paths-filter@v3
         id: filter
         with:
@@ -37,10 +38,28 @@ jobs:
               - '.github/workflows/ci-blazor.yml'
               - '.github/quality-gates.yml'
 
+      - name: Có project Blazor để build chưa
+        id: decide
+        run: |
+          # Cùng lý do như ci-dotnet.yml: đổi ngưỡng trong quality-gates.yml phải kiểm
+          # tra lại, nhưng trước story E1-11 chưa có project nào để publish, và báo đỏ
+          # trong tình huống đó chỉ dạy đội bỏ qua kết quả CI.
+          present=$(find src/dotnet/Xnk.Web -name '*.csproj' 2>/dev/null | head -1)
+
+          if [ "${{ steps.filter.outputs.web }}" != "true" ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "PR không đụng src/dotnet/Xnk.Web/."
+          elif [ -z "$present" ]; then
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=ci-blazor::Chưa có project Blazor trong src/dotnet/Xnk.Web/ (story E1-11 chưa làm) — không có gì để publish."
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
     name: Publish WASM · ngân sách bundle
     needs: changes
-    if: ${{ needs.changes.outputs.web == 'true' }}
+    if: ${{ needs.changes.outputs.run == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
