@@ -1,0 +1,99 @@
+# Môi trường chạy local.
+#
+# `docker compose up -d` mặc định CHỈ khởi PostgreSQL. Camunda, LocalStack và Jaeger nằm
+# sau profile vì chúng kéo về khoảng 3 GB ảnh mà lát cắt dọc hiện tại (corpus + retrieval)
+# không dùng tới. Bật khi cần:
+#
+#   docker compose --profile workflow up -d      # thêm Camunda 7
+#   docker compose --profile aws up -d           # thêm LocalStack
+#   docker compose --profile tracing up -d       # thêm Jaeger
+#   docker compose --profile full up -d          # tất cả
+#
+# Sau khi Postgres lên, áp lược đồ:  bash db/apply-migrations.sh
+#
+# ⚠️ Phiên bản PostgreSQL và ảnh pgvector ở đây phải khớp đúng với ci-dotnet
+# (job tenant-isolation) và với PostgresFixture trong test. Lệch phiên bản là cách tạo ra
+# loại lỗi chỉ đỏ trên CI mà không ai tái hiện được ở máy.
+
+name: xnk
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: xnk-postgres
+    environment:
+      POSTGRES_DB: xnk
+      POSTGRES_USER: postgres
+      # Không phải bí mật — chỉ dùng cho máy local, và trùng với appsettings.Development.json.
+      POSTGRES_PASSWORD: xnk-local-dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d xnk"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Cụm RDS riêng cho Camunda (docs/00 §4.4) — engine có mô hình khoá và nhịp ghi rất
+  # khác, dùng chung database với dữ liệu nghiệp vụ là tự chuốc lấy tranh chấp khoá.
+  camunda-postgres:
+    image: postgres:16
+    container_name: xnk-camunda-postgres
+    profiles: ["workflow", "full"]
+    environment:
+      POSTGRES_DB: camunda
+      POSTGRES_USER: camunda
+      POSTGRES_PASSWORD: camunda-local-dev
+    volumes:
+      - camunda-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U camunda -d camunda"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ⚠️ Chỉ dùng External Task pattern với engine này. Java Delegate bị cấm (docs/00 §1.2
+  # điểm 4) và ci-bpmn chặn ở CI — Camunda 7 đang trong lộ trình kết thúc hỗ trợ, nên mọi
+  # logic phải nằm ngoài engine để còn đường chuyển đổi.
+  camunda:
+    image: camunda/camunda-bpm-platform:run-7.21.0
+    container_name: xnk-camunda
+    profiles: ["workflow", "full"]
+    depends_on:
+      camunda-postgres:
+        condition: service_healthy
+    environment:
+      DB_DRIVER: org.postgresql.Driver
+      DB_URL: jdbc:postgresql://camunda-postgres:5432/camunda
+      DB_USERNAME: camunda
+      DB_PASSWORD: camunda-local-dev
+    ports:
+      # 8080 trên máy đã dành cho service .NET khi chạy `dotnet run`, nên Camunda ra 8090.
+      - "8090:8080"
+
+  localstack:
+    image: localstack/localstack:3
+    container_name: xnk-localstack
+    profiles: ["aws", "full"]
+    environment:
+      # Chỉ những dịch vụ dự án thật sự dùng ở prototype (docs/00 §4.3).
+      SERVICES: s3,sqs,eventbridge,secretsmanager
+      DEBUG: "0"
+    ports:
+      - "4566:4566"
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.62
+    container_name: xnk-jaeger
+    profiles: ["tracing", "full"]
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"  # giao diện web
+      - "4317:4317"    # OTLP gRPC
+
+volumes:
+  postgres-data:
+  camunda-data:

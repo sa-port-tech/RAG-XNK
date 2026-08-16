@@ -1,0 +1,40 @@
+# cd-deploy.yml build với `context: .` — tức là TOÀN BỘ repo được gửi sang Docker daemon
+# cho mỗi service, mỗi lần deploy. Không có file này thì mỗi lần build phải đẩy cả .git/,
+# docs/, eval/ và mọi thư mục bin/obj — chậm, và tệ hơn là kéo lịch sử git vào lớp build.
+
+.git
+.github
+.claude
+.vs
+.idea
+
+# Tài liệu và dữ liệu — không có gì trong đó đi vào image
+docs
+eval
+bpmn
+prompts
+
+# Kết quả build của .NET
+**/bin
+**/obj
+artifacts
+
+# Môi trường ảo và cache của Python
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/*.pyc
+
+# Cấu hình và bí mật của máy local
+.env
+docker-compose.yml
+**/appsettings.Development.json
+
+# Linh tinh
+*.md
+!README.md
+.editorconfig
+.gitattributes
+.gitignore
