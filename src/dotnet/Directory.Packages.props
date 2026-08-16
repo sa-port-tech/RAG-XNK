@@ -1,0 +1,47 @@
+<Project>
+
+  <!--
+    Quản lý phiên bản gói tập trung (Central Package Management).
+
+    Mỗi .csproj chỉ khai `<PackageReference Include="..." />` không kèm Version; phiên bản
+    duy nhất nằm ở đây. Lý do: khi 7 service cùng dùng Npgsql, hai bản khác nhau giữa hai
+    service là loại lỗi chỉ lộ ra lúc chạy, ở một service, trên một môi trường — và diff
+    của PR không hề gợi ý gì.
+
+    Nâng phiên bản là một dòng ở file này, và CODEOWNERS nhìn thấy.
+
+    ⚠️ `dotnet add package` KHÔNG dùng được ở SDK 9 khi bật CPM — nó ghi Version thẳng vào
+    .csproj rồi restore thất bại. Thêm gói bằng cách khai một dòng `<PackageVersion>` ở đây
+    và một dòng `<PackageReference>` không Version trong .csproj.
+  -->
+
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup Label="ASP.NET Core · dữ liệu">
+    <!-- Bám sát dòng 9.0.x, khớp runtimes.dotnet trong .github/quality-gates.yml. -->
+    <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.19" />
+    <PackageVersion Include="Microsoft.AspNetCore.OpenApi" Version="9.0.19" />
+    <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.19" />
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="9.0.19" />
+    <!-- Provider Npgsql đi theo nhịp phát hành riêng, không trùng bản vá với EF Core. -->
+    <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
+    <PackageVersion Include="Pgvector.EntityFrameworkCore" Version="0.3.0" />
+  </ItemGroup>
+
+  <ItemGroup Label="Test">
+    <PackageVersion Include="coverlet.collector" Version="6.0.2" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageVersion Include="xunit" Version="2.9.2" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <!--
+      Testcontainers để test cách ly tenant chạy được trên máy dev mà không cần dựng gì
+      trước. Trên CI thì job tenant-isolation đã cấp sẵn một Postgres qua
+      XNK_TEST_CONNECTION, nên fixture ưu tiên biến môi trường và chỉ khởi container khi
+      không có nó.
+    -->
+    <PackageVersion Include="Testcontainers.PostgreSql" Version="4.14.0" />
+  </ItemGroup>
+
+</Project>

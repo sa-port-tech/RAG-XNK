@@ -179,3 +179,24 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+# ─── .NET ────────────────────────────────────────────────────────────────────────
+# .gitignore gốc của repo lấy từ template Python nên không có phần này. Thiếu nó thì
+# mỗi PR .NET kéo theo hàng chục file build output vào diff, và review mất tác dụng.
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+*.user
+*.suo
+*.userprefs
+.vs/
+artifacts/
+*.trx
+*.coverage
+coverage.cobertura.xml
+# uv.lock và packages.lock.json PHẢI được commit — không thêm chúng vào đây.
+
+# ─── Môi trường local ────────────────────────────────────────────────────────────
+# .env chứa giá trị thật; .env.example là bản mẫu và được commit.
+.env
+!.env.example

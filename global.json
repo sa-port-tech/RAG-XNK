@@ -1,0 +1,12 @@
+{
+  "$comment": [
+    "Ghim dải SDK .NET khớp runtimes.dotnet trong .github/quality-gates.yml (9.0.x).",
+    "rollForward latestMinor: chấp nhận mọi SDK 9.x đã cài, nhưng KHÔNG nhảy sang 10.",
+    "Không ghim cứng một bản vá cụ thể — CI dùng setup-dotnet với '9.0.x' nên bản vá ở",
+    "runner và ở máy dev sẽ khác nhau, ghim cứng là tự tạo ra một lỗi chỉ xảy ra ở một phía."
+  ],
+  "sdk": {
+    "version": "9.0.100",
+    "rollForward": "latestMinor"
+  }
+}
