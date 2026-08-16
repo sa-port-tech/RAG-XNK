@@ -44,6 +44,7 @@
 | 07 | Runbook vận hành (AWS) | ⬜ | DevOps | Sprint 3 |
 | 08 | Báo cáo Go/No-Go | ⬜ | PO | Tuần 7 |
 | 17 | [Runbook GitHub — cài đặt và vận hành](17-runbook-github.md) | ✅ | DevOps + Tech Lead | Sprint 0 |
+| 18 | [Dựng lại hạ tầng GitHub từ đầu](18-dung-lai-tu-dau.md) | ✅ | DevOps | Sprint 0 |
 | — | [ADR — Architecture Decision Records](adr/) | ⬜ | Tech Lead | Liên tục |
 | — | Báo cáo eval mỗi sprint | ⬜ | AI Engineer | Cuối mỗi sprint |
 
