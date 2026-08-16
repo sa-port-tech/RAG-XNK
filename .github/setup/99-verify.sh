@@ -173,8 +173,14 @@ else
   miss "TÌM THẤY access key AWS trong Secrets — vi phạm trực tiếp §8.5"
 fi
 
-if grep -rq "AWS_ACCESS_KEY_ID" "$REPO_ROOT/.github/workflows/" 2>/dev/null; then
-  miss "Có workflow tham chiếu AWS_ACCESS_KEY_ID"
+# Bỏ dòng chú thích trước khi tìm: chính cd-deploy.yml có câu "không có
+# secrets.AWS_ACCESS_KEY_ID ở bất kỳ đâu trong file này", và phép grep thô sẽ báo
+# động vì đúng cái câu khẳng định điều ngược lại.
+AWS_KEY_USE=$(grep -rn "AWS_ACCESS_KEY_ID\|AWS_SECRET_ACCESS_KEY" "$REPO_ROOT/.github/workflows/" 2>/dev/null \
+  | grep -v ':[[:space:]]*#' || true)
+if [ -n "$AWS_KEY_USE" ]; then
+  miss "Có workflow tham chiếu access key AWS ngoài phần chú thích:"
+  echo "$AWS_KEY_USE" | sed 's/^/       /'
 else
   pass "không workflow nào tham chiếu access key tĩnh"
 fi
@@ -200,7 +206,20 @@ step "Team và quyền"
 while read -r slug permission; do
   slug=$(echo "$slug" | base64 -d); permission=$(echo "$permission" | base64 -d)
   if exists "orgs/$ORG/teams/$slug"; then
-    ACTUAL=$(api "orgs/$ORG/teams/$slug/repos/$SLUG" --jq '.role_name' 2>/dev/null || echo "không có quyền")
+    # GET /teams/{t}/repos/{owner}/{repo} trả HTTP 204 KHÔNG kèm thân phản hồi khi
+    # team có quyền — muốn đọc được role_name phải gửi Accept đặc biệt. Liệt kê repo
+    # của team rồi lọc là cách chắc chắn hơn và không phụ thuộc media type.
+    ACTUAL=$(api "orgs/$ORG/teams/$slug/repos" \
+      | jq -r --arg r "$SLUG" '.[] | select(.full_name == $r) | .role_name' 2>/dev/null)
+    [ -z "$ACTUAL" ] && ACTUAL="không có quyền"
+
+    # GitHub nhận quyền dưới tên cũ khi GHI (`push`, `pull`) nhưng trả về tên vai
+    # trò khi ĐỌC (`write`, `read`). Cùng một quyền, hai cách gọi.
+    case "$permission" in
+      push) permission="write" ;;
+      pull) permission="read" ;;
+    esac
+
     if [ "$ACTUAL" = "$permission" ]; then
       pass "@$ORG/$slug ($permission)"
     else

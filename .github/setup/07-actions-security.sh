@@ -32,17 +32,19 @@ gh api -X PUT "repos/$SLUG/actions/permissions" \
 
 # Danh sách trắng: đúng những action mà 9 workflow trong repo này dùng, không hơn.
 # Thêm action mới là một quyết định có ý thức, phải sửa file này và qua review.
-gh api -X PUT "repos/$SLUG/actions/permissions/selected-actions" \
-  -F github_owned_allowed=true \
-  -F verified_allowed=true \
-  --raw-field 'patterns_allowed=[
+# patterns_allowed là mảng, mà `-F`/`--raw-field` của gh gửi chuỗi — phải đi qua
+# body JSON, cùng lý do như ở 04-project.sh và 05-environments.sh.
+jq -n '{
+  github_owned_allowed: true,
+  verified_allowed: true,
+  patterns_allowed: [
     "dorny/paths-filter@*",
     "astral-sh/setup-uv@*",
     "peter-evans/find-comment@*",
     "peter-evans/create-or-update-comment@*",
     "peter-evans/create-pull-request@*"
-  ]' \
-  --silent
+  ]
+}' | gh api -X PUT "repos/$SLUG/actions/permissions/selected-actions" --input - --silent
 ok "Chỉ action của GitHub + nhà phát hành đã xác minh + 5 action trong danh sách trắng"
 info "aws-actions/* và docker/* thuộc nhóm nhà phát hành đã xác minh."
 
