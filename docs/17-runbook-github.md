@@ -208,6 +208,25 @@ Năm đường dẫn của §8.6 giữ nguyên. Bốn nhóm bổ sung, kèm lý 
 | `/eval/gates.yml`, `/.github/quality-gates.yml` | Ngưỡng chặn merge nằm ở đây. Sửa được hai file này là sửa được cổng |
 | `/eval/golden-set/baseline.json` → `@ai-lead` | Do CI sinh ra, không phải thước đo. Bắt chuyên gia XNK duyệt từng lần cập nhật số liệu tự động là tiêu thời gian khan hiếm nhất của dự án vào việc không cần chuyên môn của họ |
 
+### 5.6.1 Một approval của Tech Lead là đủ cho mọi PR
+
+GitHub đòi approval từ chủ sở hữu của **từng** quy tắc CODEOWNERS mà PR khớp phải.
+Một PR chạm cả `.github/` lẫn `docs/` cần approval của hai nhóm khác nhau, và với đội
+11 người kiêm nhiệm thì việc gom đủ chữ ký làm PR nằm chờ nhiều ngày.
+
+Quyết định của đội: **`@tech-lead` đồng sở hữu mọi đường dẫn**, nên một approval của
+họ phủ hết mọi quy tắc. Các team chuyên môn vẫn có tên trên từng dòng — vẫn được tự
+động gán review, vẫn thấy thay đổi, và *Request changes* của họ vẫn chặn merge. Cái
+mất đi là approval của họ không còn **bắt buộc**.
+
+> ⚠️ Hệ quả nằm ở đúng ba chỗ: `prompts/`, `eval/golden-set/`, `bpmn/`. docs/14
+> §"Bẫy thường gặp" dựa vào CODEOWNERS để chặn kịch bản *"sửa golden set cho chỉ số
+> đẹp hơn"*, và §8.6 đặt chuyên gia XNK làm người duy nhất duyệt nội dung nghiệp vụ.
+> Từ nay Tech Lead một mình cũng merge được thay đổi ở ba thư mục đó.
+>
+> Khôi phục cổng chuyên gia cho riêng ba đường dẫn: xoá `@sa-port-tech/tech-lead`
+> khỏi đúng ba dòng đánh dấu 🔶 trong [`CODEOWNERS`](../.github/CODEOWNERS).
+
 ---
 
 ## 6. Bốn chỗ GitHub không làm được như tài liệu mô tả

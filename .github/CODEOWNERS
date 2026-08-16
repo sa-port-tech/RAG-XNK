@@ -7,51 +7,68 @@
 # Dòng SAU ghi đè dòng TRƯỚC khi cùng khớp một file. Thứ tự dưới đây là cố ý:
 # quy tắc chung trước, quy tắc hẹp và nghiêm ngặt hơn ở sau.
 #
+# ─── Vì sao @tech-lead có mặt ở MỌI dòng ──────────────────────────────────────
+#
+# GitHub đòi approval từ chủ sở hữu của TỪNG quy tắc mà PR khớp phải. Một PR chạm
+# cả `.github/` lẫn `docs/` sẽ cần approval của hai nhóm khác nhau, và với đội 11
+# người kiêm nhiệm thì việc gom đủ chữ ký làm PR nằm chờ nhiều ngày.
+#
+# Quyết định của đội: **một approval của @tech-lead là đủ cho mọi PR.** Cách diễn
+# đạt điều đó trong CODEOWNERS là cho @tech-lead đồng sở hữu mọi đường dẫn.
+#
+# Các team chuyên môn vẫn giữ nguyên trên từng dòng — họ vẫn được tự động gán
+# review, vẫn thấy thay đổi, và "Request changes" của họ vẫn chặn merge. Cái mất đi
+# là approval của họ không còn BẮT BUỘC.
+#
+# ⚠️ Hệ quả cần nhìn thẳng, ở đúng một chỗ: `prompts/`, `eval/golden-set/` và
+#    `bpmn/`. docs/14 §"Bẫy thường gặp" dựa vào CODEOWNERS để chặn kịch bản "sửa
+#    golden set cho chỉ số đẹp hơn", và docs/00 §8.6 đặt chuyên gia XNK làm người
+#    duy nhất duyệt nội dung nghiệp vụ. Từ nay Tech Lead một mình cũng merge được
+#    thay đổi ở ba thư mục đó.
+#
+#    Nếu muốn khôi phục cổng chuyên gia cho riêng ba đường dẫn này, xoá
+#    `@sa-port-tech/tech-lead` khỏi đúng ba dòng được đánh dấu 🔶 bên dưới.
+#
 # Mọi team phải là team của org sa-port-tech và phải có quyền write trên repo,
 # nếu không GitHub im lặng bỏ qua dòng đó. Script .github/setup/03-teams.sh
 # tạo đủ 9 team và kiểm tra lại điều kiện này.
 
 # ─── Mặc định ──────────────────────────────────────────────────────────────────
-# docs/00 §8.6 không nêu chủ sở hữu mặc định. Thiếu nó thì phần lớn PR không có
-# reviewer tự động, nên §8.3 ④ không thành hiện thực. Tech Lead nhận vai này.
 *                               @sa-port-tech/tech-lead
 
 # ─── Năm đường dẫn chốt trong docs/00 §8.6 ─────────────────────────────────────
-/prompts/                       @sa-port-tech/xnk-expert-team @sa-port-tech/ai-lead
-/eval/golden-set/               @sa-port-tech/xnk-expert-team
+/prompts/                       @sa-port-tech/tech-lead @sa-port-tech/xnk-expert-team @sa-port-tech/ai-lead   # 🔶
+/eval/golden-set/               @sa-port-tech/tech-lead @sa-port-tech/xnk-expert-team                          # 🔶
 # baseline.json nằm trong golden-set nhưng do CI sinh ra, không phải một phần thước đo.
-# Bắt chuyên gia XNK duyệt từng lần cập nhật số liệu tự động là tiêu thời gian khan hiếm
-# nhất của dự án vào việc không cần chuyên môn của họ.
-/eval/golden-set/baseline.json  @sa-port-tech/ai-lead
-/bpmn/                          @sa-port-tech/xnk-expert-team @sa-port-tech/backend-lead
-/db/migrations/                 @sa-port-tech/data-lead @sa-port-tech/backend-lead
-/infra/                         @sa-port-tech/devops-lead @sa-port-tech/backend-lead
+/eval/golden-set/baseline.json  @sa-port-tech/tech-lead @sa-port-tech/ai-lead
+/bpmn/                          @sa-port-tech/tech-lead @sa-port-tech/xnk-expert-team @sa-port-tech/backend-lead  # 🔶
+/db/migrations/                 @sa-port-tech/tech-lead @sa-port-tech/data-lead @sa-port-tech/backend-lead
+/infra/                         @sa-port-tech/tech-lead @sa-port-tech/devops-lead @sa-port-tech/backend-lead
 
 # ─── Bổ sung ngoài §8.6 ────────────────────────────────────────────────────────
-# Lý do: docs/00 §8.5 chốt "không có đường deploy thẳng lên production mà không qua
-# người duyệt, KỂ CẢ KHI AI ĐÓ SỬA ĐƯỢC WORKFLOW FILE". Muốn đúng như vậy thì chính
-# .github/ phải có chủ sở hữu — nếu không, sửa workflow là cách dễ nhất để vô hiệu
-# hoá toàn bộ cổng chất lượng mà không ai được gán review.
-/.github/                       @sa-port-tech/devops-lead @sa-port-tech/tech-lead
-/.github/workflows/             @sa-port-tech/devops-lead @sa-port-tech/tech-lead
+# docs/00 §8.5 chốt "không có đường deploy thẳng lên production mà không qua người
+# duyệt, KỂ CẢ KHI AI ĐÓ SỬA ĐƯỢC WORKFLOW FILE". Muốn đúng như vậy thì chính
+# .github/ phải có chủ sở hữu.
+/.github/                       @sa-port-tech/tech-lead @sa-port-tech/devops-lead
+/.github/workflows/             @sa-port-tech/tech-lead @sa-port-tech/devops-lead
 /.github/CODEOWNERS             @sa-port-tech/tech-lead
 
 # Ngưỡng chặn merge nằm ở đây. Sửa được file này là sửa được cổng chất lượng.
-/eval/gates.yml                 @sa-port-tech/ai-lead @sa-port-tech/tech-lead
+/eval/gates.yml                 @sa-port-tech/tech-lead @sa-port-tech/ai-lead
 /.github/quality-gates.yml      @sa-port-tech/tech-lead @sa-port-tech/devops-lead
 
 # Frontend Blazor (N8)
-/src/dotnet/Xnk.Web/            @sa-port-tech/frontend-lead @sa-port-tech/tech-lead
+/src/dotnet/Xnk.Web/            @sa-port-tech/tech-lead @sa-port-tech/frontend-lead
 
 # Tài liệu quản trị dự án do PO sở hữu, tài liệu nghiệp vụ do BA sở hữu (docs/README)
-/docs/                          @sa-port-tech/business-analyst @sa-port-tech/product-owner
-/docs/00-ke-hoach-tong-the.md   @sa-port-tech/product-owner
-/docs/01-ke-hoach-prototype-scrum.md @sa-port-tech/product-owner
-/docs/02-stakeholder-va-nhan-su.md   @sa-port-tech/product-owner
+/docs/                          @sa-port-tech/tech-lead @sa-port-tech/business-analyst @sa-port-tech/product-owner
+/docs/00-ke-hoach-tong-the.md   @sa-port-tech/tech-lead @sa-port-tech/product-owner
+/docs/01-ke-hoach-prototype-scrum.md @sa-port-tech/tech-lead @sa-port-tech/product-owner
+/docs/02-stakeholder-va-nhan-su.md   @sa-port-tech/tech-lead @sa-port-tech/product-owner
 /docs/adr/                      @sa-port-tech/tech-lead
 
-# Tài liệu nghiệp vụ XNK — chuyên gia là người duy nhất có thẩm quyền xác nhận nội dung
-/docs/04-danh-muc-van-ban-loi.md      @sa-port-tech/xnk-expert-team @sa-port-tech/business-analyst
-/docs/11-tu-dien-thuat-ngu-xnk.md     @sa-port-tech/xnk-expert-team @sa-port-tech/business-analyst
-/docs/12-ma-tran-incoterms-2020.md    @sa-port-tech/xnk-expert-team @sa-port-tech/business-analyst
-/docs/13-dac-ta-bang-tra-cuu.md       @sa-port-tech/xnk-expert-team @sa-port-tech/business-analyst
+# Tài liệu nghiệp vụ XNK — chuyên gia vẫn được gán review, nhưng không còn bắt buộc
+/docs/04-danh-muc-van-ban-loi.md      @sa-port-tech/tech-lead @sa-port-tech/xnk-expert-team @sa-port-tech/business-analyst
+/docs/11-tu-dien-thuat-ngu-xnk.md     @sa-port-tech/tech-lead @sa-port-tech/xnk-expert-team @sa-port-tech/business-analyst
+/docs/12-ma-tran-incoterms-2020.md    @sa-port-tech/tech-lead @sa-port-tech/xnk-expert-team @sa-port-tech/business-analyst
+/docs/13-dac-ta-bang-tra-cuu.md       @sa-port-tech/tech-lead @sa-port-tech/xnk-expert-team @sa-port-tech/business-analyst
