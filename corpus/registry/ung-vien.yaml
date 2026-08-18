@@ -1,0 +1,425 @@
+# Kho ứng viên — văn bản XNK để chuyên gia CHỌN vào 15 slot của van-ban.yaml.
+#
+# ⚠️ File này KHÁC van-ban.yaml về mục đích:
+#   van-ban.yaml  = 15 slot đã chốt cấu trúc, là corpus prototype thật.
+#   ung-vien.yaml = kho ứng viên rộng hơn, chưa ai chọn, chưa ai xác minh.
+#
+# Tách hai file để buổi làm việc Sprint 0 là việc CHỌN (nhanh, có căn cứ) chứ không phải
+# việc NHỚ RA (chậm, dễ sót). docs/14 §7 dùng đúng nguyên tắc này cho golden set: đừng gửi
+# form trống rồi chờ.
+#
+# ─────────────────────────────────────────────────────────────────────────────────────
+# NGUỒN VÀ GIỚI HẠN CỦA NÓ
+#
+# Toàn bộ số hiệu dưới đây tra từ Công báo Chính phủ (congbao.chinhphu.vn) ngày 2026-08-17.
+# Công báo là nguồn chính thức cho việc VĂN BẢN ĐÃ ĐƯỢC BAN HÀNH VÀ ĐĂNG CÔNG BÁO.
+#
+# Công báo KHÔNG phải nguồn cho:
+#   · trạng thái hiệu lực hiện tại ở cấp Điều/Khoản  → phải lấy từ vbpl.vn
+#   · đồ thị quan hệ sửa đổi đầy đủ                  → sơ đồ Công báo đã chứng minh là thiếu
+#                                                       (xem quan-he-sua-doi.yaml, mục phát hiện)
+#
+# Vì vậy MỌI bản ghi ở đây đều thiếu `trang_thai`, và đó là đúng, không phải sót.
+# ─────────────────────────────────────────────────────────────────────────────────────
+
+phien_ban: 1
+cap_nhat_lan_cuoi: 2026-08-17
+nguon: "congbao.chinhphu.vn"
+ngay_tra: 2026-08-17
+
+ung_vien:
+
+  # ═══ NHÓM D — Trị giá hải quan · ứng viên cho slot dòng 7–8 ═══════════════════════
+  - so_hieu: "39/2015/TT-BTC"
+    loai_van_ban: "Thông tư"
+    trich_yeu: "quy định về trị giá hải quan đối với hàng hóa xuất khẩu, nhập khẩu"
+    co_quan_ban_hanh: "Bộ Tài chính"
+    nguoi_ky: "Đỗ Hoàng Anh Tuấn"
+    ngay_ban_hanh: 2015-03-25
+    ngay_hieu_luc: 2015-04-01
+    nhom_nghiep_vu: ["D"]
+    slot_de_xuat: 7
+    vai_tro_de_xuat: "bi_sua_doi"
+    url: "https://congbao.chinhphu.vn/van-ban/thong-tu-so-39-2015-tt-btc-9959.htm"
+    ghi_chu: "Công báo ghi thay thế 205/2010/TT-BTC và 29/2014/TT-BTC."
+
+  - so_hieu: "60/2019/TT-BTC"
+    loai_van_ban: "Thông tư"
+    trich_yeu: "sửa đổi, bổ sung một số điều của Thông tư số 39/2015/TT-BTC ngày 25 tháng 3 năm 2015 quy định về trị giá hải quan đối với hàng hóa xuất khẩu, nhập khẩu"
+    co_quan_ban_hanh: "Bộ Tài chính"
+    nguoi_ky: "Vũ Thị Mai"
+    ngay_ban_hanh: 2019-08-30
+    ngay_hieu_luc: 2019-10-15
+    nhom_nghiep_vu: ["D"]
+    slot_de_xuat: 8
+    vai_tro_de_xuat: "van_ban_sua_doi"
+    url: "https://congbao.chinhphu.vn/van-ban/thong-tu-so-60-2019-tt-btc-29658.htm"
+    ghi_chu: "★ CẶP SỬA ĐỔI THỨ BA (39/2015 ← 60/2019) — lấp đúng slot 7–8 của docs/04 §2."
+
+  - so_hieu: "2681/QĐ-BTC"
+    loai_van_ban: "Quyết định"
+    trich_yeu: "đính chính Thông tư số 60/2019/TT-BTC"
+    co_quan_ban_hanh: "Bộ Tài chính"
+    nguoi_ky: null
+    ngay_ban_hanh: null
+    ngay_hieu_luc: null
+    nhom_nghiep_vu: ["D"]
+    slot_de_xuat: null
+    vai_tro_de_xuat: null
+    url: "https://congbao.chinhphu.vn/so-do-van-ban-so-60-2019-tt-btc-29658?cbid=28019"
+    ghi_chu: >-
+      ★ Đây là ca `dinh_chinh` — một trong sáu giá trị enum `loai` của docs/00 §9.4 mà hiện
+      chưa có dữ liệu nào kiểm chứng. Rẻ để thêm, và nó phủ một nhánh của đồ thị hiệu lực
+      mà không văn bản nào khác trong danh sách phủ được.
+
+  # ═══ NHÓM F — Thuế XNK · ứng viên cho slot dòng 10–12 ═════════════════════════════
+  - so_hieu: "107/2016/QH13"
+    loai_van_ban: "Luật"
+    trich_yeu: "Luật thuế xuất khẩu, thuế nhập khẩu"
+    co_quan_ban_hanh: "Quốc hội"
+    nguoi_ky: "Nguyễn Thị Kim Ngân"
+    ngay_ban_hanh: 2016-04-06
+    ngay_hieu_luc: 2016-09-01
+    nhom_nghiep_vu: ["F"]
+    slot_de_xuat: 10
+    vai_tro_de_xuat: "nen_tang"
+    url: "https://congbao.chinhphu.vn/van-ban/luat-so-107-2016-qh13-19621.htm"
+
+  - so_hieu: "134/2016/NĐ-CP"
+    loai_van_ban: "Nghị định"
+    trich_yeu: "quy định chi tiết một số điều và biện pháp thi hành Luật thuế xuất khẩu, thuế nhập khẩu"
+    co_quan_ban_hanh: "Chính phủ"
+    nguoi_ky: "Nguyễn Xuân Phúc"
+    ngay_ban_hanh: 2016-09-01
+    ngay_hieu_luc: 2016-09-01
+    nhom_nghiep_vu: ["F"]
+    slot_de_xuat: 11
+    vai_tro_de_xuat: "bi_sua_doi"
+    url: "https://congbao.chinhphu.vn/noi-dung-van-ban-so-134-2016-nd-cp-21147"
+    ghi_chu: "Đây là văn bản chứa quy định miễn/giảm/hoàn thuế — đúng mô tả slot 11 của docs/04 §2."
+
+  - so_hieu: "18/2021/NĐ-CP"
+    loai_van_ban: "Nghị định"
+    trich_yeu: "sửa đổi, bổ sung một số điều của Nghị định số 134/2016/NĐ-CP ngày 01 tháng 9 năm 2016"
+    co_quan_ban_hanh: "Chính phủ"
+    nguoi_ky: "Nguyễn Xuân Phúc"
+    ngay_ban_hanh: 2021-03-11
+    ngay_hieu_luc: 2021-04-25
+    nhom_nghiep_vu: ["F"]
+    slot_de_xuat: 12
+    vai_tro_de_xuat: "van_ban_sua_doi"
+    url: "https://congbao.chinhphu.vn/van-ban/nghi-dinh-so-18-2021-nd-cp-33438.htm"
+    ghi_chu: "★ CẶP SỬA ĐỔI THỨ TƯ (134/2016 ← 18/2021) — lấp đúng slot 11–12 của docs/04 §2."
+
+  - so_hieu: "06/VBHN-BTC"
+    loai_van_ban: "Văn bản hợp nhất"
+    trich_yeu: "hợp nhất Nghị định quy định chi tiết một số điều và biện pháp thi hành Luật thuế xuất khẩu, thuế nhập khẩu"
+    co_quan_ban_hanh: "Bộ Tài chính"
+    nguoi_ky: null
+    ngay_ban_hanh: null
+    ngay_hieu_luc: null
+    nhom_nghiep_vu: ["F"]
+    slot_de_xuat: null
+    vai_tro_de_xuat: "vbhn"
+    url: "https://congbao.chinhphu.vn/tai-ve-van-ban-so-06-vbhn-btc-37018-40274?format=pdf"
+    ghi_chu: >-
+      Ứng viên VBHN cho cặp 134/2016 + 18/2021. Nếu chọn, ta có VBHN thứ hai trong corpus và
+      BR-09 được kiểm chứng trên hai ca độc lập thay vì một.
+
+  - so_hieu: "26/2023/NĐ-CP"
+    loai_van_ban: "Nghị định"
+    trich_yeu: "Biểu thuế xuất khẩu, Biểu thuế nhập khẩu ưu đãi, Danh mục hàng hóa và mức thuế tuyệt đối, thuế hỗn hợp, thuế nhập khẩu ngoài hạn ngạch thuế quan"
+    co_quan_ban_hanh: "Chính phủ"
+    nguoi_ky: null
+    ngay_ban_hanh: 2023-05-31
+    ngay_hieu_luc: null
+    nhom_nghiep_vu: ["F"]
+    slot_de_xuat: null
+    vai_tro_de_xuat: "bi_sua_doi"
+    url: "https://congbao.chinhphu.vn/van-ban/nghi-dinh-so-260-2025-nd-cp-46374.htm"
+    ghi_chu: "Nguồn dữ liệu cho bảng `bieu_thue` (docs/13 §3). docs/13 §9 đang hoãn bảng này sang Phase 1."
+
+  - so_hieu: "73/2025/NĐ-CP"
+    loai_van_ban: "Nghị định"
+    trich_yeu: "sửa đổi, bổ sung mức thuế suất thuế nhập khẩu ưu đãi của một số mặt hàng tại Biểu thuế nhập khẩu ưu đãi ban hành kèm theo Nghị định số 26/2023/NĐ-CP"
+    co_quan_ban_hanh: "Chính phủ"
+    nguoi_ky: null
+    ngay_ban_hanh: null
+    ngay_hieu_luc: null
+    nhom_nghiep_vu: ["F"]
+    slot_de_xuat: null
+    vai_tro_de_xuat: "van_ban_sua_doi"
+    url: "https://congbao.chinhphu.vn/van-ban/nghi-dinh-so-73-2025-nd-cp-44643.htm"
+
+  - so_hieu: "260/2025/NĐ-CP"
+    loai_van_ban: "Nghị định"
+    trich_yeu: "sửa đổi mức thuế suất thuế xuất khẩu đối với một số mặt hàng thuộc nhóm 71.13, 71.14 và 71.15 tại Biểu thuế xuất khẩu ban hành kèm theo Nghị định số 26/2023/NĐ-CP"
+    co_quan_ban_hanh: "Chính phủ"
+    nguoi_ky: null
+    ngay_ban_hanh: null
+    ngay_hieu_luc: null
+    nhom_nghiep_vu: ["F"]
+    slot_de_xuat: null
+    vai_tro_de_xuat: "van_ban_sua_doi"
+    url: "https://congbao.chinhphu.vn/van-ban/nghi-dinh-so-260-2025-nd-cp-46374.htm"
+    ghi_chu: >-
+      ★ Ca quý cho câu bẫy dạng B2 (truy vấn quá khứ, docs/14 §5): thuế suất XK nhóm 71.13–71.15
+      có ÍT NHẤT HAI phiên bản theo thời gian. Hỏi "thuế suất mặt hàng này năm 2024" và
+      "hiện nay" phải ra hai kết quả khác nhau — đúng thứ E3-08 cần chứng minh.
+
+  - so_hieu: "126/2022/NĐ-CP"
+    loai_van_ban: "Nghị định"
+    trich_yeu: "Biểu thuế nhập khẩu ưu đãi đặc biệt của Việt Nam để thực hiện Hiệp định Thương mại Hàng hóa ASEAN giai đoạn 2022 - 2027"
+    co_quan_ban_hanh: "Chính phủ"
+    nguoi_ky: null
+    ngay_ban_hanh: null
+    ngay_hieu_luc: null
+    nhom_nghiep_vu: ["E", "F"]
+    slot_de_xuat: null
+    vai_tro_de_xuat: "nen_tang"
+    url: "https://congbao.chinhphu.vn/van-ban/nghi-dinh-so-126-2022-nd-cp-38868.htm"
+    ghi_chu: "Thuế ưu đãi đặc biệt ATIGA — nguồn kiểm chứng BR-05 (thuế suất ưu đãi phải nêu điều kiện C/O)."
+
+  - so_hieu: "115/2022/NĐ-CP"
+    loai_van_ban: "Nghị định"
+    trich_yeu: "Biểu thuế xuất khẩu ưu đãi, Biểu thuế nhập khẩu ưu đãi đặc biệt của Việt Nam để thực hiện Hiệp định Đối tác Toàn diện và Tiến bộ xuyên Thái Bình Dương giai đoạn 2022 - 2027"
+    co_quan_ban_hanh: "Chính phủ"
+    nguoi_ky: null
+    ngay_ban_hanh: null
+    ngay_hieu_luc: null
+    nhom_nghiep_vu: ["E", "F"]
+    slot_de_xuat: null
+    vai_tro_de_xuat: "nen_tang"
+    url: "https://congbao.chinhphu.vn/van-ban/nghi-dinh-so-115-2022-nd-cp-38713/43408.htm"
+
+  # ═══ NHÓM K — Danh mục HS · nguồn cho bảng `danh_muc_hs` ══════════════════════════
+  # ⚠️ Chuỗi ba đời: 103/2015 → 65/2017 → 31/2022. Chọn nhầm đời là trả sai mã HS.
+  - so_hieu: "31/2022/TT-BTC"
+    loai_van_ban: "Thông tư"
+    trich_yeu: "ban hành Danh mục hàng hóa xuất khẩu, nhập khẩu Việt Nam"
+    co_quan_ban_hanh: "Bộ Tài chính"
+    nguoi_ky: "Vũ Thị Mai"
+    ngay_ban_hanh: 2022-06-08
+    ngay_hieu_luc: 2022-12-01
+    nhom_nghiep_vu: ["K"]
+    slot_de_xuat: null
+    vai_tro_de_xuat: "nen_tang"
+    url: "https://congbao.chinhphu.vn/van-ban/thong-tu-so-31-2022-tt-btc-37431.htm"
+    ghi_chu: >-
+      Bản mới nhất tìm được. docs/05 §2.3: chỉ dùng Danh mục của Bộ Tài chính, KHÔNG dùng
+      WCO Explanatory Notes. Phụ thuộc câu hỏi Q1 (docs/03 §7 — nhóm K có vào v1 không).
+
+  - so_hieu: "65/2017/TT-BTC"
+    loai_van_ban: "Thông tư"
+    trich_yeu: "ban hành Danh mục hàng hóa xuất khẩu, nhập khẩu Việt Nam"
+    co_quan_ban_hanh: "Bộ Tài chính"
+    nguoi_ky: null
+    ngay_ban_hanh: 2017-06-27
+    ngay_hieu_luc: null
+    nhom_nghiep_vu: ["K"]
+    slot_de_xuat: null
+    vai_tro_de_xuat: "bi_sua_doi"
+    url: "https://congbao.chinhphu.vn/van-ban/thong-tu-so-09-2019-tt-btc-28521.htm"
+
+  - so_hieu: "09/2019/TT-BTC"
+    loai_van_ban: "Thông tư"
+    trich_yeu: "sửa đổi, bổ sung một số nội dung tại các Phụ lục của Thông tư số 65/2017/TT-BTC ngày 27 tháng 6 năm 2017 ban hành Danh mục hàng hóa xuất khẩu, nhập khẩu Việt Nam"
+    co_quan_ban_hanh: "Bộ Tài chính"
+    nguoi_ky: null
+    ngay_ban_hanh: null
+    ngay_hieu_luc: null
+    nhom_nghiep_vu: ["K"]
+    slot_de_xuat: null
+    vai_tro_de_xuat: "van_ban_sua_doi"
+    url: "https://congbao.chinhphu.vn/van-ban/thong-tu-so-09-2019-tt-btc-28521.htm"
+    ghi_chu: >-
+      ★ Cặp sửa đổi hiếm: sửa đổi Ở CẤP PHỤ LỤC, không phải cấp Điều. docs/00 §9.2 gọi bảng
+      biểu là "điểm yếu chí mạng". Nếu muốn kiểm chứng parser xử lý được sửa đổi phụ lục thì
+      đây là ca duy nhất trong danh sách này làm được.
+
+  - so_hieu: "103/2015/TT-BTC"
+    loai_van_ban: "Thông tư"
+    trich_yeu: "ban hành Danh mục hàng hóa xuất khẩu, nhập khẩu Việt Nam"
+    co_quan_ban_hanh: "Bộ Tài chính"
+    nguoi_ky: null
+    ngay_ban_hanh: null
+    ngay_hieu_luc: null
+    nhom_nghiep_vu: ["K"]
+    slot_de_xuat: null
+    vai_tro_de_xuat: null
+    url: "https://congbao.chinhphu.vn/van-ban/thong-tu-so-103-2015-tt-btc-15536/10595.htm"
+    ghi_chu: "Đời cũ nhất. Hữu ích cho câu bẫy B2 nếu muốn hỏi mã HS theo thời điểm 2016."
+
+  # ═══ NHÓM E — Xuất xứ & C/O · ứng viên cho slot dòng 13 ═══════════════════════════
+  # docs/04 §2 dòng 13: "chọn hiệp định có lưu lượng lớn nhất" — quyết định của chuyên gia.
+  - so_hieu: "05/2018/TT-BCT"
+    loai_van_ban: "Thông tư"
+    trich_yeu: "quy định về xuất xứ hàng hóa"
+    co_quan_ban_hanh: "Bộ Công Thương"
+    nguoi_ky: null
+    ngay_ban_hanh: 2018-04-03
+    ngay_hieu_luc: null
+    nhom_nghiep_vu: ["E"]
+    slot_de_xuat: 13
+    vai_tro_de_xuat: "bi_sua_doi"
+    url: "https://congbao.chinhphu.vn/van-ban/thong-tu-so-44-2023-tt-bct-41061/48451.htm"
+    ghi_chu: "Thông tư khung về xuất xứ, không gắn với một FTA cụ thể — có thể phù hợp hơn dòng 13 so với một TT theo hiệp định."
+
+  - so_hieu: "44/2023/TT-BCT"
+    loai_van_ban: "Thông tư"
+    trich_yeu: "sửa đổi, bổ sung một số điều của Thông tư số 05/2018/TT-BCT ngày 03 tháng 4 năm 2018 quy định về xuất xứ hàng hóa"
+    co_quan_ban_hanh: "Bộ Công Thương"
+    nguoi_ky: null
+    ngay_ban_hanh: null
+    ngay_hieu_luc: null
+    nhom_nghiep_vu: ["E"]
+    slot_de_xuat: 13
+    vai_tro_de_xuat: "van_ban_sua_doi"
+    url: "https://congbao.chinhphu.vn/van-ban/thong-tu-so-44-2023-tt-bct-41061/48451.htm"
+    ghi_chu: "★ Cặp sửa đổi thứ NĂM (05/2018 ← 44/2023) — nếu chọn, corpus có 5 cặp, vượt yêu cầu tối thiểu 2 của docs/04 §7."
+
+  - so_hieu: "03/2019/TT-BCT"
+    loai_van_ban: "Thông tư"
+    trich_yeu: "quy định Quy tắc xuất xứ hàng hóa trong Hiệp định Đối tác Toàn diện và Tiến bộ xuyên Thái Bình Dương"
+    co_quan_ban_hanh: "Bộ Công Thương"
+    nguoi_ky: null
+    ngay_ban_hanh: null
+    ngay_hieu_luc: null
+    nhom_nghiep_vu: ["E"]
+    slot_de_xuat: 13
+    vai_tro_de_xuat: "nen_tang"
+    url: "https://congbao.chinhphu.vn/van-ban/thong-tu-so-03-2019-tt-bct-28656.htm"
+    ghi_chu: "Ứng viên nếu chọn CPTPP làm FTA đại diện. Ghép với 115/2022/NĐ-CP thành cặp quy tắc xuất xứ + biểu thuế ưu đãi hoàn chỉnh."
+
+  - so_hieu: "02/2021/TT-BCT"
+    loai_van_ban: "Thông tư"
+    trich_yeu: "quy định Quy tắc xuất xứ hàng hóa trong Hiệp định Thương mại tự do giữa Việt Nam và Liên hiệp Vương quốc Anh và Bắc Ai-len"
+    co_quan_ban_hanh: "Bộ Công Thương"
+    nguoi_ky: null
+    ngay_ban_hanh: null
+    ngay_hieu_luc: null
+    nhom_nghiep_vu: ["E"]
+    slot_de_xuat: 13
+    vai_tro_de_xuat: "nen_tang"
+    url: "https://congbao.chinhphu.vn/van-ban/thong-tu-so-02-2021-tt-bct-33828.htm"
+    ghi_chu: "Ứng viên nếu chọn UKVFTA."
+
+  # ═══ NHÓM A/G — Quản lý ngoại thương · ứng viên cho slot dòng 14–15 ═══════════════
+  - so_hieu: "05/2017/QH14"
+    loai_van_ban: "Luật"
+    trich_yeu: "Luật Quản lý ngoại thương"
+    co_quan_ban_hanh: "Quốc hội"
+    nguoi_ky: "Nguyễn Thị Kim Ngân"
+    ngay_ban_hanh: 2017-06-12
+    ngay_hieu_luc: 2018-01-01
+    nhom_nghiep_vu: ["A", "G"]
+    slot_de_xuat: 14
+    vai_tro_de_xuat: "nen_tang"
+    url: "https://congbao.chinhphu.vn/van-ban/luat-so-05-2017-qh14-24234.htm"
+
+  - so_hieu: "69/2018/NĐ-CP"
+    loai_van_ban: "Nghị định"
+    trich_yeu: "quy định chi tiết một số điều của Luật Quản lý ngoại thương"
+    co_quan_ban_hanh: "Chính phủ"
+    nguoi_ky: "Nguyễn Xuân Phúc"
+    ngay_ban_hanh: 2018-05-15
+    ngay_hieu_luc: null
+    nhom_nghiep_vu: ["A", "G"]
+    slot_de_xuat: 15
+    vai_tro_de_xuat: "nen_tang"
+    url: "https://congbao.chinhphu.vn/van-ban/nghi-dinh-so-69-2018-nd-cp-26559.htm"
+    ghi_chu: >-
+      ⚠️ Công báo trả về "Ngày hiệu lực: 20/11/2013" cho văn bản ban hành 15/05/2018 — bất
+      khả thi, gần như chắc chắn là lỗi dữ liệu của trang nguồn. ĐỂ TRỐNG `ngay_hieu_luc`,
+      chuyên gia lấy lại từ vbpl.vn. Ghi lại ở đây làm ví dụ sống cho lý do vì sao docs/04
+      bắt buộc xác minh chéo, chứ không phải để chép sang.
+      Chứa danh mục hàng cấm/hạn chế và quy định giấy phép — đúng mô tả slot 15.
+
+  - so_hieu: "12/2018/TT-BCT"
+    loai_van_ban: "Thông tư"
+    trich_yeu: "quy định chi tiết một số điều của Luật Quản lý ngoại thương và Nghị định số 69/2018/NĐ-CP ngày 15 tháng 5 năm 2018"
+    co_quan_ban_hanh: "Bộ Công Thương"
+    nguoi_ky: null
+    ngay_ban_hanh: null
+    ngay_hieu_luc: null
+    nhom_nghiep_vu: ["A", "G"]
+    slot_de_xuat: null
+    vai_tro_de_xuat: "bi_sua_doi"
+    url: "https://congbao.chinhphu.vn/van-ban/thong-tu-so-12-2018-tt-bct-26878/23046.htm"
+
+  - so_hieu: "06/VBHN-BCT"
+    loai_van_ban: "Văn bản hợp nhất"
+    trich_yeu: "hợp nhất Thông tư quy định chi tiết một số điều của Luật Quản lý ngoại thương và Nghị định số 69/2018/NĐ-CP"
+    co_quan_ban_hanh: "Bộ Công Thương"
+    nguoi_ky: null
+    ngay_ban_hanh: null
+    ngay_hieu_luc: null
+    nhom_nghiep_vu: ["A", "G"]
+    slot_de_xuat: null
+    vai_tro_de_xuat: "vbhn"
+    url: "https://congbao.chinhphu.vn/van-ban/van-ban-hop-nhat-so-06-vbhn-bct-30863.htm"
+    ghi_chu: "VBHN của 12/2018/TT-BCT — ứng viên thứ ba cho BR-09."
+
+  - so_hieu: "09/2018/NĐ-CP"
+    loai_van_ban: "Nghị định"
+    trich_yeu: "quy định chi tiết Luật thương mại và Luật Quản lý ngoại thương về hoạt động mua bán hàng hóa và các hoạt động liên quan trực tiếp đến mua bán hàng hóa của nhà đầu tư nước ngoài, tổ chức kinh tế có vốn đầu tư nước ngoài tại Việt Nam"
+    co_quan_ban_hanh: "Chính phủ"
+    nguoi_ky: null
+    ngay_ban_hanh: null
+    ngay_hieu_luc: null
+    nhom_nghiep_vu: ["A"]
+    slot_de_xuat: null
+    vai_tro_de_xuat: "nen_tang"
+    url: "https://congbao.chinhphu.vn/van-ban/nghi-dinh-so-09-2018-nd-cp-25619.htm"
+
+  # ═══ BỔ SUNG — xử phạt & quản lý chuyên ngành ═════════════════════════════════════
+  - so_hieu: "155/2016/TT-BTC"
+    loai_van_ban: "Thông tư"
+    trich_yeu: "quy định chi tiết thi hành Nghị định số 127/2013/NĐ-CP quy định xử phạt vi phạm hành chính và cưỡng chế thi hành quyết định hành chính trong lĩnh vực hải quan và Nghị định số 45/2016/NĐ-CP sửa đổi, bổ sung một số điều của Nghị định số 127/2013/NĐ-CP"
+    co_quan_ban_hanh: "Bộ Tài chính"
+    nguoi_ky: null
+    ngay_ban_hanh: null
+    ngay_hieu_luc: null
+    nhom_nghiep_vu: ["A"]
+    slot_de_xuat: null
+    vai_tro_de_xuat: null
+    url: "https://congbao.chinhphu.vn/van-ban/thong-tu-so-155-2016-tt-btc-21231.htm"
+    ghi_chu: >-
+      Xử phạt vi phạm hành chính hải quan. docs/03 §3.1 KHÔNG liệt kê nhóm này trong phạm vi
+      v1 — cần PO quyết trước khi đưa vào, đừng nạp rồi mới hỏi.
+
+  - so_hieu: "18/2019/QĐ-TTg"
+    loai_van_ban: "Quyết định"
+    trich_yeu: "quy định việc nhập khẩu máy móc, thiết bị, dây chuyền công nghệ đã qua sử dụng"
+    co_quan_ban_hanh: "Thủ tướng Chính phủ"
+    nguoi_ky: null
+    ngay_ban_hanh: null
+    ngay_hieu_luc: null
+    nhom_nghiep_vu: ["G"]
+    slot_de_xuat: null
+    vai_tro_de_xuat: null
+    url: "https://congbao.chinhphu.vn/van-ban/quyet-dinh-so-18-2019-qd-ttg-28889.htm"
+    ghi_chu: "Nhóm G (kiểm tra chuyên ngành) là P2 và docs/16 §5 xếp ❌ Phase 1. Ứng viên dự phòng."
+
+# ─────────────────────────────────────────────────────────────────────────────────────
+# HAI SLOT KHÔNG TÌM ĐƯỢC TRÊN CÔNG BÁO — cần nguồn khác
+# ─────────────────────────────────────────────────────────────────────────────────────
+chua_tim_duoc:
+  - slot: 9
+    can: "Bảng mã loại hình tờ khai XK/NK"
+    uu_tien: "P0"
+    vi_sao_chua_co: >-
+      Bảng mã loại hình thường do cơ quan hải quan ban hành dạng Quyết định hoặc công văn
+      hướng dẫn, không phải văn bản QPPL đăng Công báo. Phải lấy từ customs.gov.vn.
+    hau_qua_neu_thieu: >-
+      Nhóm B (loại hình tờ khai) là P0 trong docs/03 §3.1 và chiếm 15% golden set (docs/14 §4).
+      Không có bảng này thì bảng `ma_loai_hinh` (docs/13 §4) rỗng và tool `tra_cuu_loai_hinh`
+      không có dữ liệu.
+
+  - slot: "bo-sung"
+    can: "2–3 công văn hướng dẫn của cơ quan hải quan"
+    uu_tien: "P0"
+    vi_sao_chua_co: "Công văn hướng dẫn không đăng Công báo. Nguồn: customs.gov.vn."
+    hau_qua_neu_thieu: >-
+      docs/04 §2: "Không có công văn nào trong corpus thì không test được quy tắc này."
+      BR-06 / guardrail ④ mất đường truy vết trong docs/16.

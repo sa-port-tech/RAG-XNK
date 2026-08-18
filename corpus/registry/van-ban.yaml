@@ -1,0 +1,556 @@
+# Registry văn bản lõi — bản máy đọc được của docs/04 §2–3.
+#
+# ⚠️ ĐỌC TRƯỚC KHI SỬA
+#
+# docs/04 mở đầu bằng một câu không thương lượng: "BA không có thẩm quyền xác nhận số hiệu
+# văn bản, ngày hiệu lực hay trạng thái hiệu lực." File này giữ nguyên ranh giới đó.
+#
+# Những gì BA đã làm:  điền số hiệu và metadata thu được từ NGUỒN CHÍNH THỨC, ghi rõ nguồn
+#                      và ngày tra trong khối `metadata_nguon` của từng bản ghi.
+# Những gì BA KHÔNG làm: điền `trang_thai` (trạng thái hiệu lực) và `quan_he_sua_doi`.
+#                      Hai thứ đó là của chuyên gia, lấy từ vbpl.vn — xem §5 corpus/README.md.
+#
+# CODEOWNERS đề xuất: /corpus/registry/  @xnk-expert-team
+#
+# ─────────────────────────────────────────────────────────────────────────────────────
+# TRẠNG THÁI THU THẬP (chi tiết: corpus/README.md §4)
+#   de_xuat → da_xac_minh → da_tai → da_doi_chieu
+# Chỉ bản ghi từ `da_xac_minh` trở lên mới được tools/corpus/thu_thap.py tải.
+# ─────────────────────────────────────────────────────────────────────────────────────
+
+phien_ban: 1
+cap_nhat_lan_cuoi: 2026-08-17
+nguon_xac_minh_bat_buoc: "https://vbpl.vn"
+
+# Tiêu chí bộ 15 văn bản — docs/04 §1. Script kiem_tra.py đối chiếu với các cờ này.
+tieu_chi:
+  so_van_ban_muc_tieu: 15
+  so_cap_sua_doi_toi_thieu: 2
+  so_cong_van_toi_thieu: 1
+  so_van_ban_scan_toi_da: 3
+  tong_so_dieu_toi_thieu: 50
+
+van_ban:
+
+  # ═══════════════════════════════════════════════════════════════════════════════════
+  # NHÓM A — Trục thủ tục hải quan (docs/04 §2 nhóm A, dòng 1–6)
+  # Đây là trục docs/00 §3.1 gọi tên: Luật Hải quan → NĐ 08/2015 → NĐ 59/2018
+  #                                   → TT 38/2015 → TT 39/2018
+  # ═══════════════════════════════════════════════════════════════════════════════════
+
+  - dong_docs_04: 1
+    ma_van_ban: "54-2014-QH13"
+    so_hieu: "54/2014/QH13"
+    loai_van_ban: "Luật"
+    trich_yeu: "Luật Hải quan"
+    co_quan_ban_hanh: "Quốc hội"
+    nguoi_ky: null
+    ngay_ban_hanh: null
+    ngay_hieu_luc: null
+    ngay_het_hieu_luc: null
+    trang_thai: null                    # ← chuyên gia điền từ vbpl.vn
+    co_vbhn: "54/VBHN-VPQH"             # ứng viên, xem bản ghi 1b
+    nhom_corpus: "A"
+    nhom_nghiep_vu: ["A", "C"]
+    vai_tro: "nen_tang"
+    uu_tien: "P0"
+    trang_thai_thu_thap: "de_xuat"
+    dinh_dang_file: null
+    nguon_url: null
+    so_dieu_uoc_tinh: null
+    file: { ten: null, sha256: null, kich_thuoc_byte: null, s3_key: null }
+    metadata_nguon:
+      - truong: ["so_hieu"]
+        nguon: "congbao.chinhphu.vn"
+        url: "https://congbao.chinhphu.vn/tai-ve-van-ban-so-07-vbhn-vpqh-2974-1200"
+        ngay_tra: 2026-08-17
+        boi: "BA"
+        ghi_chu: >-
+          Số hiệu đọc được từ tiêu đề bản Công báo. Chưa lấy được trang thuộc tính đầy đủ
+          nên ngày ban hành / ngày hiệu lực vẫn trống.
+    xac_minh_vbpl: { da_xac_minh: false, nguoi: null, ngay: null, url: null }
+    ghi_chu: >-
+      ⚠️ Luật Hải quan đã có ít nhất ba bản hợp nhất (07/VBHN-VPQH, 12/VBHN-VPQH ngày
+      08/07/2022, 54/VBHN-VPQH ngày 23/03/2026). Chuyên gia cần chốt bản nào là hiện hành
+      trước khi ingest — đây trực tiếp là ca BR-09.
+
+  - dong_docs_04: 1
+    ma_van_ban: "54-VBHN-VPQH"
+    so_hieu: "54/VBHN-VPQH"
+    loai_van_ban: "Văn bản hợp nhất"
+    trich_yeu: "hợp nhất Luật Hải quan"
+    co_quan_ban_hanh: "Văn phòng Quốc hội"
+    nguoi_ky: "Lê Quang Mạnh"
+    ngay_ban_hanh: 2026-03-23
+    ngay_hieu_luc: null
+    ngay_het_hieu_luc: null
+    trang_thai: null
+    co_vbhn: null
+    nhom_corpus: "A"
+    nhom_nghiep_vu: ["A", "C"]
+    vai_tro: "vbhn"
+    uu_tien: "P1"
+    trang_thai_thu_thap: "de_xuat"
+    dinh_dang_file: null
+    nguon_url: null
+    so_dieu_uoc_tinh: null
+    file: { ten: null, sha256: null, kich_thuoc_byte: null, s3_key: null }
+    metadata_nguon:
+      - truong: ["so_hieu", "loai_van_ban", "trich_yeu", "co_quan_ban_hanh", "nguoi_ky", "ngay_ban_hanh"]
+        nguon: "congbao.chinhphu.vn"
+        url: "https://congbao.chinhphu.vn/van-ban/van-ban-hop-nhat-so-54-vbhn-vpqh-469184/63693.htm"
+        ngay_tra: 2026-08-17
+        boi: "BA"
+    xac_minh_vbpl: { da_xac_minh: false, nguoi: null, ngay: null, url: null }
+    ghi_chu: >-
+      Ban hành 23/03/2026 — mới hơn mọi mốc thời gian trong docs/00. Nếu bản này là hợp nhất
+      hiện hành thì nội dung Luật Hải quan trong corpus phải lấy từ đây, không phải từ bản
+      2014. Cần chuyên gia kết luận sớm vì nó đổi cả bản ghi 54-2014-QH13.
+
+  - dong_docs_04: 2
+    ma_van_ban: "08-2015-ND-CP"
+    so_hieu: "08/2015/NĐ-CP"
+    loai_van_ban: "Nghị định"
+    trich_yeu: >-
+      quy định chi tiết và biện pháp thi hành Luật Hải quan về thủ tục hải quan, kiểm tra,
+      giám sát, kiểm soát hải quan
+    co_quan_ban_hanh: "Chính phủ"
+    nguoi_ky: "Nguyễn Tấn Dũng"
+    ngay_ban_hanh: 2015-01-21
+    ngay_hieu_luc: 2015-03-15
+    ngay_het_hieu_luc: null
+    trang_thai: null
+    co_vbhn: null
+    nhom_corpus: "A"
+    nhom_nghiep_vu: ["A", "C"]
+    vai_tro: "bi_sua_doi"
+    uu_tien: "P0"
+    trang_thai_thu_thap: "de_xuat"
+    dinh_dang_file: null
+    nguon_url: null
+    so_dieu_uoc_tinh: null
+    file: { ten: null, sha256: null, kich_thuoc_byte: null, s3_key: null }
+    metadata_nguon:
+      - truong: ["so_hieu", "loai_van_ban", "trich_yeu", "co_quan_ban_hanh", "nguoi_ky", "ngay_ban_hanh", "ngay_hieu_luc"]
+        nguon: "congbao.chinhphu.vn"
+        url: "https://congbao.chinhphu.vn/van-ban/nghi-dinh-so-08-2015-nd-cp-5390.htm"
+        ngay_tra: 2026-08-17
+        boi: "BA"
+        ghi_chu: 'Công báo hiển thị Tình trạng "Có hiệu lực" — KHÔNG chép vào `trang_thai`, xem corpus/README.md §5.'
+    xac_minh_vbpl: { da_xac_minh: false, nguoi: null, ngay: null, url: null }
+
+  - dong_docs_04: 3
+    ma_van_ban: "59-2018-ND-CP"
+    so_hieu: "59/2018/NĐ-CP"
+    loai_van_ban: "Nghị định"
+    trich_yeu: >-
+      sửa đổi, bổ sung một số điều của Nghị định số 08/2015/NĐ-CP ngày 21 tháng 01 năm 2015
+      của Chính phủ quy định chi tiết và biện pháp thi hành Luật hải quan về thủ tục hải quan,
+      kiểm tra, giám sát, kiểm soát hải quan
+    co_quan_ban_hanh: "Chính phủ"
+    nguoi_ky: "Nguyễn Xuân Phúc"
+    ngay_ban_hanh: 2018-04-20
+    ngay_hieu_luc: 2018-06-05
+    ngay_het_hieu_luc: null
+    trang_thai: null
+    co_vbhn: null
+    nhom_corpus: "A"
+    nhom_nghiep_vu: ["A", "C"]
+    vai_tro: "van_ban_sua_doi"
+    uu_tien: "P0"
+    trang_thai_thu_thap: "de_xuat"
+    dinh_dang_file: null
+    nguon_url: null
+    so_dieu_uoc_tinh: null
+    file: { ten: null, sha256: null, kich_thuoc_byte: null, s3_key: null }
+    metadata_nguon:
+      - truong: ["so_hieu", "loai_van_ban", "trich_yeu", "co_quan_ban_hanh", "nguoi_ky", "ngay_ban_hanh", "ngay_hieu_luc"]
+        nguon: "congbao.chinhphu.vn"
+        url: "https://congbao.chinhphu.vn/thuoc-tinh-van-ban-so-59-2018-nd-cp-26343"
+        ngay_tra: 2026-08-17
+        boi: "BA"
+    ghi_chu: "Cặp sửa đổi thứ nhất (docs/04 §2). Sửa đổi 08/2015/NĐ-CP — phạm vi cấp Điều chờ chuyên gia liệt kê trong quan-he-sua-doi.yaml."
+
+  - dong_docs_04: 4
+    ma_van_ban: "38-2015-TT-BTC"
+    so_hieu: "38/2015/TT-BTC"
+    loai_van_ban: "Thông tư"
+    trich_yeu: >-
+      quy định về thủ tục hải quan; kiểm tra, giám sát hải quan; thuế xuất khẩu, thuế nhập khẩu
+      và quản lý thuế đối với hàng hóa xuất khẩu, nhập khẩu
+    co_quan_ban_hanh: "Bộ Tài chính"
+    nguoi_ky: "Đỗ Hoàng Anh Tuấn"
+    ngay_ban_hanh: 2015-03-25
+    ngay_hieu_luc: 2015-04-01
+    ngay_het_hieu_luc: null
+    trang_thai: null
+    co_vbhn: "25/VBHN-BTC"
+    nhom_corpus: "A"
+    nhom_nghiep_vu: ["A", "B", "C", "D", "F"]
+    vai_tro: "bi_sua_doi"
+    uu_tien: "P0"
+    trang_thai_thu_thap: "de_xuat"
+    dinh_dang_file: null
+    nguon_url: null
+    so_dieu_uoc_tinh: null
+    file: { ten: null, sha256: null, kich_thuoc_byte: null, s3_key: null }
+    metadata_nguon:
+      - truong: ["so_hieu", "loai_van_ban", "trich_yeu", "co_quan_ban_hanh", "nguoi_ky", "ngay_ban_hanh", "ngay_hieu_luc"]
+        nguon: "congbao.chinhphu.vn"
+        url: "https://congbao.chinhphu.vn/van-ban/thong-tu-so-38-2015-tt-btc-9949.htm"
+        ngay_tra: 2026-08-17
+        boi: "BA"
+    ghi_chu: >-
+      ★ Vế trái của cặp kiểm chứng chính. docs/04 §2 gọi đây là "văn bản khai báo viên dùng
+      nhiều nhất". Công báo hiển thị Tình trạng "Hiệu lực" ở cấp văn bản trong khi nhiều Điều
+      bên trong đã bị 39/2018/TT-BTC sửa — đây đúng là ca mà docs/00 §9.4 nói bộ lọc cấp văn
+      bản sẽ bỏ sót. Dùng làm ví dụ mở đầu buổi làm việc với chuyên gia.
+
+  - dong_docs_04: 5
+    ma_van_ban: "39-2018-TT-BTC"
+    so_hieu: "39/2018/TT-BTC"
+    loai_van_ban: "Thông tư"
+    trich_yeu: >-
+      sửa đổi, bổ sung một số điều tại Thông tư số 38/2015/TT-BTC ngày 25 tháng 3 năm 2015
+      quy định về thủ tục hải quan; kiểm tra, giám sát hải quan; thuế xuất khẩu, thuế nhập khẩu
+    co_quan_ban_hanh: "Bộ Tài chính"
+    nguoi_ky: "Vũ Thị Mai"
+    ngay_ban_hanh: 2018-04-20
+    ngay_hieu_luc: 2018-06-05
+    ngay_het_hieu_luc: null
+    trang_thai: null
+    co_vbhn: "25/VBHN-BTC"
+    nhom_corpus: "A"
+    nhom_nghiep_vu: ["A", "B", "C", "D", "F"]
+    vai_tro: "van_ban_sua_doi"
+    uu_tien: "P0"
+    trang_thai_thu_thap: "de_xuat"
+    dinh_dang_file: null
+    nguon_url: null
+    so_dieu_uoc_tinh: null
+    file: { ten: null, sha256: null, kich_thuoc_byte: null, s3_key: null }
+    metadata_nguon:
+      - truong: ["so_hieu", "loai_van_ban", "trich_yeu", "co_quan_ban_hanh", "nguoi_ky", "ngay_ban_hanh", "ngay_hieu_luc"]
+        nguon: "congbao.chinhphu.vn"
+        url: "https://congbao.chinhphu.vn/van-ban/thong-tu-so-39-2018-tt-btc-26732.htm"
+        ngay_tra: 2026-08-17
+        boi: "BA"
+    ghi_chu: >-
+      ★ Vế phải của cặp kiểm chứng chính — docs/04 §2: "cặp 4–5 là lý do tồn tại của corpus
+      prototype". 10 câu bẫy hiệu lực của golden set lấy từ đây.
+
+  - dong_docs_04: 6
+    ma_van_ban: "25-VBHN-BTC"
+    so_hieu: "25/VBHN-BTC"
+    loai_van_ban: "Văn bản hợp nhất"
+    trich_yeu: >-
+      Thông tư quy định về thủ tục hải quan; kiểm tra, giám sát hải quan; thuế xuất khẩu,
+      thuế nhập khẩu và quản lý thuế đối với hàng hóa xuất khẩu, nhập khẩu
+    co_quan_ban_hanh: "Bộ Tài chính"
+    nguoi_ky: null
+    ngay_ban_hanh: null
+    ngay_hieu_luc: null
+    ngay_het_hieu_luc: null
+    trang_thai: null
+    co_vbhn: null
+    nhom_corpus: "A"
+    nhom_nghiep_vu: ["A", "B", "C", "D", "F"]
+    vai_tro: "vbhn"
+    uu_tien: "P1"
+    trang_thai_thu_thap: "de_xuat"
+    dinh_dang_file: null
+    nguon_url: null
+    so_dieu_uoc_tinh: null
+    file: { ten: null, sha256: null, kich_thuoc_byte: null, s3_key: null }
+    metadata_nguon:
+      - truong: ["so_hieu", "loai_van_ban", "trich_yeu", "co_quan_ban_hanh"]
+        nguon: "vanban.chinhphu.vn"
+        url: "https://vanban.chinhphu.vn/default.aspx?pageid=27160&docid=196609"
+        ngay_tra: 2026-08-17
+        boi: "BA"
+        ghi_chu: "Mới thấy tiêu đề trong kết quả tìm kiếm; chưa mở trang thuộc tính đầy đủ."
+    xac_minh_vbpl: { da_xac_minh: false, nguoi: null, ngay: null, url: null }
+    ghi_chu: >-
+      Đây là dòng 6 của docs/04 §2 ("VBHN của cặp 4–5, nếu có") — và nó CÓ tồn tại. Bản ghi
+      này là ca kiểm chứng BR-09 (ưu tiên VBHN) và câu bẫy dạng B5 của docs/14 §5.
+      Cần chuyên gia xác nhận VBHN này hợp nhất đúng cặp 38/2015 + 39/2018 và tới mốc nào.
+
+  # ═══════════════════════════════════════════════════════════════════════════════════
+  # NHÓM B — Loại hình & trị giá (docs/04 §2 nhóm B, dòng 7–9)
+  #
+  # ⚠️ docs/04 §2 chỉ mô tả LOẠI văn bản cho các dòng dưới đây, không nêu số hiệu.
+  #    BA không tự chọn văn bản — đó là quyết định nghiệp vụ. Các bản ghi dưới là SLOT
+  #    trống có sẵn cấu trúc, để chuyên gia điền trong buổi làm việc Sprint 0.
+  # ═══════════════════════════════════════════════════════════════════════════════════
+
+  - dong_docs_04: 7
+    ma_van_ban: null
+    so_hieu: null
+    loai_van_ban: "Thông tư"
+    trich_yeu: null
+    mo_ta_slot: "TT về trị giá hải quan hàng hóa xuất khẩu, nhập khẩu"
+    co_quan_ban_hanh: null
+    nguoi_ky: null
+    ngay_ban_hanh: null
+    ngay_hieu_luc: null
+    ngay_het_hieu_luc: null
+    trang_thai: null
+    co_vbhn: null
+    nhom_corpus: "B"
+    nhom_nghiep_vu: ["D"]
+    vai_tro: "bi_sua_doi"
+    uu_tien: "P1"
+    trang_thai_thu_thap: "de_xuat"
+    dinh_dang_file: null
+    nguon_url: null
+    so_dieu_uoc_tinh: null
+    file: { ten: null, sha256: null, kich_thuoc_byte: null, s3_key: null }
+    metadata_nguon: []
+    xac_minh_vbpl: { da_xac_minh: false, nguoi: null, ngay: null, url: null }
+
+  - dong_docs_04: 8
+    ma_van_ban: null
+    so_hieu: null
+    loai_van_ban: "Thông tư"
+    trich_yeu: null
+    mo_ta_slot: "TT sửa đổi TT ở dòng 7 — cặp sửa đổi thứ ba"
+    co_quan_ban_hanh: null
+    nguoi_ky: null
+    ngay_ban_hanh: null
+    ngay_hieu_luc: null
+    ngay_het_hieu_luc: null
+    trang_thai: null
+    co_vbhn: null
+    nhom_corpus: "B"
+    nhom_nghiep_vu: ["D"]
+    vai_tro: "van_ban_sua_doi"
+    uu_tien: "P1"
+    trang_thai_thu_thap: "de_xuat"
+    dinh_dang_file: null
+    nguon_url: null
+    so_dieu_uoc_tinh: null
+    file: { ten: null, sha256: null, kich_thuoc_byte: null, s3_key: null }
+    metadata_nguon: []
+    xac_minh_vbpl: { da_xac_minh: false, nguoi: null, ngay: null, url: null }
+
+  - dong_docs_04: 9
+    ma_van_ban: null
+    so_hieu: null
+    loai_van_ban: "Phụ lục"
+    trich_yeu: null
+    mo_ta_slot: "Bảng mã loại hình tờ khai XK/NK — nguồn cho bảng `ma_loai_hinh` (docs/13 §4)"
+    co_quan_ban_hanh: null
+    nguoi_ky: null
+    ngay_ban_hanh: null
+    ngay_hieu_luc: null
+    ngay_het_hieu_luc: null
+    trang_thai: null
+    co_vbhn: null
+    nhom_corpus: "B"
+    nhom_nghiep_vu: ["B"]
+    vai_tro: "phu_luc"
+    uu_tien: "P0"
+    trang_thai_thu_thap: "de_xuat"
+    dinh_dang_file: null
+    nguon_url: null
+    so_dieu_uoc_tinh: null
+    file: { ten: null, sha256: null, kich_thuoc_byte: null, s3_key: null }
+    metadata_nguon: []
+    xac_minh_vbpl: { da_xac_minh: false, nguoi: null, ngay: null, url: null }
+    ghi_chu: "docs/13 §8 yêu cầu chuyên gia đối chiếu 100% bảng ma_loai_hinh trước khi bật."
+
+  # ═══════════════════════════════════════════════════════════════════════════════════
+  # NHÓM C — Thuế & xuất xứ (docs/04 §2 nhóm C, dòng 10–13)
+  # ═══════════════════════════════════════════════════════════════════════════════════
+
+  - dong_docs_04: 10
+    ma_van_ban: null
+    so_hieu: null
+    loai_van_ban: "Luật"
+    trich_yeu: null
+    mo_ta_slot: "Luật Thuế xuất khẩu, thuế nhập khẩu"
+    co_quan_ban_hanh: "Quốc hội"
+    nguoi_ky: null
+    ngay_ban_hanh: null
+    ngay_hieu_luc: null
+    ngay_het_hieu_luc: null
+    trang_thai: null
+    co_vbhn: null
+    nhom_corpus: "C"
+    nhom_nghiep_vu: ["F"]
+    vai_tro: "nen_tang"
+    uu_tien: "P1"
+    trang_thai_thu_thap: "de_xuat"
+    dinh_dang_file: null
+    nguon_url: null
+    so_dieu_uoc_tinh: null
+    file: { ten: null, sha256: null, kich_thuoc_byte: null, s3_key: null }
+    metadata_nguon: []
+    xac_minh_vbpl: { da_xac_minh: false, nguoi: null, ngay: null, url: null }
+
+  - dong_docs_04: 11
+    ma_van_ban: null
+    so_hieu: null
+    loai_van_ban: "Nghị định"
+    trich_yeu: null
+    mo_ta_slot: "NĐ quy định về miễn, giảm, hoàn thuế xuất nhập khẩu"
+    co_quan_ban_hanh: "Chính phủ"
+    nguoi_ky: null
+    ngay_ban_hanh: null
+    ngay_hieu_luc: null
+    ngay_het_hieu_luc: null
+    trang_thai: null
+    co_vbhn: null
+    nhom_corpus: "C"
+    nhom_nghiep_vu: ["F"]
+    vai_tro: "bi_sua_doi"
+    uu_tien: "P1"
+    trang_thai_thu_thap: "de_xuat"
+    dinh_dang_file: null
+    nguon_url: null
+    so_dieu_uoc_tinh: null
+    file: { ten: null, sha256: null, kich_thuoc_byte: null, s3_key: null }
+    metadata_nguon: []
+    xac_minh_vbpl: { da_xac_minh: false, nguoi: null, ngay: null, url: null }
+
+  - dong_docs_04: 12
+    ma_van_ban: null
+    so_hieu: null
+    loai_van_ban: "Nghị định"
+    trich_yeu: null
+    mo_ta_slot: "NĐ sửa đổi NĐ ở dòng 11 — cặp sửa đổi thứ tư"
+    co_quan_ban_hanh: "Chính phủ"
+    nguoi_ky: null
+    ngay_ban_hanh: null
+    ngay_hieu_luc: null
+    ngay_het_hieu_luc: null
+    trang_thai: null
+    co_vbhn: null
+    nhom_corpus: "C"
+    nhom_nghiep_vu: ["F"]
+    vai_tro: "van_ban_sua_doi"
+    uu_tien: "P1"
+    trang_thai_thu_thap: "de_xuat"
+    dinh_dang_file: null
+    nguon_url: null
+    so_dieu_uoc_tinh: null
+    file: { ten: null, sha256: null, kich_thuoc_byte: null, s3_key: null }
+    metadata_nguon: []
+    xac_minh_vbpl: { da_xac_minh: false, nguoi: null, ngay: null, url: null }
+
+  - dong_docs_04: 13
+    ma_van_ban: null
+    so_hieu: null
+    loai_van_ban: "Thông tư"
+    trich_yeu: null
+    mo_ta_slot: >-
+      TT của Bộ Công Thương về quy tắc xuất xứ và C/O cho MỘT FTA — docs/04 §2 ghi
+      "chọn hiệp định có lưu lượng lớn nhất". Chọn hiệp định nào là quyết định của chuyên gia.
+    co_quan_ban_hanh: "Bộ Công Thương"
+    nguoi_ky: null
+    ngay_ban_hanh: null
+    ngay_hieu_luc: null
+    ngay_het_hieu_luc: null
+    trang_thai: null
+    co_vbhn: null
+    nhom_corpus: "C"
+    nhom_nghiep_vu: ["E"]
+    vai_tro: "nen_tang"
+    uu_tien: "P1"
+    trang_thai_thu_thap: "de_xuat"
+    dinh_dang_file: null
+    nguon_url: null
+    so_dieu_uoc_tinh: null
+    file: { ten: null, sha256: null, kich_thuoc_byte: null, s3_key: null }
+    metadata_nguon: []
+    xac_minh_vbpl: { da_xac_minh: false, nguoi: null, ngay: null, url: null }
+    ghi_chu: "Cần cho BR-05 (thuế suất ưu đãi phải nêu điều kiện C/O + quy tắc xuất xứ)."
+
+  # ═══════════════════════════════════════════════════════════════════════════════════
+  # NHÓM D — Quản lý ngoại thương (docs/04 §2 nhóm D, dòng 14–15)
+  # ═══════════════════════════════════════════════════════════════════════════════════
+
+  - dong_docs_04: 14
+    ma_van_ban: null
+    so_hieu: null
+    loai_van_ban: "Luật"
+    trich_yeu: null
+    mo_ta_slot: "Luật Quản lý ngoại thương"
+    co_quan_ban_hanh: "Quốc hội"
+    nguoi_ky: null
+    ngay_ban_hanh: null
+    ngay_hieu_luc: null
+    ngay_het_hieu_luc: null
+    trang_thai: null
+    co_vbhn: null
+    nhom_corpus: "D"
+    nhom_nghiep_vu: ["A", "G"]
+    vai_tro: "nen_tang"
+    uu_tien: "P1"
+    trang_thai_thu_thap: "de_xuat"
+    dinh_dang_file: null
+    nguon_url: null
+    so_dieu_uoc_tinh: null
+    file: { ten: null, sha256: null, kich_thuoc_byte: null, s3_key: null }
+    metadata_nguon: []
+    xac_minh_vbpl: { da_xac_minh: false, nguoi: null, ngay: null, url: null }
+
+  - dong_docs_04: 15
+    ma_van_ban: null
+    so_hieu: null
+    loai_van_ban: "Nghị định"
+    trich_yeu: null
+    mo_ta_slot: "NĐ quy định chi tiết Luật Quản lý ngoại thương — danh mục hàng cấm/hạn chế, giấy phép"
+    co_quan_ban_hanh: "Chính phủ"
+    nguoi_ky: null
+    ngay_ban_hanh: null
+    ngay_hieu_luc: null
+    ngay_het_hieu_luc: null
+    trang_thai: null
+    co_vbhn: null
+    nhom_corpus: "D"
+    nhom_nghiep_vu: ["A", "G"]
+    vai_tro: "nen_tang"
+    uu_tien: "P1"
+    trang_thai_thu_thap: "de_xuat"
+    dinh_dang_file: null
+    nguon_url: null
+    so_dieu_uoc_tinh: null
+    file: { ten: null, sha256: null, kich_thuoc_byte: null, s3_key: null }
+    metadata_nguon: []
+    xac_minh_vbpl: { da_xac_minh: false, nguoi: null, ngay: null, url: null }
+
+  # ═══════════════════════════════════════════════════════════════════════════════════
+  # BỔ SUNG ngoài 15 — công văn hướng dẫn (docs/04 §2 "Bổ sung khuyến nghị")
+  #
+  # docs/04: "Không có công văn nào trong corpus thì không test được guardrail ④."
+  # Đây không phải hạng mục tuỳ chọn — nó là điều kiện để BR-06 có đường truy vết.
+  # ═══════════════════════════════════════════════════════════════════════════════════
+
+  - dong_docs_04: "bo-sung"
+    ma_van_ban: null
+    so_hieu: null
+    loai_van_ban: "Công văn"
+    trich_yeu: null
+    mo_ta_slot: "Công văn hướng dẫn của cơ quan hải quan về tình huống thường gặp (cần 2–3 văn bản)"
+    co_quan_ban_hanh: null
+    nguoi_ky: null
+    ngay_ban_hanh: null
+    ngay_hieu_luc: null
+    ngay_het_hieu_luc: null
+    trang_thai: null
+    co_vbhn: null
+    nhom_corpus: "A"
+    nhom_nghiep_vu: ["A"]
+    vai_tro: "cong_van"
+    uu_tien: "P0"
+    trang_thai_thu_thap: "de_xuat"
+    dinh_dang_file: null
+    nguon_url: null
+    so_dieu_uoc_tinh: null
+    file: { ten: null, sha256: null, kich_thuoc_byte: null, s3_key: null }
+    metadata_nguon: []
+    xac_minh_vbpl: { da_xac_minh: false, nguoi: null, ngay: null, url: null }
+    ghi_chu: >-
+      Công văn KHÔNG phải văn bản QPPL (docs/00 §11.4 guardrail ④). Bản ghi này phải mang
+      nhãn phân biệt rõ khi ingest, và là dữ liệu duy nhất kiểm chứng được BR-06.
