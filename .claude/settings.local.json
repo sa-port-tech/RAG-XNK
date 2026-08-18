@@ -2,7 +2,14 @@
   "permissions": {
     "allow": [
       "Bash(rm -rf \"G:/My Drive/SAỐ\")",
-      "Read(//g/My Drive/**)"
+      "Read(//g/My Drive/**)",
+      "Bash(dotnet --version)",
+      "Bash(uv --version)",
+      "Bash(dotnet ef *)",
+      "Bash(docker info *)",
+      "Bash(dotnet --list-sdks)",
+      "Bash(gh auth *)",
+      "Bash(GH_TOKEN=$\\(gh auth token --user Hoang-it\\) gh issue list --state open --limit 15 --json number,title,state --jq '.[] | \"#\\\\\\(.number\\) \\\\\\(.title\\)\"')"
     ]
   }
 }

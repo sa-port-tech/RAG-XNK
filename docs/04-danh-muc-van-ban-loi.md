@@ -19,6 +19,23 @@ Việc bỏ qua ba bước này làm sai toàn bộ đồ thị hiệu lực —
 
 ---
 
+## 0. Bản máy đọc được của tài liệu này
+
+Các bảng ở §2, §3, §4 và §6 có bản song song dạng YAML để nạp thẳng vào database và để CI kiểm tra được:
+
+| Bảng trong tài liệu | File registry |
+|---|---|
+| §2 danh mục + §3 metadata | [`corpus/registry/van-ban.yaml`](../corpus/registry/van-ban.yaml) |
+| §4 quan hệ sửa đổi | [`corpus/registry/quan-he-sua-doi.yaml`](../corpus/registry/quan-he-sua-doi.yaml) |
+| §6 ánh xạ cơ quan ban hành | [`corpus/registry/co-quan-ban-hanh.yaml`](../corpus/registry/co-quan-ban-hanh.yaml) |
+| §7 checklist hoàn thành | `python tools/corpus/kiem_tra.py` |
+
+Quy ước đặt tên, phân loại và vòng đời bản ghi: [`corpus/README.md`](../corpus/README.md).
+
+**Tài liệu này vẫn là nơi giải thích *vì sao*; registry là nơi giữ *dữ liệu*.** Khi hai bên lệch nhau, registry là bản đúng về dữ liệu và tài liệu này phải được cập nhật theo.
+
+---
+
 ## 1. Tiêu chí chọn 15 văn bản
 
 | Tiêu chí | Vì sao |
