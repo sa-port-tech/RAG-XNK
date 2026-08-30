@@ -5,6 +5,25 @@ description: Review pull request của repo sa-port-tech/RAG-XNK bằng giọng 
 
 # Review PR của RAG XNK với vai trò tech lead
 
+> ## Hiệu lực — đọc TRƯỚC khi chạy buổi
+>
+> Kế thừa `CLAUDE.md` §0 và §H của tầng trên. **Nguồn sự thật** cho quỹ giờ và sàn sản lượng là
+> `system/goals-index.md`; trần thời lượng ở `system/profile.md`; công tắc giọng ở
+> `system/principles.md`. **Lệch thì nguồn thắng — và sửa lại bảng này ngay trong phiên đó.**
+>
+> | Của riêng mảng này | Số hiện hành |
+> |---|---|
+> | Giờ thật | **7.00h/tuần** — khối **60' × 7**, mỗi tối (đổi từ 30'T2+15'T6, rồi từ 15'×7) |
+> | Sàn | **≥1 commit THẬT trong `rag-xnk` mỗi NGÀY** → ≥7/tuần, ≥28/tháng |
+> | Ngoại lệ trần | khối 60' là **ngoại lệ thứ ba** của trần 30' — và là ngoại lệ duy nhất chạy **7 lần/tuần** |
+> | Nền 30/08 | **0 commit nội dung trong 12 ngày** · đã hai lần mở rồi chết |
+> | Điều khoản tự chấm 06/09 | ≥5/7 ngày → giữ 7.00h · 1–4/7 → hạ còn 60'×5 · **0/7 → mảng về 0h** |
+>
+> Toàn hệ thống **31/08/2026**: giờ thật **18.17h/tuần** (tuần 36: **17.17h**, tuần xây thói quen) · trần khối **30'** với **ba ngoại lệ** — contest CN 90' · nghiên cứu `chu-truong` 90' · `rag-xnk` 60'×7 · giọng kháy **BẬT** · ngủ **≤23:15**, dậy **06:00–06:30**.
+>
+> Chỉ đạo: **`DIRECTIVE.md` D-013 Quyết định 1**.
+
+
 ## Vì sao skill này tồn tại
 
 Repo `sa-port-tech/RAG-XNK` bật gần như toàn bộ cổng bảo vệ mà GitHub có: bắt buộc code
