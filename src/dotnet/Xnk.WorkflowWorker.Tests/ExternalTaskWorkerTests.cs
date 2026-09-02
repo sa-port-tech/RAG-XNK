@@ -65,9 +65,28 @@ internal sealed class HandlerThuNghiem(string topic, Exception? loi = null) : IE
 }
 
 /// <summary>Vòng lặp lấy và xử lý External Task.</summary>
-public sealed class ExternalTaskWorkerTests
+public sealed class ExternalTaskWorkerTests : IDisposable
 {
     private const string _topic = "corpus.notify-expert";
+
+    /// <summary>
+    /// Các <see cref="HttpClient"/> đã dựng trong test, để giải phóng khi xong.
+    /// </summary>
+    /// <remarks>
+    /// Không dùng <c>using</c> tại chỗ được: client phải sống suốt vòng đời của
+    /// <see cref="CamundaClient"/> mà test đang chạy. Gom lại rồi giải phóng ở cuối là cách
+    /// giữ đúng vòng đời mà vẫn không rò socket qua từng test.
+    /// </remarks>
+    private readonly List<HttpClient> _clients = [];
+
+    /// <inheritdoc />
+    public void Dispose()
+    {
+        foreach (HttpClient client in _clients)
+        {
+            client.Dispose();
+        }
+    }
 
     /// <summary>Một lô fetchAndLock chứa đúng một task.</summary>
     /// <remarks>
@@ -86,13 +105,16 @@ public sealed class ExternalTaskWorkerTests
             + "\"nguoi_duyet\":{\"value\":\"chi.le@cangxanh.vn\",\"type\":\"String\"}}}]";
     }
 
-    private static (ExternalTaskWorker Worker, GhiLaiHandler Http, HandlerThuNghiem Handler) Dung(
+    private (ExternalTaskWorker Worker, GhiLaiHandler Http, HandlerThuNghiem Handler) Dung(
         GhiLaiHandler http, Exception? loiHandler = null)
     {
-        var client = new CamundaClient(new HttpClient(http)
+        var httpClient = new HttpClient(http)
         {
             BaseAddress = new Uri("http://camunda.test/engine-rest/"),
-        });
+        };
+        _clients.Add(httpClient);
+
+        var client = new CamundaClient(httpClient);
 
         var handler = new HandlerThuNghiem(_topic, loiHandler);
         var options = Options.Create(new CamundaOptions

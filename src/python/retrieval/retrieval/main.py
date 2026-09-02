@@ -16,6 +16,7 @@ Ranh giới dữ liệu: service này ĐỌC trực tiếp schema ``corpus`` (ng
 database ``xnk_retrieval`` chỉ có quyền SELECT ở đó — xem `db/roles.sql`.
 """
 
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Annotated, Final
@@ -31,6 +32,8 @@ from retrieval.config import Settings
 
 SERVICE_NAME: Final = "retrieval"
 PATH_PREFIX: Final = f"/{SERVICE_NAME}"
+
+_log = logging.getLogger(__name__)
 
 KICH_THUOC_TRANG_MAC_DINH: Final = 20
 KICH_THUOC_TRANG_TOI_DA: Final = 100
@@ -116,9 +119,14 @@ async def ready(engine: Annotated[AsyncEngine, Depends(_engine)]) -> JSONRespons
     try:
         await db.kiem_tra_san_sang(engine)
     except Exception as loi:
+        # Chi tiết lỗi CHỈ vào log, không ra thân phản hồi. Chuỗi ngoại lệ ở đây thường
+        # chứa host, tên database, tên vai trò — đủ để người ngoài vẽ lại sơ đồ hạ tầng
+        # từ một endpoint vốn không cần xác thực (CodeQL: information exposure through an
+        # exception). Người trực cần chi tiết thì đọc log, chỗ đó mới là của họ.
+        _log.warning("Readiness thất bại: %s", loi)
         return JSONResponse(
             status_code=503,
-            content={"status": "not-ready", "service": SERVICE_NAME, "detail": str(loi)[:200]},
+            content={"status": "not-ready", "service": SERVICE_NAME},
         )
 
     return JSONResponse(

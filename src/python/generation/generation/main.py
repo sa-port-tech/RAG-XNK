@@ -14,6 +14,7 @@ Nếu service này bắt đầu tự truy vấn corpus, nghĩa là bộ lọc hi
 là lớp phòng thủ số một của hệ thống (docs/00 §10.3).
 """
 
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Annotated, Final
@@ -28,6 +29,8 @@ from generation.llm import LlmClient, OpenAiCompatibleClient
 
 SERVICE_NAME: Final = "generation"
 PATH_PREFIX: Final = f"/{SERVICE_NAME}"
+
+_log = logging.getLogger(__name__)
 
 
 class HealthStatus(BaseModel):
@@ -85,9 +88,14 @@ async def ready(llm: Annotated[LlmClient, Depends(_llm)]) -> JSONResponse:
     try:
         await llm.san_sang()
     except Exception as loi:
+        # Chi tiết lỗi CHỈ vào log, không ra thân phản hồi. Chuỗi ngoại lệ ở đây thường
+        # chứa host, tên database, tên vai trò — đủ để người ngoài vẽ lại sơ đồ hạ tầng
+        # từ một endpoint vốn không cần xác thực (CodeQL: information exposure through an
+        # exception). Người trực cần chi tiết thì đọc log, chỗ đó mới là của họ.
+        _log.warning("Readiness thất bại: %s", loi)
         return JSONResponse(
             status_code=503,
-            content={"status": "not-ready", "service": SERVICE_NAME, "detail": str(loi)[:200]},
+            content={"status": "not-ready", "service": SERVICE_NAME},
         )
 
     return JSONResponse(
@@ -110,9 +118,12 @@ async def tra_loi(
     try:
         cau_tra_loi = await llm.tra_loi(yeu_cau.question, yeu_cau.context)
     except Exception as loi:
+        # Chi tiết vào log, không ra ngoài: thông báo lỗi của tầng HTTP thường mang theo
+        # địa chỉ endpoint và tên mô hình.
+        _log.exception("Gọi mô hình ngôn ngữ thất bại")
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Không gọi được mô hình ngôn ngữ: {str(loi)[:200]}",
+            detail="Không gọi được mô hình ngôn ngữ.",
         ) from loi
 
     return PhanHoiTraLoi(answer=cau_tra_loi, model=settings.llm_model)

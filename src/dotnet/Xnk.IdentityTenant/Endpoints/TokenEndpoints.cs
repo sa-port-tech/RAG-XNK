@@ -75,10 +75,15 @@ public static class TokenEndpoints
             // Một thông báo duy nhất cho mọi lý do thất bại: email không tồn tại, sai mật
             // khẩu, tài khoản bị khoá. Phân biệt ra là tặng cho người dò một bộ lọc.
             //
-            // Log thì ghi rõ hơn, vì log không đi ra ngoài — nhưng vẫn không ghi mật khẩu.
+            // ⚠️ KHÔNG ghi email vào log. Email là thông tin cá nhân, và log của một
+            // endpoint đăng nhập là nơi nó tích tụ nhanh nhất — mỗi lần gõ nhầm mật khẩu
+            // là một dòng, giữ lại hàng tháng, đọc được bởi bất kỳ ai có quyền xem log
+            // (CodeQL: exposure of private information).
+            //
+            // Ba cờ dưới đây đủ để người trực biết chuyện gì xảy ra. Cần lần ra đúng tài
+            // khoản nào thì tra bằng định danh khác, không phải bằng cách đổ PII vào log.
             log.LogInformation(
-                "Đăng nhập thất bại cho {Email}: tồn tại={TonTai}, mật khẩu đúng={MatKhauDung}, đang hoạt động={HoatDong}",
-                email,
+                "Đăng nhập thất bại: tồn tại={TonTai}, mật khẩu đúng={MatKhauDung}, đang hoạt động={HoatDong}",
                 nguoiDung is not null,
                 matKhauDung,
                 nguoiDung?.IsActive);

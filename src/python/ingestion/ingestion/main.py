@@ -13,6 +13,7 @@ corpus-service (docs/00 §4.2). Nếu một PR sau này thêm chuỗi kết nố
 đó là dấu hiệu ranh giới đang bị phá chứ không phải một tối ưu.
 """
 
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Annotated, Final
@@ -26,6 +27,8 @@ from ingestion.config import Settings
 
 SERVICE_NAME: Final = "ingestion"
 PATH_PREFIX: Final = f"/{SERVICE_NAME}"
+
+_log = logging.getLogger(__name__)
 
 
 class HealthStatus(BaseModel):
@@ -65,9 +68,14 @@ async def ready(client: Annotated[httpx2.AsyncClient, Depends(_client)]) -> JSON
         phan_hoi = await client.get("/corpus/health/ready")
         phan_hoi.raise_for_status()
     except Exception as loi:
+        # Chi tiết lỗi CHỈ vào log, không ra thân phản hồi. Chuỗi ngoại lệ ở đây thường
+        # chứa host, tên database, tên vai trò — đủ để người ngoài vẽ lại sơ đồ hạ tầng
+        # từ một endpoint vốn không cần xác thực (CodeQL: information exposure through an
+        # exception). Người trực cần chi tiết thì đọc log, chỗ đó mới là của họ.
+        _log.warning("Readiness thất bại: %s", loi)
         return JSONResponse(
             status_code=503,
-            content={"status": "not-ready", "service": SERVICE_NAME, "detail": str(loi)[:200]},
+            content={"status": "not-ready", "service": SERVICE_NAME},
         )
 
     return JSONResponse(

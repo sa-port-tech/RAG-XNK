@@ -195,15 +195,47 @@ jobs:
 
       - name: Chạy nhóm test cách ly tenant
         run: |
-          # TreatNoTestsAsError=true là cố ý. "Không có test nào khớp bộ lọc" phải là
-          # ĐỎ chứ không phải xanh — nếu không, cổng cách ly tenant sẽ tự tắt trong im
-          # lặng đúng vào lúc nó cần thiết nhất. PR .NET đầu tiên phải kèm ít nhất một
-          # test gắn [Trait("Category", "TenantIsolation")].
+          # Ý đồ của cổng, giữ nguyên: "không có test BR-11 nào ở ĐÂU CẢ" phải là ĐỎ,
+          # nếu không thì lớp cách ly tenant tự tắt trong im lặng đúng lúc cần nhất.
+          #
+          # Nhưng KHÔNG dùng TreatNoTestsAsError=true trên cả solution được nữa: cờ đó
+          # bắt MỌI assembly test phải có test mang trait, nên project test thứ hai được
+          # thêm vào — dù hoàn toàn hợp lệ — cũng làm đỏ cổng. Đó là ý đồ khác hẳn.
+          #
+          # Cách đúng: chạy trên cả solution, ghi kết quả ra trx, rồi đòi TỔNG số test
+          # đã chạy phải > 0. Test BR-11 hỏng vẫn làm đỏ, nhờ chính `dotnet test`.
+          #
+          # Không đặt LogFileName: bốn assembly cùng ghi một tên thì chúng đè lên nhau,
+          # và tổng đếm được sẽ phụ thuộc assembly nào chạy cuối.
           dotnet test "${{ steps.gates.outputs.solution }}" \
             --configuration Release \
             --filter "Category=TenantIsolation" \
             --logger "console;verbosity=normal" \
-            -- RunConfiguration.TreatNoTestsAsError=true
+            --logger "trx" \
+            --results-directory artifacts/tenant-isolation \
+            -- RunConfiguration.TreatNoTestsAsError=false
+
+      - name: Bảo đảm cổng BR-11 không rỗng
+        run: |
+          tong=$(python3 .github/scripts/dem_test_trx.py artifacts/tenant-isolation)
+          echo "Số test mang trait Category=TenantIsolation đã chạy: $tong"
+
+          if [ "$tong" -eq 0 ]; then
+            echo "::error::Không có test nào mang trait Category=TenantIsolation trong toàn solution."
+            echo "::error::BR-11 là ranh giới bảo mật và là required check (docs/16 §3). Mọi PR .NET phải giữ ít nhất một test như vậy."
+            exit 1
+          fi
+
+      - name: Bảo đảm cổng BR-11 không rỗng
+        run: |
+          tong=$(python3 .github/scripts/dem_test_trx.py artifacts/tenant-isolation)
+          echo "Số test mang trait Category=TenantIsolation đã chạy: $tong"
+
+          if [ "$tong" -eq 0 ]; then
+            echo "::error::Không có test nào mang trait Category=TenantIsolation trong toàn solution."
+            echo "::error::BR-11 là ranh giới bảo mật và là required check (docs/16 §3). Mọi PR .NET phải giữ ít nhất một test như vậy."
+            exit 1
+          fi
 
   ci-dotnet:
     # Job tổng hợp — ĐÂY là context được khai báo required trong ruleset.

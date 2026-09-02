@@ -49,15 +49,16 @@ def database_url() -> Iterator[str]:
         yield co_san
         return
 
-    try:
-        from testcontainers.postgres import PostgresContainer
-    except ImportError:  # pragma: no cover
-        pytest.skip(
-            f"Không có {BIEN_MOI_TRUONG} và cũng không cài được testcontainers. "
-            "Đặt biến đó trỏ tới PostgreSQL, hoặc cài nhóm dev đầy đủ."
-        )
+    # importorskip thay cho try/except: nhánh except gọi pytest.skip() vốn luôn ném ngoại
+    # lệ, nhưng phân tích tĩnh không biết điều đó và thấy một đường đi trong đó
+    # PostgresContainer chưa được gán (CodeQL: potentially uninitialized local variable).
+    postgres = pytest.importorskip(
+        "testcontainers.postgres",
+        reason=f"Không có {BIEN_MOI_TRUONG} và cũng không cài được testcontainers. "
+        "Đặt biến đó trỏ tới PostgreSQL, hoặc cài nhóm dev đầy đủ.",
+    )
 
-    with PostgresContainer(ANH_POSTGRES, dbname="xnk_test") as container:
+    with postgres.PostgresContainer(ANH_POSTGRES, dbname="xnk_test") as container:
         yield container.get_connection_url(driver=None)
 
 
