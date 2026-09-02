@@ -35,7 +35,7 @@ public sealed class TransientRetryHandler(ILogger<TransientRetryHandler> log) : 
     /// <summary>Khoảng chờ trước lần thử thứ hai.</summary>
     public static readonly TimeSpan KhoangCho = TimeSpan.FromMilliseconds(200);
 
-    private static readonly HttpStatusCode[] MaTamThoi =
+    private static readonly HttpStatusCode[] _maTamThoi =
     [
         HttpStatusCode.BadGateway,
         HttpStatusCode.ServiceUnavailable,
@@ -57,7 +57,7 @@ public sealed class TransientRetryHandler(ILogger<TransientRetryHandler> log) : 
         try
         {
             HttpResponseMessage phanHoi = await base.SendAsync(request, cancellationToken);
-            if (!MaTamThoi.Contains(phanHoi.StatusCode))
+            if (!_maTamThoi.Contains(phanHoi.StatusCode))
             {
                 return phanHoi;
             }

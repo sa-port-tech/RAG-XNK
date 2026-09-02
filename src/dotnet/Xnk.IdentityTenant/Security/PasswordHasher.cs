@@ -39,8 +39,8 @@ public static class PasswordHasher
     /// </summary>
     public const int SoVongMacDinh = 600_000;
 
-    private const int DoDaiMuoi = 16;
-    private const int DoDaiBam = 32;
+    private const int _doDaiMuoi = 16;
+    private const int _doDaiBam = 32;
 
     /// <summary>Băm một mật khẩu thành chuỗi tự mô tả.</summary>
     /// <param name="matKhau">Mật khẩu dạng chữ thường người dùng nhập.</param>
@@ -50,7 +50,7 @@ public static class PasswordHasher
         ArgumentException.ThrowIfNullOrEmpty(matKhau);
         ArgumentOutOfRangeException.ThrowIfLessThan(soVong, 1);
 
-        byte[] muoi = RandomNumberGenerator.GetBytes(DoDaiMuoi);
+        byte[] muoi = RandomNumberGenerator.GetBytes(_doDaiMuoi);
         byte[] bam = DanXuat(matKhau, muoi, soVong);
 
         return $"{ThuatToan}${soVong}${Convert.ToBase64String(muoi)}${Convert.ToBase64String(bam)}";
@@ -101,7 +101,7 @@ public static class PasswordHasher
         return CryptographicOperations.FixedTimeEquals(bamThuc, bamMongDoi);
     }
 
-    private static byte[] DanXuat(string matKhau, byte[] muoi, int soVong, int doDai = DoDaiBam)
+    private static byte[] DanXuat(string matKhau, byte[] muoi, int soVong, int doDai = _doDaiBam)
         => Rfc2898DeriveBytes.Pbkdf2(
             Encoding.UTF8.GetBytes(matKhau),
             muoi,

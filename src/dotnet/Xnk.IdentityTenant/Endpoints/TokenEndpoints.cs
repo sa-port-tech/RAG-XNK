@@ -23,7 +23,7 @@ public static class TokenEndpoints
     /// biết mật khẩu khớp với nó.
     /// </para>
     /// </remarks>
-    private static readonly string BamGia = PasswordHasher.Bam(Guid.NewGuid().ToString("N"));
+    private static readonly string _bamGia = PasswordHasher.Bam(Guid.NewGuid().ToString("N"));
 
     /// <summary>Gắn nhóm endpoint xác thực vào ứng dụng.</summary>
     public static IEndpointRouteBuilder MapTokenEndpoints(this IEndpointRouteBuilder endpoints)
@@ -65,10 +65,10 @@ public static class TokenEndpoints
             .AsNoTracking()
             .SingleOrDefaultAsync(u => u.Email == email, huy);
 
-        // Kiểm băm ở CẢ HAI nhánh — xem chú thích ở BamGia.
+        // Kiểm băm ở CẢ HAI nhánh — xem chú thích ở _bamGia.
         bool matKhauDung = PasswordHasher.KiemTra(
             yeuCau.Password,
-            nguoiDung?.PasswordHash ?? BamGia);
+            nguoiDung?.PasswordHash ?? _bamGia);
 
         if (nguoiDung is null || !matKhauDung || !nguoiDung.IsActive || nguoiDung.Tenant is null)
         {

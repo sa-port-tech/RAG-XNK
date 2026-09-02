@@ -22,7 +22,7 @@ namespace Xnk.Web.Services;
 /// <param name="js">Cầu nối JavaScript.</param>
 public sealed class PhienDangNhap(IJSRuntime js)
 {
-    private const string Khoa = "xnk.token";
+    private const string _khoa = "xnk.token";
 
     private string? _token;
     private bool _daNap;
@@ -45,7 +45,7 @@ public sealed class PhienDangNhap(IJSRuntime js)
         }
 
         _daNap = true;
-        _token = await js.InvokeAsync<string?>("sessionStorage.getItem", Khoa);
+        _token = await js.InvokeAsync<string?>("sessionStorage.getItem", _khoa);
         DaDoi?.Invoke();
     }
 
@@ -53,7 +53,7 @@ public sealed class PhienDangNhap(IJSRuntime js)
     public async Task DatAsync(string token)
     {
         _token = token;
-        await js.InvokeVoidAsync("sessionStorage.setItem", Khoa, token);
+        await js.InvokeVoidAsync("sessionStorage.setItem", _khoa, token);
         DaDoi?.Invoke();
     }
 
@@ -61,7 +61,7 @@ public sealed class PhienDangNhap(IJSRuntime js)
     public async Task XoaAsync()
     {
         _token = null;
-        await js.InvokeVoidAsync("sessionStorage.removeItem", Khoa);
+        await js.InvokeVoidAsync("sessionStorage.removeItem", _khoa);
         DaDoi?.Invoke();
     }
 

@@ -15,8 +15,8 @@ namespace Xnk.Corpus.Endpoints;
 /// </remarks>
 public static class DocumentsEndpoints
 {
-    private const int KichThuocTrangMacDinh = 20;
-    private const int KichThuocTrangToiDa = 100;
+    private const int _kichThuocTrangMacDinh = 20;
+    private const int _kichThuocTrangToiDa = 100;
 
     /// <summary>Gắn nhóm endpoint văn bản vào ứng dụng.</summary>
     public static IEndpointRouteBuilder MapDocumentsEndpoints(this IEndpointRouteBuilder endpoints)
@@ -63,7 +63,7 @@ public static class DocumentsEndpoints
         CorpusDbContext db,
         CancellationToken huy,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = KichThuocTrangMacDinh)
+        [FromQuery] int pageSize = _kichThuocTrangMacDinh)
     {
         if (page < 1)
         {
@@ -73,11 +73,11 @@ public static class DocumentsEndpoints
             });
         }
 
-        if (pageSize is < 1 or > KichThuocTrangToiDa)
+        if (pageSize is < 1 or > _kichThuocTrangToiDa)
         {
             return TypedResults.ValidationProblem(new Dictionary<string, string[]>
             {
-                ["pageSize"] = [$"Kích thước trang phải từ 1 tới {KichThuocTrangToiDa}."],
+                ["pageSize"] = [$"Kích thước trang phải từ 1 tới {_kichThuocTrangToiDa}."],
             });
         }
 

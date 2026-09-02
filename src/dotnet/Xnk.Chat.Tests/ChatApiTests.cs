@@ -9,13 +9,13 @@ namespace Xnk.Chat.Tests;
 /// </summary>
 public sealed class ChatApiTests : IAsyncLifetime
 {
-    private const string TrangRetrieval = """
+    private const string _trangRetrieval = """
         {"items":[{"id":"1","document_number":"39/2018/TT-BTC","title":"Sửa đổi TT 38/2015","is_shared":true},
                   {"id":"2","document_number":"SOP-NB-01","title":"Quy trình nội bộ","is_shared":false}],
          "total_count":2}
         """;
 
-    private const string PhanHoiGeneration = """
+    private const string _phanHoiGeneration = """
         {"answer":"Theo Thông tư 39/2018/TT-BTC…","model":"mo-hinh-dung-cho-test"}
         """;
 
@@ -49,8 +49,8 @@ public sealed class ChatApiTests : IAsyncLifetime
     [Fact]
     public async Task Tra_ve_cau_tra_loi_kem_can_cu()
     {
-        _factory.Retrieval.TraVe(HttpStatusCode.OK, TrangRetrieval);
-        _factory.Generation.TraVe(HttpStatusCode.OK, PhanHoiGeneration);
+        _factory.Retrieval.TraVe(HttpStatusCode.OK, _trangRetrieval);
+        _factory.Generation.TraVe(HttpStatusCode.OK, _phanHoiGeneration);
 
         using HttpClient client = _factory.TaoClientCuaTenant(_tenant);
 
@@ -72,8 +72,8 @@ public sealed class ChatApiTests : IAsyncLifetime
         // hoặc không danh tính nào — và lớp cách ly tenant mất tác dụng ở chặng thứ hai dù
         // mã của nó vẫn đúng từng chữ. Lỗ hổng đó không hiện ra trong diff hay test của
         // `retrieval`, vì phía đó mọi thứ vẫn hoạt động y như thiết kế.
-        _factory.Retrieval.TraVe(HttpStatusCode.OK, TrangRetrieval);
-        _factory.Generation.TraVe(HttpStatusCode.OK, PhanHoiGeneration);
+        _factory.Retrieval.TraVe(HttpStatusCode.OK, _trangRetrieval);
+        _factory.Generation.TraVe(HttpStatusCode.OK, _phanHoiGeneration);
 
         string token = _factory.TaoToken(_tenant);
         using HttpClient client = _factory.CreateClient();
@@ -93,8 +93,8 @@ public sealed class ChatApiTests : IAsyncLifetime
     {
         // Tenant đến từ token, và chỉ từ token. Gửi kèm một tham số tenant là tạo ra hai
         // nguồn sự thật cho cùng một điều — nguồn dễ giả mạo hơn nằm ở phía người gọi.
-        _factory.Retrieval.TraVe(HttpStatusCode.OK, TrangRetrieval);
-        _factory.Generation.TraVe(HttpStatusCode.OK, PhanHoiGeneration);
+        _factory.Retrieval.TraVe(HttpStatusCode.OK, _trangRetrieval);
+        _factory.Generation.TraVe(HttpStatusCode.OK, _phanHoiGeneration);
 
         using HttpClient client = _factory.TaoClientCuaTenant(_tenant);
         await client.GetChatResponse("Hỏi gì đó?");
@@ -126,7 +126,7 @@ public sealed class ChatApiTests : IAsyncLifetime
     [Fact]
     public async Task Generation_hong_thi_502()
     {
-        _factory.Retrieval.TraVe(HttpStatusCode.OK, TrangRetrieval);
+        _factory.Retrieval.TraVe(HttpStatusCode.OK, _trangRetrieval);
         _factory.Generation.TraVe(HttpStatusCode.InternalServerError);
 
         using HttpClient client = _factory.TaoClientCuaTenant(_tenant);
@@ -141,8 +141,8 @@ public sealed class ChatApiTests : IAsyncLifetime
     public async Task Retrieval_duoc_thu_lai_mot_lan_khi_gap_503()
     {
         _factory.Retrieval.TraVe(HttpStatusCode.ServiceUnavailable)
-            .TraVe(HttpStatusCode.OK, TrangRetrieval);
-        _factory.Generation.TraVe(HttpStatusCode.OK, PhanHoiGeneration);
+            .TraVe(HttpStatusCode.OK, _trangRetrieval);
+        _factory.Generation.TraVe(HttpStatusCode.OK, _phanHoiGeneration);
 
         using HttpClient client = _factory.TaoClientCuaTenant(_tenant);
         ChatResponse? ketQua = await client.GetChatResponse("Hỏi gì đó?");
@@ -156,9 +156,9 @@ public sealed class ChatApiTests : IAsyncLifetime
     {
         // POST không được thử lại: có thể tạo ra hai lần cùng một tác dụng phụ, và một lần
         // sinh chữ mất hàng chục giây nên thử lại chỉ nhân đôi thời gian người dùng chờ.
-        _factory.Retrieval.TraVe(HttpStatusCode.OK, TrangRetrieval);
+        _factory.Retrieval.TraVe(HttpStatusCode.OK, _trangRetrieval);
         _factory.Generation.TraVe(HttpStatusCode.ServiceUnavailable)
-            .TraVe(HttpStatusCode.OK, PhanHoiGeneration);
+            .TraVe(HttpStatusCode.OK, _phanHoiGeneration);
 
         using HttpClient client = _factory.TaoClientCuaTenant(_tenant);
 

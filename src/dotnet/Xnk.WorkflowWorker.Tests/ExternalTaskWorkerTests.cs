@@ -67,7 +67,7 @@ internal sealed class HandlerThuNghiem(string topic, Exception? loi = null) : IE
 /// <summary>Vòng lặp lấy và xử lý External Task.</summary>
 public sealed class ExternalTaskWorkerTests
 {
-    private const string Topic = "corpus.notify-expert";
+    private const string _topic = "corpus.notify-expert";
 
     /// <summary>Một lô fetchAndLock chứa đúng một task.</summary>
     /// <remarks>
@@ -79,7 +79,7 @@ public sealed class ExternalTaskWorkerTests
     {
         string soLan = retries?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "null";
 
-        return "[{\"id\":\"task-1\",\"topicName\":\"" + Topic + "\","
+        return "[{\"id\":\"task-1\",\"topicName\":\"" + _topic + "\","
             + "\"processInstanceId\":\"inst-1\",\"retries\":" + soLan + ","
             + "\"variables\":{"
             + "\"van_ban_id\":{\"value\":\"39/2018/TT-BTC\",\"type\":\"String\"},"
@@ -94,7 +94,7 @@ public sealed class ExternalTaskWorkerTests
             BaseAddress = new Uri("http://camunda.test/engine-rest/"),
         });
 
-        var handler = new HandlerThuNghiem(Topic, loiHandler);
+        var handler = new HandlerThuNghiem(_topic, loiHandler);
         var options = Options.Create(new CamundaOptions
         {
             BaseUrl = "http://camunda.test/engine-rest",
@@ -141,7 +141,7 @@ public sealed class ExternalTaskWorkerTests
         Assert.EndsWith("external-task/fetchAndLock", goi.Url, StringComparison.Ordinal);
 
         using JsonDocument than = JsonDocument.Parse(goi.Than);
-        Assert.Equal(Topic, than.RootElement.GetProperty("topics")[0].GetProperty("topicName").GetString());
+        Assert.Equal(_topic, than.RootElement.GetProperty("topics")[0].GetProperty("topicName").GetString());
         Assert.Equal(60_000, than.RootElement.GetProperty("topics")[0].GetProperty("lockDuration").GetInt32());
         Assert.Equal(worker.WorkerId, than.RootElement.GetProperty("workerId").GetString());
     }

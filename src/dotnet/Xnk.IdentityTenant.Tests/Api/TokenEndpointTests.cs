@@ -18,10 +18,10 @@ namespace Xnk.IdentityTenant.Tests.Api;
 [Collection(IdentityPostgresCollection.Name)]
 public sealed class TokenEndpointTests(IdentityPostgresFixture postgres) : IAsyncLifetime
 {
-    private const string KhoaKy = "khoa-ky-danh-rieng-cho-test-dai-32-ky-tu";
-    private const string Issuer = "https://identity.test.local";
-    private const string Audience = "xnk-api-test";
-    private const string MatKhau = "mat-khau-test-2026";
+    private const string _khoaKy = "khoa-ky-danh-rieng-cho-test-dai-32-ky-tu";
+    private const string _issuer = "https://identity.test.local";
+    private const string _audience = "xnk-api-test";
+    private const string _matKhau = "mat-khau-test-2026";
 
     private readonly string _emailHoatDong = $"hoat-dong-{Guid.NewGuid():N}@test.local";
     private readonly string _emailBiKhoa = $"bi-khoa-{Guid.NewGuid():N}@test.local";
@@ -48,7 +48,7 @@ public sealed class TokenEndpointTests(IdentityPostgresFixture postgres) : IAsyn
         // Số vòng thấp: bộ test này kiểm luồng đăng nhập, không kiểm sức chống dò. Băm với
         // 600.000 vòng cho từng test làm bộ test chậm đi hàng giây mà không chứng minh
         // thêm điều gì — PasswordHasherTests mới là chỗ giữ tham số thật.
-        string bam = PasswordHasher.Bam(MatKhau, soVong: 1_000);
+        string bam = PasswordHasher.Bam(_matKhau, soVong: 1_000);
 
         db.Tenants.Add(tenant);
         db.Users.AddRange(
@@ -82,7 +82,7 @@ public sealed class TokenEndpointTests(IdentityPostgresFixture postgres) : IAsyn
     {
         using HttpClient client = _factory.CreateClient();
 
-        HttpResponseMessage phanHoi = await Dang(client, _emailHoatDong, MatKhau);
+        HttpResponseMessage phanHoi = await Dang(client, _emailHoatDong, _matKhau);
         Assert.Equal(HttpStatusCode.OK, phanHoi.StatusCode);
 
         PhanHoiToken? than = await phanHoi.Content.ReadFromJsonAsync<PhanHoiToken>();
@@ -96,11 +96,11 @@ public sealed class TokenEndpointTests(IdentityPostgresFixture postgres) : IAsyn
         TokenValidationResult ketQua = await handler.ValidateTokenAsync(than.AccessToken, new TokenValidationParameters
         {
             ValidateIssuer = true,
-            ValidIssuer = Issuer,
+            ValidIssuer = _issuer,
             ValidateAudience = true,
-            ValidAudience = Audience,
+            ValidAudience = _audience,
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(KhoaKy)),
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_khoaKy)),
             ValidateLifetime = true,
         });
 
@@ -114,7 +114,7 @@ public sealed class TokenEndpointTests(IdentityPostgresFixture postgres) : IAsyn
     public async Task Token_bi_ky_bang_khoa_khac_thi_khong_hop_le()
     {
         using HttpClient client = _factory.CreateClient();
-        HttpResponseMessage phanHoi = await Dang(client, _emailHoatDong, MatKhau);
+        HttpResponseMessage phanHoi = await Dang(client, _emailHoatDong, _matKhau);
         PhanHoiToken? than = await phanHoi.Content.ReadFromJsonAsync<PhanHoiToken>();
         Assert.NotNull(than);
 
@@ -122,9 +122,9 @@ public sealed class TokenEndpointTests(IdentityPostgresFixture postgres) : IAsyn
         TokenValidationResult ketQua = await handler.ValidateTokenAsync(than.AccessToken, new TokenValidationParameters
         {
             ValidateIssuer = true,
-            ValidIssuer = Issuer,
+            ValidIssuer = _issuer,
             ValidateAudience = true,
-            ValidAudience = Audience,
+            ValidAudience = _audience,
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(
                 Encoding.UTF8.GetBytes("mot-khoa-hoan-toan-khac-cung-dai-32-ky-tu")),
@@ -151,7 +151,7 @@ public sealed class TokenEndpointTests(IdentityPostgresFixture postgres) : IAsyn
     {
         using HttpClient client = _factory.CreateClient();
 
-        HttpResponseMessage phanHoi = await Dang(client, $"khong-co-{Guid.NewGuid():N}@test.local", MatKhau);
+        HttpResponseMessage phanHoi = await Dang(client, $"khong-co-{Guid.NewGuid():N}@test.local", _matKhau);
 
         Assert.Equal(HttpStatusCode.Unauthorized, phanHoi.StatusCode);
     }
@@ -161,7 +161,7 @@ public sealed class TokenEndpointTests(IdentityPostgresFixture postgres) : IAsyn
     {
         using HttpClient client = _factory.CreateClient();
 
-        HttpResponseMessage phanHoi = await Dang(client, _emailBiKhoa, MatKhau);
+        HttpResponseMessage phanHoi = await Dang(client, _emailBiKhoa, _matKhau);
 
         Assert.Equal(HttpStatusCode.Unauthorized, phanHoi.StatusCode);
     }
@@ -178,7 +178,7 @@ public sealed class TokenEndpointTests(IdentityPostgresFixture postgres) : IAsyn
 
         HttpResponseMessage saiMatKhau = await Dang(client, _emailHoatDong, "mat-khau-sai");
         HttpResponseMessage khongCoEmail = await Dang(
-            client, $"khong-co-{Guid.NewGuid():N}@test.local", MatKhau);
+            client, $"khong-co-{Guid.NewGuid():N}@test.local", _matKhau);
 
         Assert.Equal(saiMatKhau.StatusCode, khongCoEmail.StatusCode);
 
@@ -202,12 +202,12 @@ public sealed class TokenEndpointTests(IdentityPostgresFixture postgres) : IAsyn
         // đường trần trả 404. Cả hai đều đúng sau ALB — ghi ra để không ai sửa nhầm.
         using HttpClient client = _factory.CreateClient();
 
-        HttpResponseMessage coTienTo = await Dang(client, _emailHoatDong, MatKhau);
+        HttpResponseMessage coTienTo = await Dang(client, _emailHoatDong, _matKhau);
         Assert.Equal(HttpStatusCode.OK, coTienTo.StatusCode);
 
         HttpResponseMessage khongTienTo = await client.PostAsJsonAsync(
             new Uri("/token", UriKind.Relative),
-            new { email = _emailHoatDong, password = MatKhau });
+            new { email = _emailHoatDong, password = _matKhau });
         Assert.Equal(HttpStatusCode.OK, khongTienTo.StatusCode);
     }
 
@@ -239,9 +239,9 @@ public sealed class TokenEndpointTests(IdentityPostgresFixture postgres) : IAsyn
             builder.UseEnvironment(Environments.Production);
 
             builder.UseSetting("ConnectionStrings:Identity", connectionString);
-            builder.UseSetting("Jwt:Issuer", Issuer);
-            builder.UseSetting("Jwt:Audience", Audience);
-            builder.UseSetting("Jwt:SigningKey", KhoaKy);
+            builder.UseSetting("Jwt:Issuer", _issuer);
+            builder.UseSetting("Jwt:Audience", _audience);
+            builder.UseSetting("Jwt:SigningKey", _khoaKy);
         }
     }
 }
