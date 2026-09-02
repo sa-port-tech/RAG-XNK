@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Xnk.Corpus.Data;
+using Xnk.Corpus.Endpoints;
 using Xnk.Shared.Authentication;
 using Xnk.Shared.Hosting;
 
@@ -38,6 +39,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapXnkHealthEndpoints();
+app.MapDocumentsEndpoints();
 
 // Tài liệu OpenAPI sinh từ mã (ADR-0003) tại /corpus/openapi/v1.json.
 app.MapOpenApi();
