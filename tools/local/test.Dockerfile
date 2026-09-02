@@ -34,6 +34,7 @@ COPY src/dotnet/Xnk.Chat/Xnk.Chat.csproj ./src/dotnet/Xnk.Chat/
 COPY src/dotnet/Xnk.Chat.Tests/Xnk.Chat.Tests.csproj ./src/dotnet/Xnk.Chat.Tests/
 COPY src/dotnet/Xnk.WorkflowWorker/Xnk.WorkflowWorker.csproj ./src/dotnet/Xnk.WorkflowWorker/
 COPY src/dotnet/Xnk.WorkflowWorker.Tests/Xnk.WorkflowWorker.Tests.csproj ./src/dotnet/Xnk.WorkflowWorker.Tests/
+COPY src/dotnet/Xnk.Web/Xnk.Web.csproj ./src/dotnet/Xnk.Web/
 RUN dotnet restore src/dotnet/Xnk.sln
 
 COPY src/dotnet/ ./src/dotnet/

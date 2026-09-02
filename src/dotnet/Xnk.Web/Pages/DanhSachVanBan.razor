@@ -1,0 +1,84 @@
+@page "/"
+@* Tên file phải khác tên DTO `VanBan`: mỗi .razor sinh ra một lớp cùng tên trong
+   namespace của thư mục, và trùng tên với một kiểu đang dùng cho ra một lỗi biên dịch
+   nói về "không chuyển đổi được" thay vì nói về trùng tên. *@
+@inject PhienDangNhap Phien
+@inject XnkApiClient Api
+@implements IDisposable
+
+<PageTitle>Văn bản — RAG XNK</PageTitle>
+
+@if (!Phien.DaDangNhap)
+{
+    @* Chưa đăng nhập thì hiện form ngay tại đây thay vì điều hướng: một lần chuyển trang
+       trong ứng dụng WASM là một lần chớp màn hình không cần thiết. *@
+    <DangNhap OnDangNhapXong="TaiLaiAsync" />
+}
+else if (_dangTai)
+{
+    <p class="thong-bao">Đang tải…</p>
+}
+else if (_loi is not null)
+{
+    <p class="loi">@_loi</p>
+    <button @onclick="TaiLaiAsync">Thử lại</button>
+}
+else if (_trang is null || _trang.Items.Count == 0)
+{
+    <p class="thong-bao">Không có văn bản nào.</p>
+}
+else
+{
+    <p class="thong-bao">
+        @_trang.TotalCount văn bản mà tổ chức của bạn được xem.
+    </p>
+    <table>
+        <thead>
+            <tr><th>Số hiệu</th><th>Trích yếu</th><th>Phạm vi</th></tr>
+        </thead>
+        <tbody>
+            @foreach (VanBan v in _trang.Items)
+            {
+                <tr>
+                    <td class="so-hieu">@v.DocumentNumber</td>
+                    <td>@v.Title</td>
+                    @* Cột này là thứ chứng minh cách ly tenant đang chạy: hai tài khoản
+                       khác tổ chức nhìn thấy hai danh sách khác nhau ở đúng chỗ "Riêng". *@
+                    <td>@(v.IsShared ? "Dùng chung" : "Riêng")</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private TrangVanBan? _trang;
+    private string? _loi;
+    private bool _dangTai;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Phien.DaDoi += VeLai;
+        await Phien.NapAsync();
+        if (Phien.DaDangNhap)
+        {
+            await TaiLaiAsync();
+        }
+    }
+
+    private void VeLai() => StateHasChanged();
+
+    private async Task TaiLaiAsync()
+    {
+        _dangTai = true;
+        _loi = null;
+        StateHasChanged();
+
+        KetQua<TrangVanBan> ketQua = await Api.LayVanBanAsync();
+        _trang = ketQua.GiaTri;
+        _loi = ketQua.Loi;
+        _dangTai = false;
+    }
+
+    public void Dispose() => Phien.DaDoi -= VeLai;
+}

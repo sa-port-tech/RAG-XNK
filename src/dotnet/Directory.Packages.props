@@ -39,6 +39,22 @@
     <PackageVersion Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.19.2" />
   </ItemGroup>
 
+  <ItemGroup Label="Blazor WebAssembly">
+    <!--
+      KHÔNG có Telerik ở đây. docs/01 đặt Telerik ở Sprint 3 với trial 30 ngày; kéo vào bây
+      giờ là đốt trial trước khi cần, và đẩy kích thước gói về sát ngân sách 3500KB ngay từ
+      ngày đầu (.github/quality-gates.yml → blazor.bundle_budget_brotli_kb).
+    -->
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly" Version="9.0.19" />
+    <PackageVersion Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" Version="9.0.19" />
+    <!--
+      IHttpClientFactory. Không nằm sẵn trong Blazor WASM như ở ASP.NET Core, nên phải
+      khai tường minh — cần nó để gắn TokenHandler vào chuỗi handler thay vì gán header
+      bằng tay ở từng lời gọi.
+    -->
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="9.0.9" />
+  </ItemGroup>
+
   <ItemGroup Label="Test">
     <!--
       WebApplicationFactory — dựng ứng dụng thật trong tiến trình test và gọi nó qua HTTP.

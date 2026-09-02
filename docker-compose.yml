@@ -275,6 +275,18 @@ services:
     environment:
       Camunda__BaseUrl: http://camunda:8080/engine-rest
 
+  # Giao diện Blazor WASM: chép nội dung tĩnh vào volume rồi thoát. Xem
+  # src/dotnet/Xnk.Web/Dockerfile để biết vì sao không phải một web server.
+  web:
+    build:
+      context: .
+      dockerfile: src/dotnet/Xnk.Web/Dockerfile
+    container_name: xnk-web
+    profiles: ["app", "full"]
+    volumes:
+      - web-dist:/dich
+    restart: "no"
+
   # Sinh cấu hình nginx từ .github/services.json rồi thoát. Xem tools/local/render_nginx.py
   # để biết vì sao cấu hình được sinh mỗi lần `up` thay vì commit vào repo.
   nginx-conf:
@@ -296,6 +308,8 @@ services:
     profiles: ["app", "full"]
     depends_on:
       nginx-conf:
+        condition: service_completed_successfully
+      web:
         condition: service_completed_successfully
     ports:
       # Cổng BÊN TRONG luôn là 8080 — cấu hình nginx sinh ra cố định như vậy, và mọi
