@@ -4,12 +4,14 @@
 # sau profile vì chúng kéo về khoảng 3 GB ảnh mà lát cắt dọc hiện tại (corpus + retrieval)
 # không dùng tới. Bật khi cần:
 #
+#   docker compose --profile app up -d           # ★ toàn bộ hệ thống: 4 service + nginx
 #   docker compose --profile workflow up -d      # thêm Camunda 7
 #   docker compose --profile aws up -d           # thêm LocalStack
 #   docker compose --profile tracing up -d       # thêm Jaeger
 #   docker compose --profile full up -d          # tất cả
 #
-# Sau khi Postgres lên, áp lược đồ:  bash db/apply-migrations.sh
+# Profile `app` tự chạy migration, vai trò và seed qua service `migrate` — không cần bước
+# thủ công nào. Nếu chỉ khởi Postgres trần thì áp lược đồ bằng: bash db/apply-migrations.sh
 #
 # ⚠️ Phiên bản PostgreSQL và ảnh pgvector ở đây phải khớp đúng với ci-dotnet
 # (job tenant-isolation) và với PostgresFixture trong test. Lệch phiên bản là cách tạo ra
@@ -94,6 +96,115 @@ services:
       - "16686:16686"  # giao diện web
       - "4317:4317"    # OTLP gRPC
 
+  # ══════════════════════════════════════════════════════════════════════════════════════
+  # Profile `app` — toàn bộ hệ thống chạy được ở local
+  # ══════════════════════════════════════════════════════════════════════════════════════
+  #
+  #   docker compose --profile app up -d
+  #
+  # Giá trị cấu hình lấy từ `.env` (chép từ `.env.example`). Không đặt giá trị mặc định
+  # ngay trong file này: hai nơi cùng khai một chuỗi kết nối thì sớm muộn chúng lệch nhau,
+  # và cái lệch đó chỉ lộ ra khi có người chạy `dotnet run` ngoài container rồi thấy hành
+  # vi khác. Thiếu `.env` thì compose dừng ngay với thông báo nói rõ phải làm gì.
+
+  # Migration + vai trò + seed. Chạy một lần rồi thoát, đúng hình dạng ECS one-off task
+  # mà cd-deploy dùng trước bước deploy (ADR-010).
+  migrate:
+    build:
+      context: .
+      dockerfile: db/Dockerfile
+    container_name: xnk-migrate
+    profiles: ["app", "full"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Migration chạy bằng CHỦ SỞ HỮU lược đồ, không phải bằng vai trò của service. Các
+      # vai trò trong db/roles.sql cố ý không có quyền DDL — service tự đổi lược đồ lúc
+      # chạy là thứ phải bất khả thi, không phải thứ trông cậy vào kỷ luật.
+      DATABASE_URL: postgres://postgres:xnk-local-dev@postgres:5432/xnk
+    restart: "no"
+
+  corpus:
+    build:
+      # Context là GỐC REPO — xem chú thích đầu mỗi Dockerfile.
+      context: .
+      dockerfile: src/dotnet/Xnk.Corpus/Dockerfile
+    container_name: xnk-corpus
+    profiles: ["app", "full"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      ConnectionStrings__Corpus: ${XNK_CORPUS_CONNECTION:?Thiếu .env — chạy `cp .env.example .env`}
+      Jwt__Issuer: ${XNK_JWT_ISSUER:?Thiếu .env}
+      Jwt__Audience: ${XNK_JWT_AUDIENCE:?Thiếu .env}
+      Jwt__SigningKey: ${XNK_JWT_SIGNING_KEY:?Thiếu .env}
+
+  ingestion:
+    build:
+      context: .
+      dockerfile: src/python/ingestion/Dockerfile
+    container_name: xnk-ingestion
+    profiles: ["app", "full"]
+
+  retrieval:
+    build:
+      context: .
+      dockerfile: src/python/retrieval/Dockerfile
+    container_name: xnk-retrieval
+    profiles: ["app", "full"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  generation:
+    build:
+      context: .
+      dockerfile: src/python/generation/Dockerfile
+    container_name: xnk-generation
+    profiles: ["app", "full"]
+
+  # Sinh cấu hình nginx từ .github/services.json rồi thoát. Xem tools/local/render_nginx.py
+  # để biết vì sao cấu hình được sinh mỗi lần `up` thay vì commit vào repo.
+  nginx-conf:
+    build:
+      context: .
+      dockerfile: tools/local/Dockerfile
+    container_name: xnk-nginx-conf
+    profiles: ["app", "full"]
+    volumes:
+      - nginx-conf:/etc/nginx/conf.d
+    restart: "no"
+
+  # Cổng vào duy nhất, đóng vai ALB: định tuyến theo tiền tố và KHÔNG cắt tiền tố
+  # (ADR-013). Nhờ nó, smoke_test.sh chạy ở local với cùng một BASE_URL như trên môi
+  # trường thật.
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: xnk-nginx
+    profiles: ["app", "full"]
+    depends_on:
+      nginx-conf:
+        condition: service_completed_successfully
+    ports:
+      # Cổng BÊN TRONG luôn là 8080 — cấu hình nginx sinh ra cố định như vậy, và mọi
+      # service gọi nhau qua mạng nội bộ của compose đều dùng nó.
+      #
+      # Cổng phía HOST đặt được qua XNK_HTTP_PORT trong `.env`, vì 8080 là cổng bận nhất
+      # trên máy lập trình viên. Không có lối thoát này thì người bị trùng cổng phải sửa
+      # docker-compose.yml — tức là mang một thay đổi cục bộ của máy mình vào git.
+      - "${XNK_HTTP_PORT:-8080}:8080"
+    volumes:
+      - nginx-conf:/etc/nginx/conf.d:ro
+      - web-dist:/usr/share/nginx/html:ro
+
 volumes:
   postgres-data:
   camunda-data:
+  # Cấu hình nginx sinh lúc khởi động — không phải dữ liệu, chỉ là chỗ để hai container
+  # trao file cho nhau.
+  nginx-conf:
+  # Nội dung tĩnh của Blazor WASM. Rỗng cho tới khi Xnk.Web được dựng; khi đó nginx trả
+  # 404 ở `/` — đúng sự thật, không phải trang giả.
+  web-dist:

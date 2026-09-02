@@ -6,6 +6,12 @@
 .github
 .claude
 .vs
+
+# Ngoại lệ: danh mục service là NGUỒN SỰ THẬT cho định tuyến (ADR-009), và image
+# `nginx-conf` sinh cấu hình nginx từ chính nó (tools/local/Dockerfile). Không mở lại đúng
+# một file này thì lệnh COPY hỏng với thông báo "file not found" trỏ vào một file đang nằm
+# ngay trong repo — mất một lúc mới nghĩ ra thủ phạm là .dockerignore.
+!.github/services.json
 .idea
 
 # Tài liệu và dữ liệu — không có gì trong đó đi vào image

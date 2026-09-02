@@ -27,7 +27,11 @@ fi
 if [ -n "${SERVICES:-}" ]; then
   read -r -a wanted <<< "$SERVICES"
 else
-  mapfile -t wanted < <(jq -r '.services[].name' "$MANIFEST")
+  # `tr -d '\r'`: jq bản Windows ghi stdout ở chế độ text nên xuống dòng thành CRLF, và
+  # `mapfile -t` chỉ cắt \n — mỗi tên service còn dính một \r ở cuối. Hệ quả là mọi truy
+  # vấn jq sau đó khớp rỗng, và script báo "thiếu health_path" cho cả bảy service trong
+  # khi danh mục hoàn toàn bình thường. Trên CI (Linux) không có \r nên lệnh này vô hại.
+  mapfile -t wanted < <(jq -r '.services[].name' "$MANIFEST" | tr -d '\r')
 fi
 
 echo "Smoke test trên $BASE_URL"
@@ -37,7 +41,7 @@ echo
 failed=()
 
 for name in "${wanted[@]}"; do
-  health_path=$(jq -r --arg n "$name" '.services[] | select(.name == $n) | .health_path' "$MANIFEST")
+  health_path=$(jq -r --arg n "$name" '.services[] | select(.name == $n) | .health_path' "$MANIFEST" | tr -d '\r')
 
   if [ -z "$health_path" ] || [ "$health_path" = "null" ]; then
     echo "::error::Service '$name' không có trong $MANIFEST hoặc thiếu health_path."
