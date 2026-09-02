@@ -20,6 +20,11 @@ eval
 bpmn
 prompts
 
+# Ngoại lệ: định nghĩa quy trình là ARTIFACT TRIỂN KHAI, không phải tài liệu. Image Camunda
+# đóng gói sẵn chúng (bpmn/Dockerfile) để phiên bản engine và phiên bản quy trình đi cùng
+# nhau. Không mở lại thì build hỏng với "lstat /bpmn: no such file or directory".
+!bpmn/*.bpmn
+
 # Kết quả build của .NET
 **/bin
 **/obj

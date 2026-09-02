@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Nhóm test của Xnk.WorkflowWorker.
+
+    Hai thứ quan trọng nhất mà bộ này giữ:
+
+    · **Đếm lùi số lần thử.** Hết lượt phải đặt retries = 0 để engine tạo incident và dừng
+      instance ở trạng thái chờ can thiệp — docs/10 §1.4: "Không tự động bỏ qua bước lỗi."
+      Sai chỗ này thì một bước hỏng sẽ thử lại vô hạn, hoặc tệ hơn, bị bỏ qua im lặng.
+    · **Handler ném ngoại lệ thì task phải BÁO LỖI, không phải hoàn thành.** Nuốt ngoại lệ
+      rồi complete là cách để process chạy tiếp như thể bước đó đã xong.
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>Xnk.WorkflowWorker.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Xnk.WorkflowWorker/Xnk.WorkflowWorker.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

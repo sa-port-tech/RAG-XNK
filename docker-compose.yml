@@ -43,7 +43,7 @@ services:
   camunda-postgres:
     image: postgres:16
     container_name: xnk-camunda-postgres
-    profiles: ["workflow", "full"]
+    profiles: ["app", "full"]
     environment:
       POSTGRES_DB: camunda
       POSTGRES_USER: camunda
@@ -60,17 +60,31 @@ services:
   # điểm 4) và ci-bpmn chặn ở CI — Camunda 7 đang trong lộ trình kết thúc hỗ trợ, nên mọi
   # logic phải nằm ngoài engine để còn đường chuyển đổi.
   camunda:
-    image: camunda/camunda-bpm-platform:run-7.21.0
+    # Build chứ không dùng ảnh gốc: định nghĩa quy trình được đóng gói vào image, xem
+    # bpmn/Dockerfile.
+    build:
+      context: .
+      dockerfile: bpmn/Dockerfile
     container_name: xnk-camunda
-    profiles: ["workflow", "full"]
+    profiles: ["app", "full"]
     depends_on:
       camunda-postgres:
         condition: service_healthy
+    healthcheck:
+      # Engine sẵn sàng khi REST API trả lời — đó cũng chính là thứ workflow-worker cần.
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/engine-rest/version || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
     environment:
       DB_DRIVER: org.postgresql.Driver
       DB_URL: jdbc:postgresql://camunda-postgres:5432/camunda
       DB_USERNAME: camunda
       DB_PASSWORD: camunda-local-dev
+      # Tắt hai quy trình mẫu (Invoice Receipt, Review Invoice) mà ảnh Camunda Run deploy
+      # sẵn. Để lại thì Cockpit hiện lẫn lộn quy trình của dự án với quy trình demo, và
+      # người mới vào không biết cái nào là thật.
+      CAMUNDA_BPM_RUN_EXAMPLE_ENABLED: "false" 
     ports:
       # 8080 trên máy đã dành cho service .NET khi chạy `dotnet run`, nên Camunda ra 8090.
       - "8090:8080"
@@ -248,6 +262,18 @@ services:
     # Cùng biến LLM_MODEL mà `generation` dùng — một nguồn sự thật cho tên mô hình.
     entrypoint: ["ollama", "pull", "${LLM_MODEL:?Thiếu .env}"]
     restart: "no"
+
+  workflow-worker:
+    build:
+      context: .
+      dockerfile: src/dotnet/Xnk.WorkflowWorker/Dockerfile
+    container_name: xnk-workflow-worker
+    profiles: ["app", "full"]
+    depends_on:
+      camunda:
+        condition: service_healthy
+    environment:
+      Camunda__BaseUrl: http://camunda:8080/engine-rest
 
   # Sinh cấu hình nginx từ .github/services.json rồi thoát. Xem tools/local/render_nginx.py
   # để biết vì sao cấu hình được sinh mỗi lần `up` thay vì commit vào repo.

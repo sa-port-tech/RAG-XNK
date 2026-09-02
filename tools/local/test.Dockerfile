@@ -32,6 +32,8 @@ COPY src/dotnet/Xnk.IdentityTenant/Xnk.IdentityTenant.csproj ./src/dotnet/Xnk.Id
 COPY src/dotnet/Xnk.IdentityTenant.Tests/Xnk.IdentityTenant.Tests.csproj ./src/dotnet/Xnk.IdentityTenant.Tests/
 COPY src/dotnet/Xnk.Chat/Xnk.Chat.csproj ./src/dotnet/Xnk.Chat/
 COPY src/dotnet/Xnk.Chat.Tests/Xnk.Chat.Tests.csproj ./src/dotnet/Xnk.Chat.Tests/
+COPY src/dotnet/Xnk.WorkflowWorker/Xnk.WorkflowWorker.csproj ./src/dotnet/Xnk.WorkflowWorker/
+COPY src/dotnet/Xnk.WorkflowWorker.Tests/Xnk.WorkflowWorker.Tests.csproj ./src/dotnet/Xnk.WorkflowWorker.Tests/
 RUN dotnet restore src/dotnet/Xnk.sln
 
 COPY src/dotnet/ ./src/dotnet/

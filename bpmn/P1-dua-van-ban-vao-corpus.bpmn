@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  P1 — Đưa văn bản mới vào corpus. LÁT CẮT SKELETON.
+
+  ⚠️ Đây KHÔNG phải quy trình P1 đầy đủ. Bản đầy đủ có 11 External Task và 2 User Task,
+  đặc tả ở docs/10 §1.2–1.5, và được thực hiện ở story E6-01 (Sprint 3).
+
+  Lát cắt này giữ đúng xương sống mà docs/10 §1.3 gọi là "bước không được bỏ qua" — thông
+  báo chuyên gia rồi chờ người phê duyệt phạm vi ảnh hưởng — và bỏ toàn bộ phần còn lại.
+  Mục đích của nó là chứng minh cơ chế External Task chạy thông từ engine tới worker .NET,
+  không phải để chạy nghiệp vụ thật.
+
+  Hai ràng buộc của dự án được tuân thủ ở đây, và ci-bpmn kiểm lại chúng:
+
+  · Mọi Service Task là External Task (camunda:type="external"). Java Delegate bị cấm vì
+    nó khoá quy trình vào Camunda 7 và JVM, loại service .NET/Python khỏi cuộc chơi
+    (docs/00 §1.2 điểm 4, docs/10 §0).
+  · Topic đặt theo quy ước `<service>.<hành động>` (docs/10 §0).
+-->
+<bpmn:definitions
+    xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+    xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    id="Definitions_P1"
+    targetNamespace="http://sa-port-tech/xnk">
+
+  <!--
+    historyTimeToLive: Camunda 7.21 bắt buộc khai, và nó là một quyết định lưu trữ dữ liệu
+    chứ không phải một ô cần điền cho qua. 30 ngày là mức cho prototype: đủ để truy vết một
+    sự cố và điều tra một quy trình chạy sai, không đủ để bảng lịch sử phình ra trên một
+    RDS thuộc Free Tier.
+
+    Khi có yêu cầu lưu vết chính thức từ nghiệp vụ (ai duyệt văn bản nào, lúc nào — thứ có
+    thể bị hỏi lại sau nhiều tháng), con số này phải do chuyên gia XNK và PO chốt, không
+    phải do người viết BPMN chọn.
+  -->
+  <bpmn:process id="P1-dua-van-ban-vao-corpus"
+                name="P1 — Đưa văn bản mới vào corpus (lát cắt skeleton)"
+                isExecutable="true"
+                camunda:historyTimeToLive="P30D">
+
+    <bpmn:startEvent id="bat-dau" name="Có văn bản mới cần đưa vào corpus">
+      <bpmn:outgoing>den-thong-bao</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!--
+      Worker .NET đăng ký topic này. Xem
+      src/dotnet/Xnk.WorkflowWorker/Handlers/NotifyExpertHandler.cs để biết cài đặt hiện
+      tại làm gì và không làm gì.
+    -->
+    <bpmn:serviceTask id="thong-bao-chuyen-gia"
+                      name="Thông báo chuyên gia có việc cần review"
+                      camunda:type="external"
+                      camunda:topic="corpus.notify-expert">
+      <bpmn:incoming>den-thong-bao</bpmn:incoming>
+      <bpmn:outgoing>den-phe-duyet</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!--
+      ★ docs/10 §1.3: bước con người này KHÔNG được bỏ qua. Đây chính là lý do quy trình
+      xứng đáng dùng Camunda thay vì một hàng đợi — có trạng thái bền vững và có người chờ.
+
+      Giao diện là màn hình Blazor của hệ thống, không phải Camunda Tasklist (docs/10 §6).
+    -->
+    <bpmn:userTask id="phe-duyet-pham-vi-anh-huong"
+                   name="Chuyên gia phê duyệt phạm vi ảnh hưởng"
+                   camunda:assignee="${nguoi_duyet}">
+      <bpmn:incoming>den-phe-duyet</bpmn:incoming>
+      <bpmn:outgoing>den-ket-thuc</bpmn:outgoing>
+    </bpmn:userTask>
+
+    <bpmn:endEvent id="ket-thuc" name="Đã phê duyệt">
+      <bpmn:incoming>den-ket-thuc</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="den-thong-bao" sourceRef="bat-dau" targetRef="thong-bao-chuyen-gia" />
+    <bpmn:sequenceFlow id="den-phe-duyet" sourceRef="thong-bao-chuyen-gia" targetRef="phe-duyet-pham-vi-anh-huong" />
+    <bpmn:sequenceFlow id="den-ket-thuc" sourceRef="phe-duyet-pham-vi-anh-huong" targetRef="ket-thuc" />
+
+  </bpmn:process>
+</bpmn:definitions>
