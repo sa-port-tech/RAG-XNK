@@ -29,6 +29,8 @@ Dùng
 from __future__ import annotations
 
 import argparse
+import base64
+import hashlib
 import sys
 import uuid
 from pathlib import Path
@@ -77,6 +79,28 @@ SOP_LOCAL = [
     ("noi-bo", "SOP-NB-02", "[MẪU LOCAL] Quy trình nội bộ: xử lý tờ khai luồng đỏ"),
     ("b2b-khach-hang", "SOP-KH-01", "[MẪU LOCAL] Hướng dẫn khách hàng: chuẩn bị hồ sơ nhập khẩu hàng bách hoá"),
     ("b2b-khach-hang", "SOP-KH-02", "[MẪU LOCAL] Hướng dẫn khách hàng: khai báo trị giá hải quan"),
+]
+
+# ── Tài khoản mẫu cho máy local ────────────────────────────────────────────────────────
+#
+# Tất cả dùng chung một mật khẩu, ghi thẳng ra đây. Đây KHÔNG phải rò rỉ bí mật: bốn tài
+# khoản này chỉ tồn tại trong database của máy dev, được tạo bởi chính file seed nằm trong
+# git. Giấu mật khẩu của một tài khoản mà ai cũng tạo lại được là tự lừa mình.
+MAT_KHAU_LOCAL = "matkhau-local-2026"
+
+# Phải khớp PasswordHasher bên C# (src/dotnet/Xnk.IdentityTenant/Security/PasswordHasher.cs).
+# Định dạng: pbkdf2_sha256$<số vòng>$<muối base64>$<băm base64>
+THUAT_TOAN_BAM = "pbkdf2_sha256"
+SO_VONG_PBKDF2 = 600_000
+DAI_MUOI = 16
+DAI_BAM = 32
+
+# (email, slug tenant, vai trò)
+NGUOI_DUNG_LOCAL = [
+    ("an.nguyen@noibo.vn", "noi-bo", "admin"),
+    ("binh.tran@noibo.vn", "noi-bo", "user"),
+    ("chi.le@cangxanh.vn", "b2b-khach-hang", "admin"),
+    ("dung.pham@cangxanh.vn", "b2b-khach-hang", "viewer"),
 ]
 
 # Giới hạn cột trong `corpus.documents` (xem Xnk.Corpus/Data/CorpusDbContext.cs).
@@ -223,6 +247,78 @@ ON CONFLICT ("Id") DO NOTHING;
 """
 
 
+def bam_mat_khau(mat_khau: str, email: str) -> str:
+    """Băm mật khẩu đúng định dạng mà ``PasswordHasher`` bên C# đọc được.
+
+    **Muối suy ra từ email chứ không ngẫu nhiên.** Đây là lựa chọn có chủ đích và chỉ đúng
+    trong phạm vi seed local: muối ngẫu nhiên làm file sinh ra khác nhau ở mỗi lần chạy,
+    nên `--kiem-tra` luôn báo lệch và mỗi lần sinh lại là một diff vô nghĩa trong git.
+
+    Muối cố định làm giảm giá trị của muối (không chống được bảng tra dựng sẵn cho nhiều
+    tài khoản cùng lúc). Với bốn tài khoản mẫu có mật khẩu ghi công khai ngay trong repo,
+    thứ đó không có gì để mất. **Mã sinh mật khẩu thật nằm ở phía C# và luôn dùng muối
+    ngẫu nhiên** — đừng chép logic của hàm này sang đó.
+    """
+    muoi = hashlib.sha256(f"xnk-seed-local:{email}".encode()).digest()[:DAI_MUOI]
+    bam = hashlib.pbkdf2_hmac("sha256", mat_khau.encode(), muoi, SO_VONG_PBKDF2, DAI_BAM)
+    return (
+        f"{THUAT_TOAN_BAM}${SO_VONG_PBKDF2}$"
+        f"{base64.b64encode(muoi).decode()}${base64.b64encode(bam).decode()}"
+    )
+
+
+def sinh_identity() -> str:
+    """Sinh seed cho schema ``identity``: tenant và người dùng."""
+    dong_tenant = ",\n".join(
+        f"    ('{ma_tenant(slug)}', '{_thoat_chuoi(slug)}', "
+        f"'{_thoat_chuoi(ten)}', '{loai}')"
+        for slug, ten, loai in TENANT_LOCAL
+    )
+
+    dong_nguoi_dung: list[str] = []
+    for email, slug, vai_tro in NGUOI_DUNG_LOCAL:
+        khoa = uuid.uuid5(NS_DU_AN, f"identity.users:{email}")
+        bam = bam_mat_khau(MAT_KHAU_LOCAL, email)
+        dong_nguoi_dung.append(
+            f"    ('{khoa}', '{ma_tenant(slug)}', '{_thoat_chuoi(email)}', "
+            f"'{_thoat_chuoi(bam)}', '{vai_tro}', true)"
+        )
+
+    than_nguoi_dung = ",\n".join(dong_nguoi_dung)
+    bang = "\n".join(
+        f"--   {email:<24} {vai_tro:<7} {slug}" for email, slug, vai_tro in NGUOI_DUNG_LOCAL
+    )
+
+    return f"""-- ⚠️ FILE SINH TỰ ĐỘNG — sinh lại bằng: python tools/local/sinh_seed.py
+--
+-- Tenant và tài khoản mẫu cho MÁY LOCAL.
+--
+-- Mật khẩu của cả bốn tài khoản: {MAT_KHAU_LOCAL}
+--
+{bang}
+--
+-- Băm bằng PBKDF2-HMAC-SHA256, {SO_VONG_PBKDF2:,} vòng, đúng định dạng mà
+-- src/dotnet/Xnk.IdentityTenant/Security/PasswordHasher.cs đọc được. Định dạng chuỗi là
+-- hợp đồng liên ngôn ngữ giữa file này và mã C# — đổi một bên mà quên bên kia thì không
+-- ai đăng nhập được, và lỗi trông giống hệt "sai mật khẩu".
+--
+-- Muối ở đây suy ra từ email nên file sinh lại luôn giống nhau; mã C# khi tạo người dùng
+-- thật thì dùng muối ngẫu nhiên. Xem chú thích hàm bam_mat_khau().
+--
+-- Chạy lại nhiều lần an toàn: khoá chính ổn định (UUIDv5) + ON CONFLICT DO NOTHING.
+
+INSERT INTO identity.tenants ("Id", "Slug", "Name", "Type")
+VALUES
+{dong_tenant}
+ON CONFLICT ("Id") DO NOTHING;
+
+INSERT INTO identity.users ("Id", "TenantId", "Email", "PasswordHash", "Role", "IsActive")
+VALUES
+{than_nguoi_dung}
+ON CONFLICT ("Id") DO NOTHING;
+"""
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -239,6 +335,7 @@ def main() -> int:
     ket_qua = {
         THU_MUC_SEED / "0001_corpus_van_ban_chung.sql": sql_chung,
         THU_MUC_SEED / "0002_corpus_sop_tenant.sql": sinh_sop_tenant(),
+        THU_MUC_SEED / "0003_identity_tenants_users.sql": sinh_identity(),
     }
 
     print(

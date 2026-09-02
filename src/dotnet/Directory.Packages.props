@@ -28,9 +28,24 @@
     <!-- Provider Npgsql đi theo nhịp phát hành riêng, không trùng bản vá với EF Core. -->
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
     <PackageVersion Include="Pgvector.EntityFrameworkCore" Version="0.3.0" />
+    <!--
+      PHÁT token JWT — chỉ `identity-tenant` cần. Sáu service còn lại chỉ KIỂM TRA token,
+      và việc đó đã nằm gọn trong Xnk.Shared qua gói JwtBearer ở trên.
+
+      Phiên bản 8.19.2 khớp đúng bản mà JwtBearer 9.0.19 kéo về. Khai một bản khác ở đây
+      là tự tạo ra hai bản Microsoft.IdentityModel trong cùng một tiến trình — kiểu xung
+      đột chỉ lộ ra lúc chạy, ở bước xác thực chữ ký.
+    -->
+    <PackageVersion Include="Microsoft.IdentityModel.JsonWebTokens" Version="8.19.2" />
   </ItemGroup>
 
   <ItemGroup Label="Test">
+    <!--
+      WebApplicationFactory — dựng ứng dụng thật trong tiến trình test và gọi nó qua HTTP.
+      Cần nó để kiểm được thứ mà unit test không chạm tới: middleware xác thực, tiền tố
+      đường dẫn, và ngữ cảnh tenant lấy từ claim của token thật.
+    -->
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.19" />
     <PackageVersion Include="coverlet.collector" Version="6.0.2" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
     <PackageVersion Include="xunit" Version="2.9.2" />

@@ -125,9 +125,24 @@ services:
       DATABASE_URL: postgres://postgres:xnk-local-dev@postgres:5432/xnk
     restart: "no"
 
-  corpus:
+  identity-tenant:
     build:
       # Context là GỐC REPO — xem chú thích đầu mỗi Dockerfile.
+      context: .
+      dockerfile: src/dotnet/Xnk.IdentityTenant/Dockerfile
+    container_name: xnk-identity-tenant
+    profiles: ["app", "full"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      ConnectionStrings__Identity: ${XNK_IDENTITY_CONNECTION:?Thiếu .env — chạy `cp .env.example .env`}
+      Jwt__Issuer: ${XNK_JWT_ISSUER:?Thiếu .env}
+      Jwt__Audience: ${XNK_JWT_AUDIENCE:?Thiếu .env}
+      Jwt__SigningKey: ${XNK_JWT_SIGNING_KEY:?Thiếu .env}
+
+  corpus:
+    build:
       context: .
       dockerfile: src/dotnet/Xnk.Corpus/Dockerfile
     container_name: xnk-corpus

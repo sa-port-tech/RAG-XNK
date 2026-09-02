@@ -31,3 +31,4 @@ Từ **009** trở đi là các quyết định phát sinh khi dựng cấu trú
 | [011](011-api-code-first.md) | API code-first, và cách kiểm soát lệch hợp đồng |
 | [012](012-cach-ly-tenant-va-so-huu-vector.md) | Cách ly tenant bằng global query filter; `retrieval` ghi trực tiếp `vector` |
 | [013](013-dinh-tuyen-alb-theo-tien-to.md) | ALB định tuyến theo tiền tố, ứng dụng tự xử lý tiền tố |
+| [014](014-khoa-jwt-doi-xung-dung-chung.md) | Khoá JWT đối xứng dùng chung cho prototype, và hạn chuyển sang bất đối xứng |
