@@ -11,9 +11,15 @@ updated_at: 2026-09-02
 
 # Dự án RAG XNK
 
-Mốc số 2 của chặng 1 trong `../../GOAL.md`. Hạ tầng có thật: bốn service FastAPI, skeleton
-corpus-service cách ly tenant ở tầng SQL, Docker cho bốn service, CI chạy migration bằng ECS
-one-off task, năm ADR, sổ đăng ký văn bản kèm hai công cụ (`thu_thap.py`, `kiem_tra.py`).
+Mốc số 2 của chặng 1 trong `../../GOAL.md`. Hạ tầng có thật: **ba** service FastAPI
+(`ingestion` · `retrieval` · `generation`, mỗi cái mới có `main.py` + `test_health.py`) và
+**một** service .NET (`Xnk.Corpus`, cách ly tenant ở tầng SQL) — bốn Dockerfile, không phải
+"bốn service FastAPI" như bản trước ghi. Thêm: docker-compose cho bốn hạ tầng phụ trợ
+(postgres · camunda · localstack · jaeger), CI chạy migration bằng ECS one-off task, năm ADR,
+sổ đăng ký văn bản kèm hai công cụ (`thu_thap.py`, `kiem_tra.py`).
+
+`.github/services.json` khai **7 service + 1 site + 1 thư viện**; mới có **4/9** tồn tại trên
+đĩa. `Xnk.IdentityTenant`, `Xnk.Chat`, `Xnk.WorkflowWorker`, `Xnk.Web` chưa có thư mục.
 
 **File này nằm trong git repo riêng của rag-xnk** (remote `sa-port-tech/RAG-XNK`), không phải
 git của G-01 — vì `projects/rag-xnk/` bị `.gitignore` ở cấp mục tiêu. Đo nhịp độ phải chạy
