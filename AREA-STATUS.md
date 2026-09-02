@@ -1,66 +1,72 @@
 ---
 area_id: G-01/projects/rag-xnk
-health: stalled
-last_activity: 2026-08-18
+health: at-risk
+last_activity: 2026-09-02
 hours_last_7d: 0.00
-key_metric: "0 commit NỘI DUNG trong 15 ngày (18/08 → 02/09); sàn D-013 ≥1 commit/ngày đạt 0/2; corpus 0/15 văn bản tải về, 16/16 bản ghi còn ở de_xuat"
-next_action: "Xác minh ≥3 văn bản nhóm A trên vbpl.vn → đổi trang_thai_thu_thap sang da_xac_minh → chạy tools/corpus/thu_thap.py → commit thật trong khối 11:00–12:00 hôm nay"
+key_metric: "L1–L4 của docs/19 xong: 6/9 mục services.json chạy được, 53 test xanh (31 .NET + 22 Python), smoke test 5/7 qua nginx. Sàn D-013 tuần 36 đạt 4/7 commit nội dung, hai ngày 31/08 và 01/09 vẫn là 0"
+next_action: "L5 — Xnk.Chat gọi retrieval → generation, và generation nói chuyện LLM qua LLM_BASE_URL (Ollama, profile llm)"
 blockers: []
 updated_at: 2026-09-02
 ---
 
 # Dự án RAG XNK
 
-Mốc số 2 của chặng 1 trong `../../GOAL.md`. Hạ tầng có thật: **ba** service FastAPI
-(`ingestion` · `retrieval` · `generation`, mỗi cái mới có `main.py` + `test_health.py`) và
-**một** service .NET (`Xnk.Corpus`, cách ly tenant ở tầng SQL) — bốn Dockerfile, không phải
-"bốn service FastAPI" như bản trước ghi. Thêm: docker-compose cho bốn hạ tầng phụ trợ
-(postgres · camunda · localstack · jaeger), CI chạy migration bằng ECS one-off task, năm ADR,
-sổ đăng ký văn bản kèm hai công cụ (`thu_thap.py`, `kiem_tra.py`).
-
-`.github/services.json` khai **7 service + 1 site + 1 thư viện**; mới có **4/9** tồn tại trên
-đĩa. `Xnk.IdentityTenant`, `Xnk.Chat`, `Xnk.WorkflowWorker`, `Xnk.Web` chưa có thư mục.
+Mốc số 2 của chặng 1 trong `../../GOAL.md`. Kế hoạch thi công: [`docs/19`](docs/19-ke-hoach-skeleton-local.md).
 
 **File này nằm trong git repo riêng của rag-xnk** (remote `sa-port-tech/RAG-XNK`), không phải
 git của G-01 — vì `projects/rag-xnk/` bị `.gitignore` ở cấp mục tiêu. Đo nhịp độ phải chạy
 `git -C projects/rag-xnk log`.
 
-## Vì sao chấm `stalled` chứ không phải `at-risk`
+## Chạy được tới đâu
 
-Repo có commit gần nhất ngày **31/08** (`7ca6c78`), tức trong 14 ngày — đọc theo mặt chữ §6
-thì chưa `stalled`. Nhưng commit đó sửa đúng **một file**: `.claude/skills/pr-review/SKILL.md`,
-tức là chép lại chính chỉ đạo D-013 vào skill. Đó là việc **nói về dự án**, không phải việc
-**làm dự án**. Commit nội dung cuối cùng là `d726562` + `e5761d3` ngày **18/08** — cách hôm nay
-**15 ngày**, vượt ngưỡng 14 ngày của `../../CLAUDE.md` §6.
+Một lệnh dựng cả hệ thống ở local:
 
-Chuẩn này áp cho cả tương lai: commit chỉ đụng file skill, file trạng thái, file kế hoạch
-**không tính** vào sàn ≥1 commit/ngày của D-013. Bản cập nhật AREA-STATUS.md này cũng không
-tính.
+```bash
+cp .env.example .env && docker compose --profile app up -d
+BASE_URL=http://localhost:8080 bash .github/scripts/smoke_test.sh
+```
 
-## Số liệu đối chiếu D-013
+| Mục `services.json` | Trạng thái |
+|---|---|
+| `identity-tenant` (.NET) | ✅ phát JWT thật, PBKDF2, schema `identity` |
+| `corpus` (.NET) | ✅ API tra cứu văn bản, cách ly tenant ở tầng SQL |
+| `retrieval` (Python) | ✅ đọc `corpus` bằng SQL có điều kiện tenant, kiểm JWT |
+| `ingestion` (Python) | ✅ readiness gọi API corpus; **không** chạm database (docs/00 §4.2) |
+| `generation` (Python) | ✅ khung chạy; chưa có phụ thuộc nào cho tới khi có LLM |
+| `shared` (thư viện) | ✅ |
+| `chat` · `workflow-worker` · `web` | ❌ chưa dựng — L5, L6, L7 |
 
-| Kiểm cái gì | Chỉ tiêu | Thực đo 02/09 |
-|---|---|---|
-| Commit nội dung/ngày | ≥1 (D-013 QĐ 1) | **0/2 ngày** (31/08, 01/09) |
-| Commit tuần 36 | ≥7 | **0** — mốc `/review` 06/09 ghi rõ: 0 là **lần chết thứ ba** |
-| Giờ thật 7 ngày | 7.00h/tuần (60'×7) | **0.00h** thật / 2.50h đã xếp lịch |
-| Văn bản tải về | 15 | **0** — `corpus/raw/` và `corpus/derived/` rỗng |
-| Bản ghi registry | 15 + ứng viên | 16 bản ghi, **16 ở `de_xuat`**, 0 ở `da_xac_minh` |
+**Đã kiểm chứng từ database trống:** migration → vai trò → seed chạy tự động; đăng nhập bằng
+tài khoản seed lấy được token; hai tenant gọi cùng một URL nhận hai kết quả khác nhau ở **cả
+hai stack**; tắt PostgreSQL thì `/health/ready` trả 503 còn `/health/live` vẫn 200.
 
-Khối 60' được cấp từ 31/08 vì D-013 nhận rằng 15' không đủ để viết một lát script rồi chạy thử
-rồi commit. Đã cấp đủ giờ hai ngày, sản lượng vẫn là **0 dòng code**. Ăn cỗ đi trước, lội nước
-theo sau — mà đây thì cỗ đã dọn sẵn hai mâm, chưa ai ngồi vào.
+53 test xanh: 31 .NET (13 corpus + 18 identity-tenant) và 22 Python (15 retrieval + 4
+ingestion + 3 generation).
 
-## Chỗ nghẽn thật, không phải blocker
+## Ba ranh giới nay được thực thi, không chỉ ghi trong tài liệu
 
-`thu_thap.py` chỉ tải bản ghi từ `da_xac_minh` trở lên. Cả 16 bản ghi còn ở `de_xuat`, nên chạy
-script bây giờ tải về **0 file** — không phải script hỏng, mà là **bước xác minh chưa ai làm**.
-Bước đó thuộc thẩm quyền BA (điền số hiệu, ngày ban hành, nguồn tra), khác với `trang_thai`
-hiệu lực và `quan_he_sua_doi` — hai thứ đó `corpus/registry/van-ban.yaml` đã chốt là của chuyên
-gia đối chiếu vbpl.vn. Vậy **không có blocker ngoại cảnh nào**: việc chưa làm, chỉ là chưa làm.
+- **Vai trò database riêng cho từng service** (`db/roles.sql`, docs/00 §4.4). `xnk_retrieval`
+  đọc được `corpus` nhưng `INSERT` bị PostgreSQL từ chối — đo được, không phải tin lời.
+- **Cách ly tenant ở tầng SQL** (ADR-012), có test khoá lại *cơ chế* ở cả hai ngôn ngữ chứ
+  không chỉ khoá kết quả.
+- **Tiền tố đường dẫn của ALB** (ADR-013): nginx ở local không cắt tiền tố, nên hành vi đó
+  được kiểm ở máy dev thay vì phát hiện sau khi deploy.
 
-## Nhánh và trạng thái remote
+## Nhịp độ — chỗ chưa đạt
 
-Đang ở `e1-11-skeleton-corpus-retrieval`, cây làm việc **sạch**, không có gì dở dang chờ commit.
-`origin/main` dừng ở `fc40ad3`. Ba nhánh cũ (`3-tai-lieu-dung-lai-tu-dau`, `5-tat-bootstrap-bypass`,
-`7-bao-cao-eval-tu-mau-thuan`) chưa dọn.
+Sàn `D-013` là **≥1 commit nội dung mỗi NGÀY**. Tuần 36 tới hôm nay:
+
+| Ngày | Commit nội dung |
+|---|---|
+| 31/08 | 0 |
+| 01/09 | 0 |
+| 02/09 | **4** |
+
+4/7 của tuần, nhưng sàn là theo ngày và hai ngày đầu đã hụt — không lấy lại được bằng cách
+dồn vào một hôm. Vì vậy `health` là `at-risk`, không phải `on-track`.
+
+## Nhánh và remote
+
+Đang ở `e1-11-skeleton-corpus-retrieval`, **chưa push**. Toàn bộ công việc vẫn nằm trên một
+ổ đĩa: lệch 3 commit so với `origin/main` và cách nó hơn 90 file. Đó là L0 trong
+[`docs/19`](docs/19-ke-hoach-skeleton-local.md) và là việc cần làm trước khi làm tiếp L5.
