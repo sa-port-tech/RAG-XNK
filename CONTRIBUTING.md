@@ -46,6 +46,45 @@ bắt đầu bằng số issue sẽ không tự chuyển cột trên board.
 
 ---
 
+## Chạy toàn bộ hệ thống ở local
+
+```bash
+cp .env.example .env
+docker compose --profile app up -d
+BASE_URL=http://localhost:8080 bash .github/scripts/smoke_test.sh
+```
+
+Lệnh thứ hai dựng 7 service, PostgreSQL, Camunda, Ollama và nginx làm cổng vào. Chi tiết
+yêu cầu máy và bảng cổng: [`README.md`](README.md).
+
+**Bốn điều dễ vấp, ghi ra để đỡ mất buổi sáng:**
+
+| Triệu chứng | Nguyên nhân |
+|---|---|
+| `required variable ... is missing` | Chưa `cp .env.example .env` |
+| `bind: address already in use` cổng 8080 | Đặt `XNK_HTTP_PORT` khác trong `.env` |
+| Gọi API ra 404 | Thiếu tiền tố tên service: `/corpus/documents`, không phải `/documents`. ALB không cắt tiền tố (ADR-013) và nginx ở local tái hiện đúng vậy |
+| Sửa `db/` hay `tools/local/` mà không thấy đổi | Hai thư mục đó được **đóng gói vào image**, không bind mount. Chạy lại với `--build` |
+
+**Sau khi đổi lược đồ**, xuất SQL và commit cùng PR (ADR-010):
+
+```bash
+bash tools/local/xuat-migration.sh Xnk.IdentityTenant IdentityDbContext 0003_ten_migration
+```
+
+**Chạy test:**
+
+```bash
+dotnet test src/dotnet/Xnk.sln                    # .NET
+cd src/python && uv run pytest retrieval          # Python — MỘT service mỗi lần
+bash tools/local/chay-test.sh                     # .NET, trong container
+```
+
+Ba service Python có cùng tên gói `tests`, nên gộp cả ba vào một lần `pytest` sẽ dừng với
+"import file mismatch". CI cũng chạy từng service một qua matrix.
+
+---
+
 ## Chạy cổng chất lượng trên máy trước khi mở PR
 
 ```bash

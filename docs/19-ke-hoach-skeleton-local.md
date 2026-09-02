@@ -10,6 +10,50 @@
 | **Ngoài phạm vi** | AWS, IaC, deploy ra internet, Telerik UI, tải văn bản pháp luật thật, bật cổng eval, schema `vector` |
 | Story | `E1-11` (hoàn thành nốt) + phần local của `E1-12` |
 
+## Trạng thái: L0–L8 xong, trừ L0 (02/09/2026)
+
+| Lát | Trạng thái |
+|---|---|
+| L0 — đưa nhánh lên remote | ⬜ **chưa làm** — toàn bộ công việc vẫn nằm trên nhánh local |
+| L1 — một lệnh dựng cả hệ thống | ✅ |
+| L2 — `identity-tenant` | ✅ |
+| L3 — lát cắt dọc `corpus` | ✅ |
+| L4 — ba service Python | ✅ |
+| L5 — `chat` + LLM | ✅ |
+| L6 — `workflow-worker` + BPMN | ✅ |
+| L7 — `Xnk.Web` | ✅ |
+| L8 — chốt sổ | ✅ |
+
+**Bốn câu kiểm tra ở mục 4 đều đạt trên database trống.** `services.json` khớp đĩa **9/9**.
+
+### Bảy chỗ lệch khỏi kế hoạch, và lý do
+
+| Chỗ | Vì sao |
+|---|---|
+| Bind mount → **COPY vào image** cho `migrate`, `nginx-conf`, `camunda`, `web` | Ổ ảo Google Drive không chia sẻ được vào WSL2, và Docker mount thành thư mục **rỗng mà không báo lỗi**. Đóng gói vào image cũng làm local giống ECS/S3 hơn |
+| **Ollama và Camunda nằm trong profile `app`**, không phải profile riêng | `generation` và `workflow-worker` có phụ thuộc thật vào chúng. Để ngoài thì lệnh trong README cho ra một hệ thống có hai service báo lỗi — và như vậy không phải "hệ thống chạy được". Cái giá: ~6GB ảnh ở lần dựng đầu |
+| Cổng host thành `${XNK_HTTP_PORT}` | 8080 là cổng bận nhất trên máy lập trình viên; không có lối này thì người bị trùng cổng phải sửa `docker-compose.yml` |
+| Xuất SQL migration và chạy test **qua container** (`tools/local/`) | Application Control của Windows chặn `dotnet-ef` và assembly test vừa build (`0x800711C7`), không đều. Sửa chính sách bảo mật máy là cái giá sai |
+| **D1 bỏ cổng CI canh `nginx.conf`** | Sinh lúc container khởi động thì lệch là bất khả thi — không cần thêm một cổng canh một file lẽ ra không nên tồn tại |
+| **D8: `vector` để lại cho E3**, và thêm `ADR-016` | Gỡ mâu thuẫn mở giữa ADR-010 (EF sở hữu lược đồ) và ADR-012 (bảng `vector` thuộc `retrieval`, một service Python) |
+| Thêm PostgreSQL vào `ci-python` | Test chạm DB của `retrieval` phải chạy trên CI, nếu không thì bộ lọc tenant phía Python không được canh ở đâu cả |
+
+### Ba việc lộ ra khi thi công, không có trong kế hoạch
+
+- `smoke_test.sh` báo sai "thiếu health_path" cho cả 7 service trên máy Windows: `jq` bản
+  Windows xuất CRLF, `mapfile -t` để lại ký tự CR ở cuối mỗi tên. Lỗi **có sẵn**, chỉ không lộ trên CI Linux.
+- Camunda 7.21 bắt buộc khai `historyTimeToLive`. Đó là một quyết định lưu trữ dữ liệu, nay
+  ghi thẳng trong model kèm lý do chọn 30 ngày.
+- `PhienDangNhap` đăng ký `Scoped` làm `IHttpClientFactory` dựng `TokenHandler` trong scope
+  riêng, nhận về một thể hiện khác — đăng nhập báo thành công rồi mọi lời gọi API trả 401.
+
+### Phần còn thiếu là NGHIỆP VỤ, không phải khung
+
+Chưa có chunk, chưa có embedding, chưa có đồ thị hiệu lực, chưa có guardrail. Đó đúng là
+phạm vi của `E2`–`E4` và **cố ý** nằm ngoài đợt này — xem mục 7.
+
+---
+
 ## Bối cảnh
 
 Phần khung quy trình của repo đã rất kỹ — 9 workflow, 7 required check, CODEOWNERS, ruleset —
@@ -35,7 +79,7 @@ tenant đều không có đường bắt đầu.
 |---|---|---|
 | **D1** | nginx local nghe `:8080`, định tuyến theo tiền tố, **không strip**. `nginx.conf` **sinh lúc container khởi động** từ `.github/services.json` bởi một init container `python:3.12-slim`, ghi vào volume dùng chung — **không commit file sinh ra** | ADR-013: ALB không cắt tiền tố, nên local phải tái hiện đúng hành vi đó. Sinh lúc boot thì lệch với `services.json` là bất khả thi, không cần thêm cổng CI để canh |
 | **D2** | `identity-tenant` phát JWT HS256 thật: bảng `identity.tenants` + `identity.users`, mật khẩu băm PBKDF2, `POST /identity-tenant/token` | Không có nó thì L3–L7 không có token để chạy |
-| **D3** | `generation` gọi endpoint tương thích OpenAI qua `LLM_BASE_URL`. Local: **Ollama trong compose, profile `llm`** | Đường gọi thật ở cả hai phía; khác nhau ở cấu hình chứ không ở nhánh mã |
+| **D3** | `generation` gọi endpoint tương thích OpenAI qua `LLM_BASE_URL`. Local: **Ollama trong compose** (khi thi công đã chuyển vào profile `app` — xem bảng lệch ở đầu file) | Đường gọi thật ở cả hai phía; khác nhau ở cấu hình chứ không ở nhánh mã |
 | **D4** | `retrieval` đọc `corpus` bằng SQLAlchemy 2.0 async + asyncpg, điều kiện tenant **nằm trong câu SQL** | ADR-012 áp cho cả Python, không chỉ cho EF Core |
 | **D5** | Migration local chạy qua container one-shot gọi `db/apply-migrations.sh` | Đúng cơ chế ECS one-off task của `cd-deploy`; ADR-010. Không dùng `dotnet ef database update` |
 | **D6** | Seed từ `corpus/registry/van-ban.yaml` (16 bản ghi thật) + 2 tenant thật. **Chỉ metadata**, `trang_thai` giữ `null` | ADR-008; thẩm quyền xác nhận hiệu lực thuộc chuyên gia, không thuộc seed script |

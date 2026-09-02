@@ -14,7 +14,7 @@ Phạm vi hiện tại: prototype 7 tuần trên AWS Free Tier — xem [`docs/00
 
 | | Bản | Ghi chú |
 |---|---|---|
-| Docker Desktop | có `docker compose` v2+ | cấp ≥6GB RAM nếu bật thêm profile `workflow` |
+| Docker Desktop | có `docker compose` v2+ | cấp **≥8GB RAM**; lần dựng đầu tải khoảng **6GB** ảnh |
 | .NET SDK | **9.0.x** | chỉ cần khi chạy/`dotnet test` ngoài container |
 | uv | ≥0.5 | quản lý Python 3.12 cho ba service FastAPI |
 | Git Bash | — | các script `.sh` cần bash; trên Windows dùng Git Bash |
@@ -26,8 +26,21 @@ cp .env.example .env
 docker compose --profile app up -d
 ```
 
-Lệnh thứ hai dựng PostgreSQL, chạy migration + vai trò + seed, build bốn service, và bật
-nginx làm cổng vào ở `http://localhost:8080`.
+Lệnh thứ hai dựng PostgreSQL, chạy migration + vai trò + seed, build **7 service + giao
+diện**, kéo mô hình ngôn ngữ về, khởi Camunda, và bật nginx làm cổng vào ở
+`http://localhost:8080`. Lần đầu mất khoảng 10–15 phút; những lần sau vài chục giây.
+
+Cổng 8080 bận thì đặt `XNK_HTTP_PORT` trong `.env`.
+
+**Đăng nhập bằng tài khoản mẫu** (mật khẩu `matkhau-local-2026`, xem `db/seed/`):
+
+| Email | Tổ chức | Vai trò |
+|---|---|---|
+| `an.nguyen@noibo.vn` | Phòng XNK — nội bộ | admin |
+| `chi.le@cangxanh.vn` | Công ty Giao nhận Cảng Xanh | admin |
+
+Đăng nhập hai tài khoản này rồi so hai danh sách văn bản: phần "Dùng chung" giống nhau,
+phần "Riêng" khác nhau. Đó là lớp cách ly tenant đang chạy, không phải một câu trong tài liệu.
 
 Kiểm tra mọi thứ đã lên:
 
@@ -45,9 +58,33 @@ BASE_URL=http://localhost:8080 bash .github/scripts/smoke_test.sh
 | `http://localhost:8080` | Cổng vào duy nhất — nginx đóng vai ALB |
 | `http://localhost:8080/corpus/health/ready` | Healthcheck của một service (đổi tên service theo `services.json`) |
 | `http://localhost:8080/corpus/openapi/v1.json` | Hợp đồng API sinh từ mã (ADR-011) |
+| `http://localhost:8080/chat/ask` | Hỏi–đáp: `POST {"question":"…"}` kèm `Authorization: Bearer` |
 | `localhost:5432` | PostgreSQL — user `postgres`, mật khẩu `xnk-local-dev` |
-| `http://localhost:8090` | Camunda Cockpit (chỉ với profile `workflow`) |
+| `http://localhost:8090` | Camunda Cockpit — user/mật khẩu mặc định `demo`/`demo` |
 | `http://localhost:16686` | Jaeger UI (chỉ với profile `tracing`) |
+
+**Thử một câu hỏi:**
+
+```bash
+TOKEN=$(curl -s localhost:8080/identity-tenant/token -H 'Content-Type: application/json' -d '{"email":"an.nguyen@noibo.vn","password":"matkhau-local-2026"}' | jq -r .access_token)
+
+curl -s localhost:8080/chat/ask -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' -d '{"question":"Thủ tục hải quan với hàng nhập khẩu quy định ở văn bản nào?"}' | jq
+```
+
+Câu trả lời do mô hình **0.5B chạy trên CPU** sinh ra, mất 20–60 giây. Nó đủ để chứng minh
+đường ống chạy, và **không** đủ để đánh giá chất lượng — đo chất lượng là việc của golden
+set ([`docs/14`](docs/14-phuong-phap-golden-set.md)) trên mô hình thật.
+
+**Thử quy trình BPMN:**
+
+```bash
+curl -s -X POST localhost:8090/engine-rest/process-definition/key/P1-dua-van-ban-vao-corpus/start -H 'Content-Type: application/json' -d '{"variables":{"van_ban_id":{"value":"39/2018/TT-BTC","type":"String"},"nguoi_duyet":{"value":"chi.le@cangxanh.vn","type":"String"}}}'
+
+docker compose --profile app logs workflow-worker | tail -5
+```
+
+Worker nhận External Task, ghi thông báo, hoàn thành nó, và quy trình dừng ở User Task chờ
+người duyệt.
 
 **Đường dẫn luôn mang tiền tố tên service.** `http://localhost:8080/corpus/health/ready`
 chứ không phải `/health/ready` — ALB không cắt tiền tố, và nginx ở đây tái hiện đúng hành
@@ -91,26 +128,41 @@ bash tools/local/chay-test.sh "Category=TenantIsolation"
 
 ## Kiến trúc rút gọn
 
-Bảy service, tách theo ranh giới nghiệp vụ ([`docs/00`](docs/00-ke-hoach-tong-the.md) §4.2).
+Bảy service và một giao diện, tách theo ranh giới nghiệp vụ ([`docs/00`](docs/00-ke-hoach-tong-the.md) §4.2).
 Danh mục chính thức nằm ở [`.github/services.json`](.github/services.json) — **nguồn sự thật
 duy nhất** cho path filter của CI, ma trận build của CD, và định tuyến nginx ở local (ADR-009).
 
 | Service | Stack | Sở hữu dữ liệu |
 |---|---|---|
 | `identity-tenant` | .NET | schema `identity`, `tenant` |
-| `chat` | .NET | schema `conversation` |
+| `chat` | .NET | schema `conversation` *(chưa dựng — lát cắt hiện tại không lưu hội thoại)* |
 | `corpus` | .NET | schema `corpus`, `lookup` |
 | `workflow-worker` | .NET | không sở hữu |
 | `ingestion` | Python | ghi qua API của `corpus` |
-| `retrieval` | Python | đọc `corpus`, đọc-ghi `vector` |
+| `retrieval` | Python | đọc `corpus`; `vector` thuộc epic E3 (ADR-016) |
 | `generation` | Python | không sở hữu |
 
 Mỗi service nối database bằng **vai trò riêng** chỉ có quyền trên schema của mình
 ([`db/roles.sql`](db/roles.sql)). Ngoại lệ duy nhất là `retrieval` được đọc `corpus`, vì lọc
 hiệu lực phải nằm cùng một câu SQL với vector search — ADR-012.
 
-**Trạng thái dựng:** xem `AREA-STATUS.md`. Chưa phải service nào cũng có mã; kế hoạch hoàn
-thiện nằm ở [`docs/19`](docs/19-ke-hoach-skeleton-local.md).
+**Trạng thái dựng:** cả **9/9** mục trong `services.json` đã có mã và chạy được ở local.
+Phần còn thiếu là **nghiệp vụ**, không phải khung: chưa có chunk, chưa có embedding, chưa
+có đồ thị hiệu lực. Xem `AREA-STATUS.md` và [`docs/19`](docs/19-ke-hoach-skeleton-local.md).
+
+## Bắt đầu một user story ở đâu
+
+| Loại story | Chép mẫu nào |
+|---|---|
+| Endpoint .NET đọc/ghi dữ liệu | `Xnk.Corpus/Endpoints/DocumentsEndpoints.cs` — route → auth → tenant → EF → DTO → test |
+| Endpoint Python chạm database | `retrieval/db.py` + `retrieval/main.py` — điều kiện tenant nằm trong câu SQL |
+| Service .NET gọi service khác | `Xnk.Chat/Clients/` + `Http/ForwardAuthorizationHandler.cs` |
+| Bước quy trình BPMN | `Xnk.WorkflowWorker/Handlers/` — thêm một `IExternalTaskHandler` |
+| Màn hình giao diện | `Xnk.Web/Pages/DanhSachVanBan.razor` |
+
+**Một điều đừng chép nhầm:** các endpoint **không** có dòng lọc tenant nào, và đó là chủ ý.
+Bộ lọc nằm ở tầng SQL (ADR-012). Thêm một bộ lọc nữa ở tầng ứng dụng là tạo ấn tượng rằng
+lọc là việc của endpoint — rồi endpoint tiếp theo sẽ quên.
 
 ---
 

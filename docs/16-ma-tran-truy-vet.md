@@ -127,10 +127,23 @@ Cập nhật cuối mỗi sprint. Cột "Đạt" là số quy tắc đã có đ�
 
 | Sprint | BR có story | BR có cài đặt | BR có test | BR có chỉ số | Độ phủ |
 |---|---|---|---|---|---|
-| 0 | 11/11 | 0/11 | 0/11 | 0/11 | 0% |
+| 0 | 11/11 | **1/11** | **1/11** | 0/11 | 9% |
 | 1 | 11/11 | ⬜ | ⬜ | ⬜ | ⬜ |
 | 2 | 11/11 | ⬜ | ⬜ | ⬜ | ⬜ |
 | 3 | 11/11 | ⬜ | ⬜ | ⬜ | ⬜ |
+
+**Sprint 0 — BR-11 đã có cài đặt và test.** Story `E1-11` dựng lớp cách ly tenant sớm hơn
+`E5-04` một nhịp, vì mọi endpoint đọc dữ liệu đều phải đi qua nó ngay từ endpoint đầu tiên:
+
+| Chặng | Ở đâu |
+|---|---|
+| Bộ lọc ở tầng SQL | `CorpusDbContext.OnModelCreating` (EF global query filter) · `retrieval/db.py` (SQL viết tay) |
+| Ngữ cảnh tenant từ token | `Xnk.Shared/Tenancy/HttpTenantContext.cs` · `retrieval/auth.py` |
+| Giữ danh tính qua nhiều chặng | `Xnk.Chat/Http/ForwardAuthorizationHandler.cs` |
+| Test | `TenantIsolationTests` (SQL) · `DocumentsApiTests` (HTTP) · `test_documents.py` (Python) · `ChatApiTests` (chuyển tiếp token) |
+
+Cột "BR có chỉ số" vẫn là 0/11: chỉ số **0 rò rỉ / 50 truy vấn chéo** cần bộ đo của `E7`,
+chưa tồn tại. Có test không có nghĩa là có số đo — hai cột khác nhau ở đúng chỗ đó.
 
 **Mục tiêu cuối Sprint 3: 11/11 quy tắc có đường truy vết hoàn chỉnh.** Bất kỳ quy tắc nào còn trống ở cột "có chỉ số" phải được nêu rõ trong báo cáo Go/No-Go — vì đó là quy tắc chưa ai kiểm chứng.
 
