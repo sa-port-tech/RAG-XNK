@@ -3,7 +3,7 @@ area_id: G-01/projects/rag-xnk
 health: at-risk
 last_activity: 2026-09-02
 hours_last_7d: 0.00
-key_metric: "Skeleton local XONG: 9/9 mục services.json chạy được, smoke test 7/7, 81 test xanh (48 .NET + 33 Python). Sàn D-013 tuần 36 đạt 6/7 commit nội dung, hai ngày 31/08 và 01/09 vẫn là 0"
+key_metric: "Skeleton local XONG: 9/9 mục services.json chạy được, smoke test 7/7, 81 test xanh (48 .NET + 33 Python). Sàn D-013 tuần 36 đạt 7/7 commit nội dung, hai ngày 31/08 và 01/09 vẫn là 0"
 next_action: "L0 — rebase nhánh lên origin/main, push, mở PR có Closes #n. Toàn bộ công việc vẫn nằm trên một ổ đĩa"
 blockers: []
 updated_at: 2026-09-02
@@ -75,10 +75,11 @@ Sàn `D-013` là **≥1 commit nội dung mỗi NGÀY**:
 |---|---|
 | 31/08 | 0 |
 | 01/09 | 0 |
-| 02/09 | **6** |
+| 02/09 | **7** |
 
-6/7 của tuần, nhưng sàn tính theo ngày và hai ngày đầu đã hụt — dồn vào một hôm không lấp
-được. Vì vậy `health` là `at-risk`, không phải `on-track`.
+Đủ 7 commit cho cả tuần, nhưng sàn tính theo **ngày**: 31/08 và 01/09 đã hụt, và dồn bảy
+commit vào một hôm không lấp được hai ngày trống. Vì vậy `health` là `at-risk`, không phải
+`on-track`.
 
 ## Nhánh và remote
 
