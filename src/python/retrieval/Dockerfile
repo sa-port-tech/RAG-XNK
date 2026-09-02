@@ -43,4 +43,8 @@ USER xnk
 EXPOSE 8000
 
 # Cổng 8000 khớp `container_port` trong .github/services.json. Không dùng --reload.
-CMD ["uvicorn", "retrieval.main:app", "--host", "0.0.0.0", "--port", "8000"]
+#
+# `--factory`: service có cấu hình bắt buộc, nên ứng dụng được dựng bằng create_app() lúc
+# khởi động thay vì bằng một biến toàn cục lúc import. Nhờ vậy chỉ import module (ví dụ
+# trong unit test) không đòi đủ biến môi trường. Xem chú thích cuối retrieval/main.py.
+CMD ["uvicorn", "retrieval.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]

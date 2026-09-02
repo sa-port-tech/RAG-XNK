@@ -14,6 +14,10 @@ dependencies = [
     # Khai tường minh dù FastAPI đã kéo theo: kiểu dữ liệu của service phụ thuộc
     # trực tiếp vào pydantic, nên nó là phụ thuộc bậc nhất chứ không phải tình cờ.
     "pydantic>=2.9.0",
+    # Gọi API của corpus-service. Dùng httpx2 chứ không phải httpx bản 0.x: đó là bản mà
+    # TestClient của Starlette chạy trên (xem dependency-groups ở ../pyproject.toml), và
+    # hai stack HTTP trong cùng một tiến trình là thứ không ai muốn gỡ lúc có sự cố.
+    "httpx2>=2.10.0",
 ]
 
 [build-system]

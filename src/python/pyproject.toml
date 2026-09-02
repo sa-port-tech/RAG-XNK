@@ -39,8 +39,16 @@ dev = [
     "pytest>=8.3.0",
     "pytest-cov>=6.0.0",
     # TestClient của Starlette chạy trên httpx2 (Starlette 1.6 đã bỏ httpx bản 0.x và
-    # phát cảnh báo deprecation khi thấy nó). Test đồng bộ nên không cần pytest-asyncio.
+    # phát cảnh báo deprecation khi thấy nó).
     "httpx2>=2.10.0",
+    # Fixture của retrieval phải áp lược đồ bằng engine async trước khi test chạy, nên
+    # từ nay có fixture async. (Bản thân các test vẫn đồng bộ — TestClient tự chạy vòng
+    # lặp sự kiện — nên chỉ cần plugin cho fixture.)
+    "pytest-asyncio>=0.24.0",
+    # Bằng vai Testcontainers.PostgreSql bên .NET: `uv run pytest` chạy được ngay sau khi
+    # clone, không cần dựng gì trước. Trên CI thì XNK_TEST_DATABASE_URL đã trỏ sẵn vào
+    # service container nên nhánh này không chạy.
+    "testcontainers[postgres]>=4.9.0",
 ]
 
 # ─── ruff ────────────────────────────────────────────────────────────────────────
@@ -107,6 +115,13 @@ pretty = true
 addopts = "-q --strict-markers --strict-config"
 xfail_strict = true
 filterwarnings = ["error"]
+# Fixture async của retrieval cần plugin chạy ở chế độ tự động; không đặt thì pytest bỏ
+# qua chúng và test nhận về một generator thay vì giá trị, với thông báo khó lần.
+asyncio_mode = "auto"
+# Vòng lặp sự kiện dùng chung cho cả session: fixture `engine` có scope session, và mặc
+# định (scope function) sẽ đóng vòng lặp sau test đầu tiên rồi mọi test sau đó hỏng vì
+# engine gắn với một vòng lặp đã chết.
+asyncio_default_fixture_loop_scope = "session"
 
 [tool.coverage.run]
 branch = true

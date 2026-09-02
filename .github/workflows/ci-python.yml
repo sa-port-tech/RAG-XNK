@@ -40,10 +40,15 @@ jobs:
               - 'src/python/**'
               - '.github/workflows/ci-python.yml'
               - '.github/quality-gates.yml'
+              # Bộ test của retrieval áp chính db/migrations/*.sql lên một database trống,
+              # nên nó cũng là phép kiểm chứng hợp đồng liên ngôn ngữ ở ADR-010. Đổi lược
+              # đồ mà không chạy lại nhóm test này là bỏ qua đúng chỗ nó có ích nhất.
+              - 'db/migrations/**'
             ingestion:
               - 'src/python/ingestion/**'
             retrieval:
               - 'src/python/retrieval/**'
+              - 'db/migrations/**'
             generation:
               - 'src/python/generation/**'
             shared:
@@ -81,6 +86,30 @@ jobs:
       fail-fast: false
       matrix:
         service: ${{ fromJSON(needs.changes.outputs.services) }}
+    # PostgreSQL thật cho bộ test của `retrieval`.
+    #
+    # Service đó ĐỌC trực tiếp schema `corpus` (ngoại lệ ADR-012) và bộ lọc tenant của nó
+    # nằm trong câu SQL. Kiểm bằng SQLite hay một lớp giả sẽ xanh kể cả khi câu SQL sai —
+    # cùng lý do mà job `tenant-isolation` bên ci-dotnet cũng dùng PostgreSQL thật.
+    #
+    # Ảnh phải khớp docker-compose.yml và PostgresFixture: lệch phiên bản là cách tạo ra
+    # loại lỗi chỉ đỏ trên CI mà không ai tái hiện được ở máy.
+    #
+    # Hai service kia không dùng tới, và một container rỗi vài chục giây rẻ hơn nhiều so
+    # với việc tách một job riêng chỉ để chạy ba test.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_PASSWORD: ci-only-not-a-secret
+          POSTGRES_DB: xnk_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      # Có biến này thì conftest dùng database sẵn có thay vì tự khởi Testcontainers.
+      XNK_TEST_DATABASE_URL: "postgresql://postgres:ci-only-not-a-secret@localhost:5432/xnk_test"
     defaults:
       run:
         working-directory: src/python

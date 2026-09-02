@@ -162,6 +162,10 @@ services:
       dockerfile: src/python/ingestion/Dockerfile
     container_name: xnk-ingestion
     profiles: ["app", "full"]
+    environment:
+      # Không có chuỗi kết nối database ở đây, và đó là ranh giới chứ không phải thiếu
+      # sót: ingestion ghi qua API của corpus-service (docs/00 §4.2).
+      CORPUS_BASE_URL: ${CORPUS_BASE_URL:?Thiếu .env}
 
   retrieval:
     build:
@@ -172,6 +176,13 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
+    environment:
+      # Vai trò xnk_retrieval chỉ có SELECT trên schema `corpus` — ngoại lệ ADR-012, được
+      # thực thi ở tầng database chứ không chỉ ghi trong tài liệu.
+      DATABASE_URL: ${DATABASE_URL:?Thiếu .env}
+      XNK_JWT_ISSUER: ${XNK_JWT_ISSUER:?Thiếu .env}
+      XNK_JWT_AUDIENCE: ${XNK_JWT_AUDIENCE:?Thiếu .env}
+      XNK_JWT_SIGNING_KEY: ${XNK_JWT_SIGNING_KEY:?Thiếu .env}
 
   generation:
     build:

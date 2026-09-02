@@ -43,8 +43,16 @@ def live() -> HealthStatus:
 def ready() -> HealthStatus:
     """Sẵn sàng nhận lưu lượng hay chưa.
 
-    TODO(E4): kiểm tra gọi được Bedrock và nạp được system prompt từ `prompts/`.
-    Hiện chưa có phụ thuộc nào nên readiness trùng liveness.
+    Service này **không sở hữu dữ liệu nào** (docs/00 §4.2) và hiện chưa có phụ thuộc
+    ngoài nào, nên readiness đúng bằng liveness. Nói thẳng ra đây tốt hơn là để người sau
+    tưởng nó đã kiểm tra thứ gì.
+
+    Phụ thuộc thật sẽ xuất hiện cùng lúc với đường gọi LLM: khi ``LLM_BASE_URL`` được cấu
+    hình (ADR-015, lát cắt L5 của `docs/19`), readiness phải gọi thử endpoint đó và trả
+    **503** khi không tới được. Thêm phép kiểm ấy **bây giờ** — lúc chưa có gì để gọi — chỉ
+    cho ra hai lựa chọn tồi: một readiness luôn đỏ, hoặc một phép kiểm giả vờ xanh.
+
+    TODO(E4): kèm theo đó, kiểm nạp được system prompt từ `prompts/`.
     """
     return HealthStatus(status="ready", service=SERVICE_NAME)
 

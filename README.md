@@ -66,12 +66,26 @@ docker compose --profile app up -d --build      # build lại sau khi sửa mã
 ### Chạy test
 
 ```bash
-dotnet test src/dotnet/Xnk.sln          # .NET — tự khởi Postgres bằng Testcontainers
-cd src/python && uv run pytest           # Python
+dotnet test src/dotnet/Xnk.sln                 # .NET
+cd src/python && uv run pytest retrieval        # Python — MỘT service mỗi lần
 ```
 
-Không cần dựng gì trước: `PostgresFixture` tự khởi container `pgvector/pgvector:pg16` —
-đúng ảnh mà CI dùng — khi không có biến `XNK_TEST_CONNECTION`.
+Không cần dựng gì trước: cả hai phía tự khởi container `pgvector/pgvector:pg16` — đúng ảnh
+mà CI dùng — khi không có biến trỏ sẵn (`XNK_TEST_CONNECTION` bên .NET,
+`XNK_TEST_DATABASE_URL` bên Python).
+
+**Python phải chạy từng service một.** Ba service có cùng tên gói `tests`, nên
+`uv run pytest` gộp cả ba sẽ dừng với "import file mismatch". CI cũng chạy từng service một
+qua matrix, nên đây là cách dùng đúng chứ không phải cách đi vòng.
+
+Nếu `dotnet test` trên máy Windows dừng với `An Application Control policy has blocked this
+file (0x800711C7)`, đó là chính sách bảo mật của máy chặn assembly vừa biên dịch — chạy bộ
+test trong container thay vì đổi chính sách:
+
+```bash
+bash tools/local/chay-test.sh                   # cả solution
+bash tools/local/chay-test.sh "Category=TenantIsolation"
+```
 
 ---
 
