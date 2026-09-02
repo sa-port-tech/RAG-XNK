@@ -45,6 +45,7 @@
 | 08 | Báo cáo Go/No-Go | ⬜ | PO | Tuần 7 |
 | 17 | [Runbook GitHub — cài đặt và vận hành](17-runbook-github.md) | ✅ | DevOps + Tech Lead | Sprint 0 |
 | 18 | [Dựng lại hạ tầng GitHub từ đầu](18-dung-lai-tu-dau.md) | ✅ | DevOps | Sprint 0 |
+| 19 | [Kế hoạch hoàn thiện skeleton chạy local](19-ke-hoach-skeleton-local.md) | ✅ | Tech Lead | E1-11 |
 | — | [ADR — Architecture Decision Records](adr/) | ⬜ | Tech Lead | Liên tục |
 | — | Báo cáo eval mỗi sprint | ⬜ | AI Engineer | Cuối mỗi sprint |
 
