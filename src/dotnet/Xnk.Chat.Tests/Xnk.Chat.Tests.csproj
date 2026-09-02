@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Nhóm test của Xnk.Chat.
+
+    Điều quan trọng nhất mà bộ này giữ: **token của người dùng được chuyển tiếp xuống cả
+    hai service phía sau**. Mất mắt xích đó thì `retrieval` lọc dữ liệu dưới một danh tính
+    khác, và lớp cách ly tenant mất tác dụng ở chặng thứ hai dù mã của nó vẫn đúng từng chữ
+    — một lỗ hổng không hiện ra trong diff hay test của `retrieval`.
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>Xnk.Chat.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Xnk.Chat/Xnk.Chat.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+</Project>

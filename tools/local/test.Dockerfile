@@ -30,6 +30,8 @@ COPY src/dotnet/Xnk.Corpus/Xnk.Corpus.csproj ./src/dotnet/Xnk.Corpus/
 COPY src/dotnet/Xnk.Corpus.Tests/Xnk.Corpus.Tests.csproj ./src/dotnet/Xnk.Corpus.Tests/
 COPY src/dotnet/Xnk.IdentityTenant/Xnk.IdentityTenant.csproj ./src/dotnet/Xnk.IdentityTenant/
 COPY src/dotnet/Xnk.IdentityTenant.Tests/Xnk.IdentityTenant.Tests.csproj ./src/dotnet/Xnk.IdentityTenant.Tests/
+COPY src/dotnet/Xnk.Chat/Xnk.Chat.csproj ./src/dotnet/Xnk.Chat/
+COPY src/dotnet/Xnk.Chat.Tests/Xnk.Chat.Tests.csproj ./src/dotnet/Xnk.Chat.Tests/
 RUN dotnet restore src/dotnet/Xnk.sln
 
 COPY src/dotnet/ ./src/dotnet/

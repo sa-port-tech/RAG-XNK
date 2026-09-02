@@ -32,4 +32,5 @@ Từ **009** trở đi là các quyết định phát sinh khi dựng cấu trú
 | [012](012-cach-ly-tenant-va-so-huu-vector.md) | Cách ly tenant bằng global query filter; `retrieval` ghi trực tiếp `vector` |
 | [013](013-dinh-tuyen-alb-theo-tien-to.md) | ALB định tuyến theo tiền tố, ứng dụng tự xử lý tiền tố |
 | [014](014-khoa-jwt-doi-xung-dung-chung.md) | Khoá JWT đối xứng dùng chung cho prototype, và hạn chuyển sang bất đối xứng |
+| [015](015-giao-thuc-tuong-thich-openai.md) | Gọi mô hình ngôn ngữ qua giao thức tương thích OpenAI — local Ollama, cloud Bedrock |
 | [016](016-ai-viet-ddl-cho-schema-vector.md) | Ai viết DDL cho schema `vector` — tách quyền sở hữu dữ liệu khỏi quyền tác giả lược đồ |

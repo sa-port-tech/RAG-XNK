@@ -190,6 +190,64 @@ services:
       dockerfile: src/python/generation/Dockerfile
     container_name: xnk-generation
     profiles: ["app", "full"]
+    depends_on:
+      ollama-pull:
+        condition: service_completed_successfully
+    environment:
+      # Giao thức tương thích OpenAI (ADR-015): local trỏ Ollama, cloud sẽ trỏ Bedrock qua
+      # một lớp cài đặt khác của cùng interface. Khác nhau ở CẤU HÌNH, không ở nhánh mã.
+      LLM_BASE_URL: ${LLM_BASE_URL:?Thiếu .env}
+      LLM_MODEL: ${LLM_MODEL:?Thiếu .env}
+
+  chat:
+    build:
+      context: .
+      dockerfile: src/dotnet/Xnk.Chat/Dockerfile
+    container_name: xnk-chat
+    profiles: ["app", "full"]
+    environment:
+      Jwt__Issuer: ${XNK_JWT_ISSUER:?Thiếu .env}
+      Jwt__Audience: ${XNK_JWT_AUDIENCE:?Thiếu .env}
+      Jwt__SigningKey: ${XNK_JWT_SIGNING_KEY:?Thiếu .env}
+      # Địa chỉ nội bộ, cổng 8000 theo `container_port` của hai service Python.
+      Downstream__RetrievalBaseUrl: http://retrieval:8000
+      Downstream__GenerationBaseUrl: http://generation:8000
+
+  # Mô hình ngôn ngữ chạy tại chỗ.
+  #
+  # ⚠️ Nằm trong profile `app` chứ không phải một profile riêng, và đó là quyết định có
+  # cân nhắc: `generation` có phụ thuộc thật vào nó, nên nếu để ngoài thì lệnh trong README
+  # cho ra một hệ thống mà `/generation/health/ready` trả 503 và `/chat/ask` trả 502. Một
+  # "hệ thống chạy được" mà hai service báo lỗi thì không phải hệ thống chạy được.
+  #
+  # Cái giá: thêm khoảng 2GB đĩa. Dev nào đã chạy Ollama sẵn trên máy thì trỏ LLM_BASE_URL
+  # vào đó và `docker compose stop ollama`.
+  ollama:
+    image: ollama/ollama:0.5.7
+    container_name: xnk-ollama
+    profiles: ["app", "full"]
+    volumes:
+      - ollama-data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Tải mô hình về rồi thoát. Không gộp vào `ollama` bằng entrypoint tuỳ biến: gộp lại thì
+  # container chính khởi động lại là tải lại, và mất mấy phút mỗi lần.
+  ollama-pull:
+    image: ollama/ollama:0.5.7
+    container_name: xnk-ollama-pull
+    profiles: ["app", "full"]
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    # Cùng biến LLM_MODEL mà `generation` dùng — một nguồn sự thật cho tên mô hình.
+    entrypoint: ["ollama", "pull", "${LLM_MODEL:?Thiếu .env}"]
+    restart: "no"
 
   # Sinh cấu hình nginx từ .github/services.json rồi thoát. Xem tools/local/render_nginx.py
   # để biết vì sao cấu hình được sinh mỗi lần `up` thay vì commit vào repo.
@@ -228,6 +286,8 @@ services:
 volumes:
   postgres-data:
   camunda-data:
+  # Trọng số mô hình. Để trong volume để `down` (không `-v`) không bắt tải lại vài trăm MB.
+  ollama-data:
   # Cấu hình nginx sinh lúc khởi động — không phải dữ liệu, chỉ là chỗ để hai container
   # trao file cho nhau.
   nginx-conf:

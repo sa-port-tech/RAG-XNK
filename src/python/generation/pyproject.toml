@@ -14,6 +14,10 @@ dependencies = [
     # Khai tường minh dù FastAPI đã kéo theo: kiểu dữ liệu của service phụ thuộc
     # trực tiếp vào pydantic, nên nó là phụ thuộc bậc nhất chứ không phải tình cờ.
     "pydantic>=2.9.0",
+    # Gọi endpoint tương thích OpenAI (ADR-015). Dùng httpx2 cho khớp với TestClient của
+    # Starlette — hai stack HTTP trong cùng một tiến trình là thứ không ai muốn gỡ lúc có
+    # sự cố.
+    "httpx2>=2.10.0",
 ]
 
 [build-system]

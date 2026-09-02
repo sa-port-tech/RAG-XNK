@@ -43,4 +43,6 @@ USER xnk
 EXPOSE 8000
 
 # Cổng 8000 khớp `container_port` trong .github/services.json. Không dùng --reload.
-CMD ["uvicorn", "generation.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# `--factory`: service có cấu hình bắt buộc nên ứng dụng dựng bằng create_app() lúc khởi
+# động, thay vì bằng một biến toàn cục lúc import. Xem chú thích cuối generation/main.py.
+CMD ["uvicorn", "generation.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000"]
