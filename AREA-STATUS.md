@@ -2,8 +2,8 @@
 area_id: G-01/projects/rag-xnk
 health: at-risk
 last_activity: 2026-09-02
-hours_last_7d: 0.00
-key_metric: "Skeleton local XONG: 9/9 mục services.json chạy được, smoke test 7/7, 81 test xanh (48 .NET + 33 Python). Sàn D-013 tuần 36 đạt 7/7 commit nội dung, hai ngày 31/08 và 01/09 vẫn là 0"
+hours_last_7d: 3.63
+key_metric: "Skeleton local XONG: 9/9 mục services.json chạy được, smoke test 7/7, 81 test xanh (48 .NET + 33 Python). Sàn D-013 tuần 36 đạt 7/7 commit nội dung, hai ngày 31/08 và 01/09 vẫn là 0. Sau 19:18 còn ba commit nữa (docs 20 đường ống hỏi-đáp 22:02, style _camelCase 22:43, gỡ CodeQL + sửa cổng BR-11 23:08) — tổng 17 commit tác giả trong ngày, 3.63h đo được từ khoảng cách commit"
 next_action: "L0 — rebase nhánh lên origin/main, push, mở PR có Closes #n. Toàn bộ công việc vẫn nằm trên một ổ đĩa"
 blockers: []
 updated_at: 2026-09-02
