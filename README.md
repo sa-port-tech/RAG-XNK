@@ -160,6 +160,11 @@ có đồ thị hiệu lực. Xem `AREA-STATUS.md` và [`docs/19`](docs/19-ke-ho
 | Bước quy trình BPMN | `Xnk.WorkflowWorker/Handlers/` — thêm một `IExternalTaskHandler` |
 | Màn hình giao diện | `Xnk.Web/Pages/DanhSachVanBan.razor` |
 
+Riêng phần **chatbot AI** — nó nằm ở đâu, đang làm được gì và **chưa** làm được gì — đọc
+[`docs/20`](docs/20-hien-trang-duong-ong-hoi-dap.md) trước khi đụng vào. Tóm tắt một dòng:
+đường ống đã thông nhưng chữ "R" trong RAG chưa có, nên đừng đọc câu trả lời hiện tại rồi
+kết luận gì về chất lượng hệ thống.
+
 **Một điều đừng chép nhầm:** các endpoint **không** có dòng lọc tenant nào, và đó là chủ ý.
 Bộ lọc nằm ở tầng SQL (ADR-012). Thêm một bộ lọc nữa ở tầng ứng dụng là tạo ấn tượng rằng
 lọc là việc của endpoint — rồi endpoint tiếp theo sẽ quên.
