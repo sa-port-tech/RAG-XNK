@@ -1,12 +1,14 @@
 ---
 area_id: G-01/projects/rag-xnk
 health: at-risk
-last_activity: 2026-09-02
+last_activity: 2026-09-03
 hours_last_7d: 3.63
-key_metric: "Skeleton local XONG: 9/9 mục services.json chạy được, smoke test 7/7, 81 test xanh (48 .NET + 33 Python). Sàn D-013 tuần 36 đạt 7/7 commit nội dung, hai ngày 31/08 và 01/09 vẫn là 0. Sau 19:18 còn ba commit nữa (docs 20 đường ống hỏi-đáp 22:02, style _camelCase 22:43, gỡ CodeQL + sửa cổng BR-11 23:08) — tổng 17 commit tác giả trong ngày, 3.63h đo được từ khoảng cách commit"
-next_action: "L0 — rebase nhánh lên origin/main, push, mở PR có Closes #n. Toàn bộ công việc vẫn nằm trên một ổ đĩa"
-blockers: []
-updated_at: 2026-09-02
+key_metric: "Skeleton local XONG: 9/9 mục services.json chạy được, smoke test 7/7, 81 test xanh (48 .NET + 33 Python). Ngày 03/09 thêm bộ skill Scrum đợt 1 — nền chung + /po + /tech-lead + /sprint-review, 637 dòng, commit 3ab9afe 20:16 (MỘT commit duy nhất nên KHÔNG đo được thời lượng bằng khoảng cách commit, khác hẳn 02/09 có 17 commit → 3.63h). Sàn D-013 tính theo ngày, tuần 36 đang 3/4 (31/08 · 02/09 · 03/09; 01/09 là 0) — cần ≥5/7 mới giữ được khối 60'×7"
+next_action: "L0 — rebase nhánh e1-11-skeleton-corpus-retrieval lên origin/main, push (đang ahead 2), mở PR có Closes #n. Toàn bộ công việc vẫn nằm trên một ổ đĩa"
+blockers:
+  - "Nhánh ahead 2 commit chưa push, và .claude/skills/pr-review/SKILL.md đang sửa dở chưa commit. Bộ skill Scrum vừa dựng 03/09 chưa có sprint nào chạy qua nó — công cụ trước, việc sau"
+  - "Ngày 03/09 chỉ có 1 commit, đóng đúng lúc 20:16 tức ngay đầu khối 20:15–21:15. Không đo được thời lượng; /review phải loại ô này khỏi phép tính capacity, KHÔNG đọc thành 0"
+updated_at: 2026-09-03
 ---
 
 # Dự án RAG XNK
