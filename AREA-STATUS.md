@@ -8,7 +8,7 @@ next_action: "L0 — rebase nhánh e1-11-skeleton-corpus-retrieval lên origin/m
 blockers:
   - "Nhánh ahead 2 commit chưa push, và .claude/skills/pr-review/SKILL.md đang sửa dở chưa commit. Bộ skill Scrum vừa dựng 03/09 chưa có sprint nào chạy qua nó — công cụ trước, việc sau"
   - "Ngày 03/09 chỉ có 1 commit, đóng đúng lúc 20:16 tức ngay đầu khối 20:15–21:15. Không đo được thời lượng; /review phải loại ô này khỏi phép tính capacity, KHÔNG đọc thành 0"
-updated_at: 2026-09-03
+updated_at: 2026-09-06
 ---
 
 # Dự án RAG XNK
