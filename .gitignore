@@ -211,3 +211,15 @@ coverage.cobertura.xml
 corpus/raw/
 corpus/derived/
 !corpus/registry/
+
+# ─── Cấu hình trợ lý AI của từng người ───────────────────────────────────────
+# KHÔNG commit. Đây là repo sản phẩm; cấu hình công cụ cá nhân không thuộc về nó.
+#
+# `.claude/settings.local.json` là lý do cụ thể: nó từng nằm trong git với quyền
+# pre-approve `Bash(gh auth *)` — tức `gh auth token`, in ra credential GitHub còn
+# hiệu lực — và một lệnh `rm -rf` trỏ vào ổ đĩa đồng bộ. Ai clone nhánh rồi chạy
+# Claude Code trong đó là thừa hưởng cả hai, không cần bấm đồng ý lần nào.
+#
+# Bộ skill dùng chung (pr-review, po, tech-lead, sprint-review…) sống ngoài repo
+# này — xem CONTRIBUTING.md mục "Công cụ trợ lý AI".
+.claude/

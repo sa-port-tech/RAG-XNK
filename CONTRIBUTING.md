@@ -112,6 +112,23 @@ cân nhắc sẵn. Chuyên gia chỉ có 20% × 2 người — đây là nguồn
 
 ---
 
+## Công cụ trợ lý AI
+
+Repo này **không giữ cấu hình trợ lý AI của bất kỳ ai** — `.claude/` nằm trong
+`.gitignore`. Dùng gì, cấu hình ra sao là việc của từng máy.
+
+Lý do không phải sở thích mà là một sự cố cụ thể: `.claude/settings.local.json` từng được
+commit, và nó pre-approve `Bash(gh auth *)` — tức `gh auth token`, lệnh in ra credential
+GitHub còn hiệu lực — cùng một lệnh `rm -rf` trỏ vào ổ đĩa đồng bộ. Ai clone nhánh rồi mở
+trợ lý trong thư mục đó là thừa hưởng cả hai quyền, không phải bấm đồng ý lần nào. Một file
+cấu hình cá nhân đi vào repo chung thì nó không còn là cấu hình cá nhân nữa.
+
+Bộ skill dùng chung của dự án (`pr-review`, `po`, `tech-lead`, `sprint-review`,
+`sprint-planning`, `ba`, `sm`, `data-eng`, `expert-xnk`, `daily`) sống **ngoài repo sản
+phẩm**, trong kho công cụ riêng của đội. Hỏi maintainer để lấy.
+
+---
+
 ## Ba việc không được làm
 
 | | Vì sao |
@@ -119,3 +136,4 @@ cân nhắc sẵn. Chuyên gia chỉ có 20% × 2 người — đây là nguồn
 | **Java Delegate trong file `.bpmn`** | Khoá quy trình vào Camunda 7 và JVM. `ci-bpmn` chặn |
 | **Nới ngưỡng trong `eval/gates.yml` để PR xanh** | Đó là gian lận với chính mình ([`docs/14`](docs/14-phuong-phap-golden-set.md)) |
 | **Thêm access key AWS vào Secrets** | Dùng OIDC. Rò rỉ một lần là mất cả tài khoản |
+| **Commit `.claude/` hay cấu hình trợ lý AI khác** | Xem mục ngay trên — một file đã từng mang theo `gh auth token` và `rm -rf` |
