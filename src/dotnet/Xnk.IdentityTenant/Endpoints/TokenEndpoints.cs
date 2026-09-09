@@ -25,6 +25,9 @@ public static class TokenEndpoints
     /// </remarks>
     private static readonly string _bamGia = PasswordHasher.Bam(Guid.NewGuid().ToString("N"));
 
+    /// <summary>Tên chính sách giới hạn tần suất áp cho <c>/token</c>.</summary>
+    public const string ChinhSachGioiHan = "dang-nhap";
+
     /// <summary>Gắn nhóm endpoint xác thực vào ứng dụng.</summary>
     public static IEndpointRouteBuilder MapTokenEndpoints(this IEndpointRouteBuilder endpoints)
     {
@@ -34,10 +37,14 @@ public static class TokenEndpoints
             // Hiển nhiên nhưng phải khai: đây là đường vào để LẤY token, nên nó không thể
             // đòi có token. Thiếu dòng này thì middleware xác thực chặn mọi lần đăng nhập.
             .AllowAnonymous()
+            // ⚠️ `AllowAnonymous` mà không có dòng dưới là công thức của endpoint đắt nhất
+            // hệ thống mở toang cho mọi người — xem khối chú thích ở Program.cs.
+            .RequireRateLimiting(ChinhSachGioiHan)
             .WithName("PhatToken")
             .WithSummary("Đổi email + mật khẩu lấy JWT")
             .Produces<TokenResponse>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
+            .ProducesProblem(StatusCodes.Status429TooManyRequests)
             .ProducesValidationProblem();
 
         return endpoints;
@@ -47,6 +54,7 @@ public static class TokenEndpoints
         TokenRequest yeuCau,
         IdentityDbContext db,
         TokenIssuer nguoiPhat,
+        FailedLoginTracker boDem,
         ILogger<TokenRequest> log,
         CancellationToken huy)
     {
@@ -59,6 +67,25 @@ public static class TokenEndpoints
         }
 
         string email = yeuCau.Email.Trim().ToLowerInvariant();
+
+        // Chặn TRƯỚC khi chạm database và trước khi trả giá 600.000 vòng PBKDF2.
+        //
+        // Trả 429 cho mọi email vượt ngưỡng, dù email đó có thật hay không — bộ đếm không
+        // biết và cố tình không cần biết. Chặn riêng cho tài khoản có thật thì chính thời
+        // điểm bị chặn trở thành câu trả lời cho "email này có trong hệ thống không", tức
+        // là dựng lại đúng lỗ rò mà chuỗi băm giả ở trên sinh ra để bịt.
+        if (boDem.DangBiChan(email))
+        {
+            log.LogWarning(
+                "Chặn tạm thời: một email vượt {Nguong} lần thất bại liên tiếp trong {Phut} phút.",
+                FailedLoginTracker.NguongThatBai,
+                FailedLoginTracker.ThoiGianChan.TotalMinutes);
+
+            return TypedResults.Problem(
+                title: "Quá nhiều lần thử",
+                detail: "Tài khoản này đang bị tạm chặn đăng nhập. Thử lại sau ít phút.",
+                statusCode: StatusCodes.Status429TooManyRequests);
+        }
 
         User? nguoiDung = await db.Users
             .Include(u => u.Tenant)
@@ -88,11 +115,17 @@ public static class TokenEndpoints
                 matKhauDung,
                 nguoiDung?.IsActive);
 
+            boDem.GhiThatBai(email);
+
             return TypedResults.Problem(
                 title: "Đăng nhập thất bại",
                 detail: "Email hoặc mật khẩu không đúng.",
                 statusCode: StatusCodes.Status401Unauthorized);
         }
+
+        // Đăng nhập được thì xoá bộ đếm: năm lần gõ nhầm rồi nhớ ra mật khẩu là chuyện
+        // thường ngày, không phải một đợt tấn công đang diễn ra dở.
+        boDem.XoaSauKhiThanhCong(email);
 
         TokenIssuer.KetQua ketQua = nguoiPhat.Phat(nguoiDung, nguoiDung.Tenant);
 

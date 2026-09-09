@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text;
@@ -211,6 +212,95 @@ public sealed class TokenEndpointTests(IdentityPostgresFixture postgres) : IAsyn
         Assert.Equal(HttpStatusCode.OK, khongTienTo.StatusCode);
     }
 
+    [Fact]
+    public async Task Vuot_gioi_han_theo_IP_thi_429()
+    {
+        // `/token` là endpoint ẩn danh duy nhất của hệ thống và mỗi lời gọi đốt 600.000
+        // vòng PBKDF2 — kể cả khi email không tồn tại, vì chuỗi băm giả cố tình làm hai
+        // nhánh tốn thời gian như nhau. Không có hàng rào thì một vòng lặp curl vừa dò mật
+        // khẩu vừa làm cạn CPU của service phát token cho cả bảy service còn lại.
+        await using var factory = new IdentityApiFactory(postgres.ConnectionString, gioiHanTheoIp: 3);
+        using HttpClient client = factory.CreateClient();
+
+        for (int i = 0; i < 3; i++)
+        {
+            HttpResponseMessage trongHan = await Dang(client, _emailHoatDong, _matKhau);
+            Assert.Equal(HttpStatusCode.OK, trongHan.StatusCode);
+        }
+
+        HttpResponseMessage vuot = await Dang(client, _emailHoatDong, _matKhau);
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, vuot.StatusCode);
+    }
+
+    [Fact]
+    public async Task Sai_lien_tiep_qua_nguong_thi_email_bi_chan_429()
+    {
+        // Giới hạn theo IP không chặn được kiểu tấn công ngược lại: nhiều máy, mỗi máy thử
+        // vài lần, cùng nhắm một tài khoản — hình dạng của một đợt credential stuffing bằng
+        // danh sách mật khẩu rò rỉ. Bộ đếm theo email bịt vế đó.
+        //
+        // Giới hạn IP để rộng ở đây: test này kiểm bộ đếm theo email, không kiểm hàng rào IP.
+        using HttpClient client = _factory.CreateClient();
+
+        for (int i = 0; i < FailedLoginTracker.NguongThatBai; i++)
+        {
+            HttpResponseMessage that = await Dang(client, _emailHoatDong, "mat-khau-sai");
+            Assert.Equal(HttpStatusCode.Unauthorized, that.StatusCode);
+        }
+
+        // Lần thứ sáu bị chặn — và bị chặn TRƯỚC khi chạm database, nên đúng mật khẩu cũng
+        // không qua. Đây là điều phân biệt "chặn tạm thời" với "sai mật khẩu".
+        HttpResponseMessage biChan = await Dang(client, _emailHoatDong, _matKhau);
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, biChan.StatusCode);
+    }
+
+    [Fact]
+    public async Task Email_khong_ton_tai_cung_bi_chan_nhu_email_co_that()
+    {
+        // ⚠️ Đây là vế dễ làm hỏng nhất khi ai đó "tối ưu" bộ đếm cho chỉ đếm tài khoản có
+        // thật. Chặn riêng cho email tồn tại thì chính thời điểm bị chặn trả lời câu hỏi
+        // "email này có trong hệ thống không" — dựng lại đúng lỗ rò mà chuỗi băm giả sinh
+        // ra để bịt, chỉ khác là lần này rò qua mã trạng thái thay vì qua thời gian.
+        string emailMa = $"khong-co-{Guid.NewGuid():N}@test.local";
+        using HttpClient client = _factory.CreateClient();
+
+        for (int i = 0; i < FailedLoginTracker.NguongThatBai; i++)
+        {
+            HttpResponseMessage that = await Dang(client, emailMa, "mat-khau-sai");
+            Assert.Equal(HttpStatusCode.Unauthorized, that.StatusCode);
+        }
+
+        HttpResponseMessage biChan = await Dang(client, emailMa, "mat-khau-sai");
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, biChan.StatusCode);
+    }
+
+    [Fact]
+    public async Task Dang_nhap_thanh_cong_thi_xoa_bo_dem()
+    {
+        // Bốn lần gõ nhầm rồi nhớ ra mật khẩu là chuyện thường ngày, không phải một đợt tấn
+        // công đang diễn ra dở. Không xoá bộ đếm thì người dùng thật bị chặn ở lần gõ nhầm
+        // thứ năm của cả tuần, và không hiểu vì sao.
+        using HttpClient client = _factory.CreateClient();
+
+        for (int i = 0; i < FailedLoginTracker.NguongThatBai - 1; i++)
+        {
+            await Dang(client, _emailHoatDong, "mat-khau-sai");
+        }
+
+        HttpResponseMessage dung = await Dang(client, _emailHoatDong, _matKhau);
+        Assert.Equal(HttpStatusCode.OK, dung.StatusCode);
+
+        // Sau khi xoá, bốn lần sai nữa vẫn chưa chạm ngưỡng.
+        for (int i = 0; i < FailedLoginTracker.NguongThatBai - 1; i++)
+        {
+            HttpResponseMessage that = await Dang(client, _emailHoatDong, "mat-khau-sai");
+            Assert.Equal(HttpStatusCode.Unauthorized, that.StatusCode);
+        }
+    }
+
     private static Task<HttpResponseMessage> Dang(HttpClient client, string email, string matKhau)
         => client.PostAsJsonAsync(
             new Uri("/identity-tenant/token", UriKind.Relative),
@@ -229,7 +319,8 @@ public sealed class TokenEndpointTests(IdentityPostgresFixture postgres) : IAsyn
         [property: System.Text.Json.Serialization.JsonPropertyName("token_type")] string TokenType,
         [property: System.Text.Json.Serialization.JsonPropertyName("expires_in")] int ExpiresIn);
 
-    private sealed class IdentityApiFactory(string connectionString) : WebApplicationFactory<Program>
+    private sealed class IdentityApiFactory(string connectionString, int gioiHanTheoIp = 1_000)
+        : WebApplicationFactory<Program>
     {
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
@@ -242,6 +333,13 @@ public sealed class TokenEndpointTests(IdentityPostgresFixture postgres) : IAsyn
             builder.UseSetting("Jwt:Issuer", _issuer);
             builder.UseSetting("Jwt:Audience", _audience);
             builder.UseSetting("Jwt:SigningKey", _khoaKy);
+
+            // Nới rộng cho các test KHÔNG kiểm giới hạn tần suất, để chúng không đỏ vì một
+            // lý do chẳng liên quan gì tới thứ chúng kiểm. Test nào kiểm chính hàng rào đó
+            // thì tự truyền một con số nhỏ.
+            builder.UseSetting(
+                "RateLimiting:TokenPermitLimit",
+                gioiHanTheoIp.ToString(CultureInfo.InvariantCulture));
         }
     }
 }
