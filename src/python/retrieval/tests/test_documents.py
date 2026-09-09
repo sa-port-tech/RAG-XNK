@@ -168,6 +168,69 @@ def test_tham_so_phan_trang_sai_thi_422(settings: Settings, tham_so: str, gia_tr
     assert phan_hoi.status_code == 422
 
 
+@pytest.mark.usefixtures("engine")
+def test_lay_mot_van_ban_theo_id(
+    settings: Settings,
+    tenant_co_du_lieu: tuple[uuid.UUID, uuid.UUID, str, str, str],
+) -> None:
+    tenant_a, _, _, so_a, _ = tenant_co_du_lieu
+
+    with TestClient(create_app(settings)) as client:
+        danh_sach = client.get(
+            "/retrieval/documents",
+            params={"page_size": 100},
+            headers={"Authorization": f"Bearer {_token(tenant_a)}"},
+        ).json()["items"]
+        van_ban_id = next(m["id"] for m in danh_sach if m["document_number"] == so_a)
+
+        phan_hoi = client.get(
+            f"/retrieval/documents/{van_ban_id}",
+            headers={"Authorization": f"Bearer {_token(tenant_a)}"},
+        )
+
+    assert phan_hoi.status_code == 200, phan_hoi.text
+    assert phan_hoi.json()["document_number"] == so_a
+
+
+def test_lay_mot_van_ban_id_khong_ton_tai_thi_404(settings: Settings) -> None:
+    with TestClient(create_app(settings)) as client:
+        phan_hoi = client.get(
+            f"/retrieval/documents/{uuid.uuid4()}",
+            headers={"Authorization": f"Bearer {_token(uuid.uuid4())}"},
+        )
+
+    assert phan_hoi.status_code == 404
+
+
+@pytest.mark.usefixtures("engine")
+def test_lay_mot_van_ban_cua_tenant_khac_thi_404_khong_phai_403(
+    settings: Settings,
+    tenant_co_du_lieu: tuple[uuid.UUID, uuid.UUID, str, str, str],
+) -> None:
+    """Id thuộc tenant B, tenant A gọi tới — phải 404 y hệt id không tồn tại.
+
+    Không phải 403: 403 xác nhận id đó CÓ tồn tại, chỉ là không có quyền. FastAPI dễ mắc
+    bẫy này nếu tách thành "lấy theo id trước, kiểm tenant sau" — endpoint này cố tình không
+    làm vậy, xem docstring của ``db.lay_van_ban``.
+    """
+    tenant_a, tenant_b, _, _, so_b = tenant_co_du_lieu
+
+    with TestClient(create_app(settings)) as client:
+        cua_b = client.get(
+            "/retrieval/documents",
+            params={"page_size": 100},
+            headers={"Authorization": f"Bearer {_token(tenant_b)}"},
+        ).json()["items"]
+        id_cua_b = next(m["id"] for m in cua_b if m["document_number"] == so_b)
+
+        phan_hoi = client.get(
+            f"/retrieval/documents/{id_cua_b}",
+            headers={"Authorization": f"Bearer {_token(tenant_a)}"},
+        )
+
+    assert phan_hoi.status_code == 404
+
+
 def test_dieu_kien_tenant_nam_trong_cau_sql_chu_khong_o_tang_ung_dung() -> None:
     """Khoá lại chính cơ chế, không chỉ khoá kết quả.
 
@@ -179,3 +242,4 @@ def test_dieu_kien_tenant_nam_trong_cau_sql_chu_khong_o_tang_ung_dung() -> None:
     assert '"TenantId" IS NULL OR "TenantId" = :tenant_id' in db.DIEU_KIEN_TENANT
     assert db.DIEU_KIEN_TENANT in db.CAU_LIET_KE
     assert db.DIEU_KIEN_TENANT in db.CAU_DEM
+    assert db.DIEU_KIEN_TENANT in db.CAU_LAY_MOT

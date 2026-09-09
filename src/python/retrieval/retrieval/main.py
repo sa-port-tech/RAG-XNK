@@ -17,11 +17,12 @@ database ``xnk_retrieval`` chỉ có quyền SELECT ở đó — xem `db/roles.s
 """
 
 import logging
+import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Annotated, Final
 
-from fastapi import APIRouter, Depends, FastAPI, Query, Request
+from fastapi import APIRouter, Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncEngine
@@ -174,6 +175,38 @@ async def liet_ke_van_ban(
         page=page,
         page_size=page_size,
         total_count=tong,
+    )
+
+
+@router.get("/documents/{document_id}", tags=["documents"])
+async def lay_van_ban(
+    document_id: uuid.UUID,
+    request: Request,
+    engine: Annotated[AsyncEngine, Depends(_engine)],
+    settings: Annotated[Settings, Depends(_settings)],
+) -> VanBanTomTat:
+    """Lấy một văn bản theo id.
+
+    Trả **404** cho cả hai trường hợp "id không tồn tại" và "id thuộc tenant khác" — cùng
+    một mã lỗi, cùng một thân phản hồi. Trả 403 riêng cho trường hợp thứ hai sẽ xác nhận với
+    người gọi rằng id đó CÓ tồn tại, chỉ là không xem được — rò rỉ sự tồn tại của dữ liệu
+    tenant khác qua một kênh không phải nội dung.
+    """
+    tenant_id = tenant_tu_request(
+        request, settings.jwt_issuer, settings.jwt_audience, settings.jwt_signing_key
+    )
+
+    v = await db.lay_van_ban(engine, tenant_id, document_id)
+    if v is None:
+        raise HTTPException(status_code=404, detail="document not found")
+
+    return VanBanTomTat(
+        id=str(v.id),
+        document_number=v.document_number,
+        title=v.title,
+        effective_from=v.effective_from.isoformat() if v.effective_from else None,
+        effective_to=v.effective_to.isoformat() if v.effective_to else None,
+        is_shared=v.is_shared,
     )
 
 

@@ -47,6 +47,13 @@ CAU_DEM: Final = f"""
     SELECT count(*) FROM corpus.documents WHERE {DIEU_KIEN_TENANT}
 """
 
+CAU_LAY_MOT: Final = f"""
+    SELECT "Id", "DocumentNumber", "Title", "EffectiveFrom", "EffectiveTo",
+           "TenantId" IS NULL AS is_shared
+    FROM corpus.documents
+    WHERE "Id" = :document_id AND {DIEU_KIEN_TENANT}
+"""
+
 # Readiness kiểm chính thứ service này phụ thuộc: đọc được bảng trong schema `corpus`.
 # `SELECT 1` đơn thuần chỉ chứng minh kết nối còn sống — nó vẫn xanh khi vai trò thiếu
 # quyền hoặc migration chưa chạy, tức là đúng hai tình huống service không phục vụ được.
@@ -86,6 +93,35 @@ async def dem_van_ban(engine: AsyncEngine, tenant_id: uuid.UUID | None) -> int:
     async with engine.connect() as conn:
         ket_qua = await conn.execute(text(CAU_DEM), {"tenant_id": tenant_id})
         return int(ket_qua.scalar_one())
+
+
+async def lay_van_ban(
+    engine: AsyncEngine,
+    tenant_id: uuid.UUID | None,
+    document_id: uuid.UUID,
+) -> VanBan | None:
+    """Lấy một văn bản theo id, hoặc ``None`` nếu không có hoặc tenant không được xem.
+
+    Điều kiện ``document_id`` và điều kiện tenant nằm trong CÙNG một câu SQL, không tách
+    thành "lấy theo id rồi lọc tenant sau" — id của tenant khác trả về ``None`` giống hệt id
+    không tồn tại, và người gọi không phân biệt được hai trường hợp. Đó là chủ đích, cùng lý
+    do ADR-012 nêu ở đầu file: tách điều kiện ra khỏi câu SQL là chỗ rò rỉ dễ quên nhất.
+    """
+    async with engine.connect() as conn:
+        ket_qua = await conn.execute(
+            text(CAU_LAY_MOT), {"tenant_id": tenant_id, "document_id": document_id}
+        )
+        dong = ket_qua.first()
+        if dong is None:
+            return None
+        return VanBan(
+            id=dong.Id,
+            document_number=dong.DocumentNumber,
+            title=dong.Title,
+            effective_from=dong.EffectiveFrom,
+            effective_to=dong.EffectiveTo,
+            is_shared=dong.is_shared,
+        )
 
 
 async def liet_ke_van_ban(
