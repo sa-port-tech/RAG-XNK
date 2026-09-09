@@ -19,14 +19,21 @@ Phạm vi hiện tại: prototype 7 tuần trên AWS Free Tier — xem [`docs/00
 | uv | ≥0.5 | quản lý Python 3.12 cho ba service FastAPI |
 | Git Bash | — | các script `.sh` cần bash; trên Windows dùng Git Bash |
 
-### Hai lệnh
+### Ba lệnh
 
 ```bash
 cp .env.example .env
+bash tools/local/sinh-khoa.sh
 docker compose --profile app up -d
 ```
 
-Lệnh thứ hai dựng PostgreSQL, chạy migration + vai trò + seed, build **7 service + giao
+Lệnh thứ hai sinh **khoá ký JWT của riêng máy bạn**. Nó bắt buộc, không phải tuỳ chọn:
+giá trị mẫu trong `.env.example` cố tình ngắn hơn ngưỡng 32 byte nên service sẽ từ chối
+khởi động nếu bỏ qua bước này. Chỗ đó từng có một khoá dùng được kèm lời dặn hãy thay —
+và trên máy dev thì lời dặn đó không bao giờ được làm, nên nay bước thay là bắt buộc chứ
+không phải là lời dặn.
+
+Lệnh thứ ba dựng PostgreSQL, chạy migration + vai trò + seed, build **7 service + giao
 diện**, kéo mô hình ngôn ngữ về, khởi Camunda, và bật nginx làm cổng vào ở
 `http://localhost:8080`. Lần đầu mất khoảng 10–15 phút; những lần sau vài chục giây.
 

@@ -15,9 +15,24 @@ import os
 from dataclasses import dataclass
 from typing import Final
 
-# Tối thiểu 32 byte cho HMAC-SHA256 — khớp ràng buộc MinLength(32) của JwtOptions bên .NET.
-# Hai phía phải cùng một khoá thì token mới dùng chéo được, nên ràng buộc cũng phải giống.
+# Tối thiểu 32 BYTE cho HMAC-SHA256 — khớp `JwtOptions.SoByteToiThieu` bên .NET.
+# Hai phía phải cùng một khoá thì token mới dùng chéo được, nên ràng buộc cũng phải giống —
+# và phải giống cả ĐƠN VỊ. Trước đây cả hai đều đếm ký tự trong khi nói là byte; sai lệch
+# chỉ lộ ra khi có người đặt khoá bằng chữ có dấu, tức đúng lúc khó chẩn đoán nhất.
 DO_DAI_KHOA_TOI_THIEU: Final = 32
+
+# Khoá đã từng nằm trong repo, nên không còn là bí mật với ai. Xem `JwtOptions.KhoaDaCongKhai`
+# bên .NET — hai danh sách phải giống nhau, nếu không một service sẽ khởi động được trong khi
+# service bên cạnh từ chối cùng một khoá.
+#
+# Đây không phải danh sách "khoá yếu": chuỗi này dài 51 ký tự và qua mọi phép đo độ dài. Vấn
+# đề là nó được commit, nên ai đọc lịch sử git cũng ký được token hợp lệ. Chặn đích danh vì
+# một placeholder DÙNG ĐƯỢC thì không có gì buộc ai phải thay.
+KHOA_DA_CONG_KHAI: Final = frozenset(
+    {
+        "khoa-ky-chi-dung-cho-may-local-khong-phai-bi-mat-32",
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,10 +63,19 @@ class Settings:
             )
 
         khoa = os.environ["XNK_JWT_SIGNING_KEY"]
-        if len(khoa) < DO_DAI_KHOA_TOI_THIEU:
+        so_byte = len(khoa.encode("utf-8"))
+        if so_byte < DO_DAI_KHOA_TOI_THIEU:
             raise RuntimeError(
-                f"XNK_JWT_SIGNING_KEY phải dài tối thiểu {DO_DAI_KHOA_TOI_THIEU} ký tự "
-                f"cho HMAC-SHA256, hiện có {len(khoa)}."
+                f"XNK_JWT_SIGNING_KEY phải dài tối thiểu {DO_DAI_KHOA_TOI_THIEU} byte "
+                f"cho HMAC-SHA256, hiện có {so_byte}.\n"
+                "Sinh khoá bằng: bash tools/local/sinh-khoa.sh"
+            )
+
+        if khoa in KHOA_DA_CONG_KHAI:
+            raise RuntimeError(
+                "XNK_JWT_SIGNING_KEY đang dùng là khoá đã từng được commit vào repo, nên "
+                "ai đọc được lịch sử git cũng ký được token hợp lệ cho mọi service.\n"
+                "Sinh khoá riêng bằng: bash tools/local/sinh-khoa.sh"
             )
 
         return cls(

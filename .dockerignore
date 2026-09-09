@@ -39,7 +39,13 @@ artifacts
 **/*.pyc
 
 # Cấu hình và bí mật của máy local
-.env
+#
+# `.env*` chứ không phải `.env`: mẫu cũ chỉ khớp đúng một đường dẫn, nên `.env.example`
+# vẫn đi vào build context. Hôm nay chưa Dockerfile nào `COPY . .` — các file .NET chép
+# từng đường dẫn, file Python chép `src/python/` — nên không có ảnh nào thực sự mang nó
+# theo. Đó là tính chất của hôm nay, không phải của mẫu loại trừ; một `COPY . .` thêm vào
+# sau này sẽ đổi kết cục mà không ai sửa file này.
+.env*
 docker-compose.yml
 **/appsettings.Development.json
 
