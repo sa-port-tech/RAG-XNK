@@ -44,11 +44,39 @@ public sealed class PasswordHasherTests
     [InlineData("pbkdf2_sha256$khong-phai-so$bXVvaQ==$YmFt")]  // số vòng hỏng
     [InlineData("pbkdf2_sha256$1000$khong-phai-base64!$YmFt")] // muối hỏng
     [InlineData("pbkdf2_sha256$1000$bXVvaQ==")]          // thiếu phần
+    [InlineData("pbkdf2_sha256$1000$$Wr+/XGLf8005unV3fVN+lzUuBYvpNxegovM6m1Buo7I=")] // muối rỗng
+    [InlineData("pbkdf2_sha256$1000$bXVvaQ==$Wr+/XGLf8005unV3fVN+lzUuBYvpNxegovM6m1Buo7I=")] // muối 4 byte
+    [InlineData("pbkdf2_sha256$1000$fWGzkSRv2rDbLc44flzaAA==$YmFt")] // băm 3 byte
+    [InlineData("pbkdf2_sha256$999999999$fWGzkSRv2rDbLc44flzaAA==$Wr+/XGLf8005unV3fVN+lzUuBYvpNxegovM6m1Buo7I=")] // số vòng vượt trần
     public void Chuoi_luu_hong_thi_tra_false_chu_khong_nem_ngoai_le(string chuoiLuu)
     {
         // Dữ liệu hỏng phải dẫn tới "đăng nhập thất bại", không dẫn tới 500. Một endpoint
         // đăng nhập trả 500 cho đúng một tài khoản là đã tiết lộ điều gì đó về tài khoản ấy.
         Assert.False(PasswordHasher.KiemTra("bat-ky", chuoiLuu));
+    }
+
+    [Theory]
+    [InlineData("bat-ky")]
+    [InlineData("")]
+    [InlineData("matkhau-local-2026")]
+    [InlineData("' OR 1=1 --")]
+    public void Bam_co_doan_cuoi_rong_thi_KHONG_nhan_bat_ky_mat_khau_nao(string matKhau)
+    {
+        // ⚠️ HỒI QUY — đừng gộp test này vào theory ở trên, và đừng nới điều kiện độ dài
+        // trong PasswordHasher để nó xanh.
+        //
+        // Đây là ca đã từng trả TRUE với MỌI mật khẩu. Chuỗi dưới có đủ bốn phần, thuật toán
+        // đúng, số vòng đúng, muối hợp lệ 16 byte — chỉ đoạn băm là rỗng. Trước bản vá:
+        // FromBase64String("") trả mảng 0 byte (không ném), độ dài băm được lấy từ chính
+        // chuỗi này nên hàm dẫn xuất sinh ra 0 byte, và FixedTimeEquals so hai mảng rỗng —
+        // hai mảng rỗng thì bằng nhau. Một dòng hỏng trong identity.users biến thành một
+        // tài khoản ai cũng đăng nhập được, mà log chỉ ghi "đăng nhập thành công".
+        //
+        // Không cần kẻ tấn công ghi được vào DB mới chạm tới: một lần import thiếu cột, một
+        // lần seed đứt giữa chừng, một lần sửa tay là đủ.
+        const string doanCuoiRong = "pbkdf2_sha256$600000$fWGzkSRv2rDbLc44flzaAA==$";
+
+        Assert.False(PasswordHasher.KiemTra(matKhau, doanCuoiRong));
     }
 
     [Fact]

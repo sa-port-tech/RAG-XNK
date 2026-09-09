@@ -42,6 +42,17 @@ public static class PasswordHasher
     private const int _doDaiMuoi = 16;
     private const int _doDaiBam = 32;
 
+    /// <summary>
+    /// Trần số vòng chấp nhận khi ĐỌC một bản ghi đã lưu.
+    /// </summary>
+    /// <remarks>
+    /// Số vòng nằm trong chính chuỗi lưu, nên một bản ghi hỏng (hoặc bị sửa) có thể khai
+    /// hai tỉ vòng và biến một lần đăng nhập thành một lần treo CPU. Trần này để con số đó
+    /// không do dữ liệu quyết định. Rộng gấp ~16 lần <see cref="SoVongMacDinh"/> nên còn
+    /// nhiều chỗ nâng tham số mà không phải sửa mã.
+    /// </remarks>
+    private const int _soVongToiDa = 10_000_000;
+
     /// <summary>Băm một mật khẩu thành chuỗi tự mô tả.</summary>
     /// <param name="matKhau">Mật khẩu dạng chữ thường người dùng nhập.</param>
     /// <param name="soVong">Số vòng lặp; để mặc định trừ khi đang tái hiện một bản ghi cũ.</param>
@@ -77,7 +88,7 @@ public static class PasswordHasher
             return false;
         }
 
-        if (!int.TryParse(phan[1], out int soVong) || soVong < 1)
+        if (!int.TryParse(phan[1], out int soVong) || soVong < 1 || soVong > _soVongToiDa)
         {
             return false;
         }
@@ -94,18 +105,39 @@ public static class PasswordHasher
             return false;
         }
 
-        byte[] bamThuc = DanXuat(matKhau, muoi, soVong, bamMongDoi.Length);
+        // ⚠️ Hai điều kiện này là thứ chặn một lỗ nhận-mọi-mật-khẩu, đừng nới ra.
+        //
+        // Trước đây độ dài băm được lấy TỪ CHÍNH chuỗi đang kiểm (`bamMongDoi.Length`).
+        // Một bản ghi có đoạn cuối rỗng — `pbkdf2_sha256$600000$bXVvaQ==$` — vẫn tách ra đủ
+        // bốn phần, `Convert.FromBase64String("")` trả mảng rỗng chứ không ném, nên hàm dẫn
+        // xuất được gọi với độ dài 0 và `FixedTimeEquals` đem so hai mảng rỗng: **true với
+        // mọi mật khẩu**. Một dòng hỏng trong `identity.users` khi ấy không làm đăng nhập
+        // thất bại, nó làm đăng nhập luôn thành công.
+        //
+        // Độ dài muối và băm là hằng số ở CẢ HAI phía sinh chuỗi — `Bam()` ngay trên, và
+        // `tools/local/sinh_seed.py` (`DAI_MUOI = 16`, `DAI_BAM = 32`). Chỉ SỐ VÒNG mới là
+        // phần co giãn của định dạng tự mô tả này; độ dài thì không, nên kiểm đúng bằng.
+        if (muoi.Length != _doDaiMuoi || bamMongDoi.Length != _doDaiBam)
+        {
+            return false;
+        }
+
+        byte[] bamThuc = DanXuat(matKhau, muoi, soVong);
 
         // So sánh thời gian cố định: so sánh thường thoát sớm ở byte đầu tiên khác nhau,
         // và chênh lệch thời gian đó đo được qua mạng.
         return CryptographicOperations.FixedTimeEquals(bamThuc, bamMongDoi);
     }
 
-    private static byte[] DanXuat(string matKhau, byte[] muoi, int soVong, int doDai = _doDaiBam)
+    /// <remarks>
+    /// Độ dài đầu ra là hằng <see cref="_doDaiBam"/>, KHÔNG phải tham số. Cho phép người gọi
+    /// truyền độ dài là cách lỗ hổng cũ đi vào: độ dài khi ấy đến từ dữ liệu đang được kiểm.
+    /// </remarks>
+    private static byte[] DanXuat(string matKhau, byte[] muoi, int soVong)
         => Rfc2898DeriveBytes.Pbkdf2(
             Encoding.UTF8.GetBytes(matKhau),
             muoi,
             soVong,
             HashAlgorithmName.SHA256,
-            doDai);
+            _doDaiBam);
 }
