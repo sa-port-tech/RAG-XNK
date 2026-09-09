@@ -68,12 +68,39 @@ public sealed class IdentityDbContext(DbContextOptions<IdentityDbContext> option
 
         modelBuilder.Entity<User>(entity =>
         {
-            entity.ToTable("users", t => t.HasCheckConstraint(
-                "CK_users_Role",
-                $"\"Role\" IN ({string.Join(", ", VaiTroHopLe.Select(v => $"'{v}'"))})"));
+            entity.ToTable("users", t =>
+            {
+                t.HasCheckConstraint(
+                    "CK_users_Role",
+                    $"\"Role\" IN ({string.Join(", ", VaiTroHopLe.Select(v => $"'{v}'"))})");
+
+                // Email phải đã là chữ thường TRƯỚC KHI chạm bảng.
+                //
+                // Bộ chuyển đổi ngay bên dưới lo phần đi qua EF, nhưng không phải mọi thứ
+                // ghi vào bảng này đều đi qua EF: db/seed/0003 là SQL thuần, và một lần
+                // import hay một lần sửa tay cũng vậy. Ràng buộc này là chỗ duy nhất áp
+                // được cho tất cả.
+                //
+                // Vì sao nó quan trọng: chỉ mục duy nhất trên "Email" PHÂN BIỆT hoa
+                // thường, nên nếu không có ràng buộc này thì `Admin@x.vn` và `admin@x.vn`
+                // cùng tồn tại được — và bản viết hoa KHÔNG BAO GIỜ đăng nhập được, vì
+                // TokenEndpoints hạ chữ thường trước khi tra. Triệu chứng là "mật khẩu
+                // sai", tức là chỗ cuối cùng người ta nghĩ tới sẽ là kiểu chữ của email.
+                //
+                // Có ràng buộc này rồi thì chỉ mục duy nhất thường trên "Email" tương
+                // đương một chỉ mục không phân biệt hoa thường — không cần chỉ mục hàm.
+                t.HasCheckConstraint("CK_users_Email_chu_thuong", "\"Email\" = lower(\"Email\")");
+            });
 
             entity.HasKey(u => u.Id);
-            entity.Property(u => u.Email).HasMaxLength(320).IsRequired();
+            // Hạ chữ thường khi GHI, và cả khi so sánh: bộ chuyển đổi áp cho tham số
+            // truy vấn nữa, nên `u.Email == email` cũng tự hạ chữ thường vế phải. Nhờ đó
+            // "chuẩn hoá email" thôi là một quy ước phải nhớ, thành một tính chất của mô
+            // hình. Chiều đọc giữ nguyên chuỗi — dữ liệu trong bảng đã là chữ thường rồi.
+            entity.Property(u => u.Email)
+                .HasMaxLength(320)
+                .IsRequired()
+                .HasConversion(v => v.ToLowerInvariant(), v => v);
             entity.Property(u => u.PasswordHash).HasMaxLength(512).IsRequired();
             entity.Property(u => u.Role).HasMaxLength(32).IsRequired();
             entity.Property(u => u.IsActive).HasDefaultValue(true);

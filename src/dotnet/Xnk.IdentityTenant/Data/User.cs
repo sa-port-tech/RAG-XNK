@@ -20,10 +20,21 @@ public sealed class User
     /// phải hỏi thêm "bạn thuộc tổ chức nào" — một câu hỏi mà người dùng thường không trả
     /// lời đúng, và là cửa cho việc dò xem một email có tồn tại ở tenant nào.
     /// <para>
-    /// Lưu chữ thường để so sánh không phụ thuộc hoa/thường. Không dùng
-    /// <c>ILIKE</c> hay collation không phân biệt hoa thường: <c>InvariantGlobalization</c>
-    /// đang bật (xem Directory.Build.props), nên so sánh chuỗi theo văn hoá là thứ không
-    /// nên dựa vào ở đây.
+    /// Lưu chữ thường, và điều đó được <b>ép</b> ở hai tầng chứ không phải một quy ước:
+    /// bộ chuyển đổi trong <c>IdentityDbContext</c> hạ chữ thường mọi lần ghi và mọi tham
+    /// số so sánh, còn ràng buộc <c>CK_users_Email_chu_thuong</c> chặn cả những đường
+    /// không đi qua EF (seed SQL, import, sửa tay).
+    /// <para>
+    /// Trước đây đây chỉ là một câu khẳng định trong tài liệu, không có gì thi hành. Hệ
+    /// quả đo được: <c>Admin@x.vn</c> và <c>admin@x.vn</c> cùng tồn tại được — chỉ mục duy
+    /// nhất phân biệt hoa thường — và bản viết hoa không bao giờ đăng nhập được, vì
+    /// <c>TokenEndpoints</c> hạ chữ thường trước khi tra. Người dùng thấy "sai mật khẩu".
+    /// </para>
+    /// <para>
+    /// Không dùng <c>ILIKE</c> hay collation không phân biệt hoa thường:
+    /// <c>InvariantGlobalization</c> đang bật (xem Directory.Build.props), nên so sánh
+    /// chuỗi theo văn hoá là thứ không nên dựa vào ở đây.
+    /// </para>
     /// </para>
     /// </remarks>
     public required string Email { get; set; }

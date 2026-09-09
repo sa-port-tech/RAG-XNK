@@ -17,7 +17,7 @@ from fastapi.testclient import TestClient
 
 from retrieval import db
 from retrieval.config import Settings
-from retrieval.main import create_app
+from retrieval.main import create_app, router_can_xac_thuc
 from tests.conftest import AUDIENCE_TEST, ISSUER_TEST, KHOA_KY_TEST
 
 
@@ -112,25 +112,108 @@ def test_moi_tenant_chi_thay_van_ban_dung_chung_va_cua_chinh_minh(
     assert so_a not in cua_b
 
 
-@pytest.mark.usefixtures("engine")
-def test_token_khong_co_claim_tenant_thi_chi_thay_phan_dung_chung(
-    settings: Settings,
-    tenant_co_du_lieu: tuple[uuid.UUID, uuid.UUID, str, str, str],
-) -> None:
-    """Thiếu claim tenant thì mất quyền xem, không phải thấy tất cả.
+def test_token_khong_co_claim_tenant_thi_401(settings: Settings) -> None:
+    """Thiếu claim ``tenant_id`` thì bị TỪ CHỐI, không phải rơi về "chỉ phần dùng chung".
 
-    Ngữ nghĩa này khớp ``HttpTenantContext`` bên .NET và là lựa chọn có chủ đích: lỗi làm
-    mất dữ liệu nhìn thấy được lộ ra trong vài phút, lỗi rò rỉ im lặng có thể không bao giờ
-    bị phát hiện.
+    ⚠️ Test này thay cho một test cũ khẳng định điều ngược lại
+    (``..._thi_chi_thay_phan_dung_chung``). Hành vi cũ fail-closed nên không rò rỉ, và lý do
+    ghi kèm nó vẫn đúng: mất quyền xem tốt hơn rò rỉ. Nhưng nó **im lặng** — người gọi nhận
+    200 với danh sách ngắn hơn họ tưởng, và không ai biết token đã hỏng. Một tài khoản mất
+    quyền xem trong im lặng được báo sau nhiều ngày, mô tả là "hệ thống thiếu dữ liệu", và
+    không ai đi tìm ở tầng xác thực.
+
+    `identity-tenant` LUÔN phát `tenant_id` (TokenIssuer.Phat). Token hợp lệ về chữ ký mà
+    thiếu claim đó không phải thứ hệ thống này sinh ra.
     """
-    _, _, so_chung, so_a, so_b = tenant_co_du_lieu
+    with TestClient(create_app(settings)) as client:
+        phan_hoi = client.get(
+            "/retrieval/documents", headers={"Authorization": f"Bearer {_token(None)}"}
+        )
+
+    assert phan_hoi.status_code == 401
+
+
+def test_token_thieu_sub_thi_401(settings: Settings) -> None:
+    """``sub`` cũng bắt buộc — nó là thứ duy nhất nói token này của AI."""
+    thieu_sub = _token(uuid.uuid4())
+    claims = jwt.decode(
+        thieu_sub, KHOA_KY_TEST, algorithms=["HS256"], audience=AUDIENCE_TEST, issuer=ISSUER_TEST
+    )
+    del claims["sub"]
+    khong_sub = jwt.encode(claims, KHOA_KY_TEST, algorithm="HS256")
 
     with TestClient(create_app(settings)) as client:
-        thay = _so_hieu(client, _token(None))
+        phan_hoi = client.get(
+            "/retrieval/documents", headers={"Authorization": f"Bearer {khong_sub}"}
+        )
 
-    assert so_chung in thay
-    assert so_a not in thay
-    assert so_b not in thay
+    assert phan_hoi.status_code == 401
+
+
+def test_tenant_id_khong_phai_guid_thi_401(settings: Settings) -> None:
+    """Claim có mặt nhưng méo cũng là 401, không phải im lặng bỏ qua."""
+    # Không dùng `_token(..., tenant_id=...)`: `tenant_id` là tham số vị trí của hàm đó,
+    # truyền lại qua **ghi_de là đụng tên. Ký thẳng cho rõ ý.
+    hop_le = _token(uuid.uuid4())
+    claims = jwt.decode(
+        hop_le, KHOA_KY_TEST, algorithms=["HS256"], audience=AUDIENCE_TEST, issuer=ISSUER_TEST
+    )
+    claims["tenant_id"] = "khong-phai-guid"
+    meo = jwt.encode(claims, KHOA_KY_TEST, algorithm="HS256")
+
+    with TestClient(create_app(settings)) as client:
+        phan_hoi = client.get("/retrieval/documents", headers={"Authorization": f"Bearer {meo}"})
+
+    assert phan_hoi.status_code == 401
+
+
+def test_route_moi_tren_router_can_xac_thuc_mac_dinh_da_duoc_bao_ve(
+    settings: Settings,
+) -> None:
+    """Route mới gắn vào ``router_can_xac_thuc`` được bảo vệ mà KHÔNG cần viết thêm gì.
+
+    Đây là test quan trọng nhất của tầng xác thực, và nó không kiểm một endpoint cụ thể nào
+    — nó kiểm **cấu trúc**. Trước đây mỗi handler tự gọi ``tenant_tu_request(...)`` trong
+    thân hàm; cách đó đúng khi người viết nhớ, và một biện pháp bảo vệ phải nhớ mới có tác
+    dụng thì nó là thói quen chứ không phải biện pháp.
+
+    Đo được: 09/09/2026, hai mươi tư giờ sau khi review nêu đúng điều này, một route mới
+    (``GET /documents/{document_id}``) được thêm theo đúng khuôn cũ. Lần đó người viết nhớ.
+
+    Route dựng tại chỗ rồi gỡ đi trong ``finally``: ``router_can_xac_thuc`` là biến cấp
+    module, để lại route thừa là làm bẩn mọi test chạy sau.
+    """
+
+    @router_can_xac_thuc.get("/_route-thu-nghiem")
+    def _route_thu_nghiem() -> dict[str, str]:
+        # Cố tình KHÔNG khai tenant_id, không gọi hàm xác thực nào — đúng kiểu một route
+        # viết vội. Nó vẫn phải bị chặn.
+        return {"trang_thai": "khong-bao-gio-toi-day-neu-thieu-token"}
+
+    try:
+        with TestClient(create_app(settings)) as client:
+            khong_token = client.get("/retrieval/_route-thu-nghiem")
+            co_token = client.get(
+                "/retrieval/_route-thu-nghiem",
+                headers={"Authorization": f"Bearer {_token(uuid.uuid4())}"},
+            )
+
+        assert khong_token.status_code == 401
+        assert co_token.status_code == 200
+    finally:
+        router_can_xac_thuc.routes[:] = [
+            r for r in router_can_xac_thuc.routes if getattr(r, "name", "") != "_route_thu_nghiem"
+        ]
+
+
+def test_health_van_an_danh(settings: Settings) -> None:
+    """Vế còn lại của cùng một quyết định: healthcheck KHÔNG được đòi token.
+
+    ALB và ``smoke_test.sh`` gọi hai endpoint này mà không có token. Gắn nhầm chúng vào
+    ``router_can_xac_thuc`` sẽ làm mọi lần deploy báo service chết trong khi nó vẫn khoẻ.
+    """
+    with TestClient(create_app(settings)) as client:
+        assert client.get("/retrieval/health/live").status_code == 200
 
 
 @pytest.mark.usefixtures("engine")

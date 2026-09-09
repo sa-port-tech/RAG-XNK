@@ -27,8 +27,11 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, create_async_engine
 
 # Ngữ nghĩa giống hệt global query filter của CorpusDbContext: thấy văn bản dùng chung
-# (TenantId IS NULL) cộng văn bản của chính tenant mình. Không có ngữ cảnh tenant thì chỉ
-# thấy phần dùng chung — không phải thấy tất cả.
+# (TenantId IS NULL) cộng văn bản của chính tenant mình.
+#
+# `tenant_id` ở đây LUÔN có giá trị: token thiếu claim `tenant_id` bị `retrieval/auth.py`
+# từ chối bằng 401 trước khi tới được tầng này (xem CLAIM_BAT_BUOC). Trước đây nó nhận
+# ``None`` và khi ấy câu SQL rút về "chỉ phần dùng chung" — an toàn, nhưng im lặng.
 #
 # Tên cột để trong nháy kép vì EF Core sinh lược đồ với tên PascalCase; bỏ nháy thì
 # PostgreSQL hạ về chữ thường và không tìm thấy cột nào.
@@ -88,7 +91,7 @@ async def kiem_tra_san_sang(engine: AsyncEngine) -> None:
         await conn.execute(text(CAU_KIEM_TRA))
 
 
-async def dem_van_ban(engine: AsyncEngine, tenant_id: uuid.UUID | None) -> int:
+async def dem_van_ban(engine: AsyncEngine, tenant_id: uuid.UUID) -> int:
     """Đếm số văn bản mà tenant được phép thấy."""
     async with engine.connect() as conn:
         ket_qua = await conn.execute(text(CAU_DEM), {"tenant_id": tenant_id})
@@ -97,7 +100,7 @@ async def dem_van_ban(engine: AsyncEngine, tenant_id: uuid.UUID | None) -> int:
 
 async def lay_van_ban(
     engine: AsyncEngine,
-    tenant_id: uuid.UUID | None,
+    tenant_id: uuid.UUID,
     document_id: uuid.UUID,
 ) -> VanBan | None:
     """Lấy một văn bản theo id, hoặc ``None`` nếu không có hoặc tenant không được xem.
@@ -126,7 +129,7 @@ async def lay_van_ban(
 
 async def liet_ke_van_ban(
     engine: AsyncEngine,
-    tenant_id: uuid.UUID | None,
+    tenant_id: uuid.UUID,
     limit: int,
     offset: int,
 ) -> list[VanBan]:

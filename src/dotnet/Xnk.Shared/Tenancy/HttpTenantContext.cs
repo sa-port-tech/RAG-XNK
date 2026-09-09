@@ -23,9 +23,19 @@ public sealed class HttpTenantContext(IHttpContextAccessor httpContextAccessor) 
         {
             string? raw = _httpContextAccessor.HttpContext?.User.FindFirst(TenantClaims.TenantId)?.Value;
 
-            // Claim thiếu hoặc không phải GUID đều cho ra null — tức là "chỉ thấy phần
-            // dùng chung". Không ném exception ở đây: một token méo phải bị chặn ở tầng
-            // xác thực, và nếu nó lọt qua được thì mất quyền xem vẫn tốt hơn là 500.
+            // null ở đây nghĩa là "request này không có người dùng đã xác thực" — ví dụ
+            // healthcheck, hoặc một endpoint AllowAnonymous. Global query filter đọc null
+            // là "chỉ thấy tài liệu dùng chung", đúng ngữ nghĩa cần cho những chỗ đó.
+            //
+            // Nó KHÔNG còn nghĩa là "đã xác thực nhưng thiếu claim tenant". Trường hợp ấy
+            // bị chặn sớm hơn, ở JwtAuthenticationExtensions.CoDuClaimBatBuoc: token thiếu
+            // `tenant_id` hoặc mang `tenant_id` không phải GUID đều bị từ chối bằng 401.
+            //
+            // Vì sao phải chặn ở đó chứ không ở đây: chỗ này không có đường nào báo lỗi.
+            // Trả null là câu trả lời hợp lệ với người gọi, nên một token hỏng sẽ cho ra
+            // 200 kèm danh sách ngắn hơn người dùng tưởng — an toàn nhưng im lặng, và cái
+            // im lặng đó mới là vấn đề. Vẫn giữ TryParse để phòng thân: một ngày nào đó có
+            // người đăng ký ITenantContext ở nơi chưa qua middleware xác thực.
             return Guid.TryParse(raw, out Guid tenantId) ? tenantId : null;
         }
     }

@@ -91,10 +91,46 @@ def _settings(request: Request) -> Settings:
     return settings
 
 
-router = APIRouter(prefix=PATH_PREFIX, tags=["health"])
+def tenant_hien_tai(
+    request: Request, settings: Annotated[Settings, Depends(_settings)]
+) -> uuid.UUID:
+    """Tenant của người gọi, hoặc 401.
+
+    Đây là **cách duy nhất** một handler được biết tenant, và nó gắn ở cấp router chứ không
+    ở từng hàm — xem ``router_can_xac_thuc``.
+    """
+    return tenant_tu_request(
+        request, settings.jwt_issuer, settings.jwt_audience, settings.jwt_signing_key
+    )
 
 
-@router.get("/health/live")
+# HAI router, và sự khác nhau giữa chúng là điều quan trọng nhất trong file này.
+#
+# `router_cong_khai` phục vụ healthcheck: ALB và `smoke_test.sh` gọi chúng mà không có
+# token, nên chúng PHẢI ẩn danh.
+#
+# `router_can_xac_thuc` mang `dependencies=[Depends(tenant_hien_tai)]`, nghĩa là **mọi**
+# route gắn vào nó đều đã qua kiểm token trước khi thân hàm chạy — kể cả route mà người
+# viết quên nghĩ tới chuyện xác thực.
+#
+# Trước đây chỉ có một router và mỗi handler tự gọi `tenant_tu_request(...)` trong thân
+# hàm. Cách đó đúng khi người viết nhớ, và một biện pháp bảo vệ phải NHỚ mới có tác dụng
+# thì nó là một thói quen, không phải một biện pháp. Đo được: ngày 09/09/2026, hai mươi
+# tư giờ sau khi review nêu đúng điều này, một route mới (`GET /documents/{document_id}`)
+# được thêm theo đúng khuôn cũ. Lần đó người viết nhớ. Không có gì bảo đảm lần sau.
+#
+# Thêm route công khai thì phải gắn vào `router_cong_khai` — một việc CÓ Ý THỨC, tên router
+# nói rõ hậu quả. Đó là chiều đúng của mặc định: quên thì được bảo vệ, chứ không phải quên
+# thì mở toang.
+router_cong_khai = APIRouter(prefix=PATH_PREFIX, tags=["health"])
+router_can_xac_thuc = APIRouter(
+    prefix=PATH_PREFIX,
+    tags=["documents"],
+    dependencies=[Depends(tenant_hien_tai)],
+)
+
+
+@router_cong_khai.get("/health/live")
 def live() -> HealthStatus:
     """Tiến trình còn sống hay không.
 
@@ -105,7 +141,7 @@ def live() -> HealthStatus:
     return HealthStatus(status="live", service=SERVICE_NAME)
 
 
-@router.get("/health/ready")
+@router_cong_khai.get("/health/ready")
 async def ready(engine: Annotated[AsyncEngine, Depends(_engine)]) -> JSONResponse:
     """Sẵn sàng nhận lưu lượng hay chưa.
 
@@ -136,11 +172,10 @@ async def ready(engine: Annotated[AsyncEngine, Depends(_engine)]) -> JSONRespons
     )
 
 
-@router.get("/documents", tags=["documents"])
+@router_can_xac_thuc.get("/documents")
 async def liet_ke_van_ban(
-    request: Request,
     engine: Annotated[AsyncEngine, Depends(_engine)],
-    settings: Annotated[Settings, Depends(_settings)],
+    tenant_id: Annotated[uuid.UUID, Depends(tenant_hien_tai)],
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=KICH_THUOC_TRANG_TOI_DA)] = KICH_THUOC_TRANG_MAC_DINH,
 ) -> TrangKetQua:
@@ -150,11 +185,11 @@ async def liet_ke_van_ban(
     nằm trong câu SQL ở `retrieval/db.py` (ADR-012). Thêm một bộ lọc nữa ở đây là **có
     hại**, không phải thừa: nó tạo ấn tượng rằng lọc là việc của tầng ứng dụng, và endpoint
     tiếp theo sẽ được viết với niềm tin đó rồi quên mất một chỗ.
-    """
-    tenant_id = tenant_tu_request(
-        request, settings.jwt_issuer, settings.jwt_audience, settings.jwt_signing_key
-    )
 
+    Xác thực cũng không nằm trong hàm này, và cũng vì lý do ấy: nó ở
+    ``router_can_xac_thuc``. ``tenant_id`` đến qua ``Depends`` — hàm nhận kết quả, không
+    nhận trách nhiệm đi lấy nó.
+    """
     tong = await db.dem_van_ban(engine, tenant_id)
     ban_ghi = await db.liet_ke_van_ban(
         engine, tenant_id, limit=page_size, offset=(page - 1) * page_size
@@ -178,12 +213,11 @@ async def liet_ke_van_ban(
     )
 
 
-@router.get("/documents/{document_id}", tags=["documents"])
+@router_can_xac_thuc.get("/documents/{document_id}")
 async def lay_van_ban(
     document_id: uuid.UUID,
-    request: Request,
     engine: Annotated[AsyncEngine, Depends(_engine)],
-    settings: Annotated[Settings, Depends(_settings)],
+    tenant_id: Annotated[uuid.UUID, Depends(tenant_hien_tai)],
 ) -> VanBanTomTat:
     """Lấy một văn bản theo id.
 
@@ -192,10 +226,6 @@ async def lay_van_ban(
     người gọi rằng id đó CÓ tồn tại, chỉ là không xem được — rò rỉ sự tồn tại của dữ liệu
     tenant khác qua một kênh không phải nội dung.
     """
-    tenant_id = tenant_tu_request(
-        request, settings.jwt_issuer, settings.jwt_audience, settings.jwt_signing_key
-    )
-
     v = await db.lay_van_ban(engine, tenant_id, document_id)
     if v is None:
         raise HTTPException(status_code=404, detail="document not found")
@@ -236,7 +266,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         openapi_url=f"{PATH_PREFIX}/openapi.json",
         lifespan=vong_doi,
     )
-    app.include_router(router)
+    app.include_router(router_cong_khai)
+    app.include_router(router_can_xac_thuc)
     return app
 
 
