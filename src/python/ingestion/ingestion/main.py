@@ -6,7 +6,7 @@ Hợp đồng vận hành (`.github/services.json` + `.github/scripts/smoke_test
 * healthcheck `/ingestion/health/ready`
 
 Mọi route nằm dưới tiền tố `/ingestion` vì ALB định tuyến theo tiền tố nhưng **không cắt
-tiền tố** trước khi chuyển tiếp. Xem ADR-0005.
+tiền tố** trước khi chuyển tiếp. Xem ADR-013.
 
 Ghi chú ranh giới: ingestion **không** nối thẳng database. Nó ghi qua API của
 corpus-service (docs/00 §4.2). Nếu một PR sau này thêm chuỗi kết nối vào service này,

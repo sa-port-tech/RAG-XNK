@@ -41,7 +41,7 @@ public sealed class CorpusDbContext(
 
         // Extension pgvector là phạm vi TOÀN DATABASE, không thuộc riêng schema nào.
         // Khai ở đây vì migration của corpus hiện là migration duy nhất; các bảng vector
-        // thật sự thuộc quyền của service retrieval (ADR-0004).
+        // thật sự thuộc quyền của service retrieval (ADR-012).
         modelBuilder.HasPostgresExtension("vector");
 
         modelBuilder.Entity<Document>(entity =>

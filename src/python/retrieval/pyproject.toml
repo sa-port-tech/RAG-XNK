@@ -1,5 +1,5 @@
 # retrieval — embedding, hybrid search BM25 + vector, lọc hiệu lực, rerank.
-# Sở hữu quyền ĐỌC `corpus` và ĐỌC-GHI `vector` (ADR-0004).
+# Sở hữu quyền ĐỌC `corpus` và ĐỌC-GHI `vector` (ADR-012).
 #
 # Công cụ (ruff/mypy/pytest) khai ở ../pyproject.toml, không lặp lại ở đây.
 

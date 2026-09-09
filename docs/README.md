@@ -47,7 +47,7 @@
 | 18 | [Dựng lại hạ tầng GitHub từ đầu](18-dung-lai-tu-dau.md) | ✅ | DevOps | Sprint 0 |
 | 19 | [Kế hoạch hoàn thiện skeleton chạy local](19-ke-hoach-skeleton-local.md) | ✅ | Tech Lead | E1-11 |
 | 20 | [Hiện trạng đường ống hỏi–đáp](20-hien-trang-duong-ong-hoi-dap.md) | ✅ | Tech Lead | Cập nhật khi E2–E4 tiến |
-| — | [ADR — Architecture Decision Records](adr/) | ✅ 009–016 | Tech Lead | Liên tục |
+| — | [ADR — Architecture Decision Records](adr/) | 🟡 12/16 — thiếu 006, 007 (chưa quyết); 004, 005 đã quyết dưới số khác | Tech Lead | Liên tục |
 | — | Báo cáo eval mỗi sprint | ⬜ | AI Engineer | Cuối mỗi sprint |
 
 ---

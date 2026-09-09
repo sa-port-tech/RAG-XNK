@@ -9,7 +9,7 @@ Vì sao mọi route nằm dưới tiền tố `/retrieval` thay vì dùng ``root
 ALB định tuyến theo tiền tố đường dẫn nhưng **không cắt tiền tố** trước khi chuyển tiếp,
 nên ứng dụng nhận nguyên `/retrieval/...`. Gắn tiền tố thẳng vào router là cách duy nhất
 đúng trong cả ba môi trường — chạy trực tiếp lúc dev, sau ALB, và trong test — mà không
-phụ thuộc vào hành vi cắt đường dẫn của một lớp proxy nào đó. Xem ADR-0005.
+phụ thuộc vào hành vi cắt đường dẫn của một lớp proxy nào đó. Xem ADR-013.
 
 Ranh giới dữ liệu: service này ĐỌC trực tiếp schema ``corpus`` (ngoại lệ ADR-012) và sẽ
 đọc-ghi schema ``vector`` khi epic E3 bắt đầu. Nó **không** ghi vào ``corpus``, và vai trò
@@ -44,7 +44,7 @@ class HealthStatus(BaseModel):
     """Thân phản hồi của healthcheck.
 
     Có kiểu tường minh thay vì trả dict để OpenAPI sinh ra lược đồ thật — quyết định
-    code-first ở ADR-0003 chỉ có giá trị khi tài liệu sinh ra mô tả đúng cái đang chạy.
+    code-first ở ADR-011 chỉ có giá trị khi tài liệu sinh ra mô tả đúng cái đang chạy.
     """
 
     status: str

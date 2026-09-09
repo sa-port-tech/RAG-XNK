@@ -206,7 +206,7 @@ jobs:
       # động: một service có nhiều replica, và nhiều replica cùng chạy migration lúc boot
       # sẽ tranh nhau. Cũng không chạy từ runner của GitHub Actions — làm vậy buộc phải mở
       # RDS cho dải IP của GitHub, trái với docs/00 §12 (service nằm trong private subnet).
-      # Xem ADR-0002.
+      # Xem ADR-010.
       - name: Kiểm tra đã có hạ tầng migration chưa
         id: guard
         env:

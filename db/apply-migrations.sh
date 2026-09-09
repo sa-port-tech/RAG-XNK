@@ -4,7 +4,7 @@
 #
 # Vì sao tồn tại thay vì gọi `dotnet ef database update`: ba service Python và mọi công cụ
 # vận hành đều cần đúng lược đồ này, mà không nên phải cài SDK .NET để có nó. EF Core sở
-# hữu lược đồ, nhưng **file .sql mới là hợp đồng liên ngôn ngữ** (ADR-0002).
+# hữu lược đồ, nhưng **file .sql mới là hợp đồng liên ngôn ngữ** (ADR-010).
 #
 # Script sinh ra ở chế độ idempotent nên chạy lại nhiều lần là an toàn.
 #

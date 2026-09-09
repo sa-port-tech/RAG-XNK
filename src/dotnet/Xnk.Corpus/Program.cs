@@ -29,7 +29,7 @@ WebApplication app = builder.Build();
 // ALB định tuyến theo tiền tố `/corpus/*` nhưng KHÔNG cắt tiền tố trước khi chuyển tiếp,
 // nên ứng dụng nhận nguyên `/corpus/health/ready`. UsePathBase cắt tiền tố ra và đặt vào
 // PathBase, nhờ đó route khai báo là `/health/ready` vẫn khớp — ở cả sau ALB lẫn khi
-// chạy trực tiếp lúc dev. Xem ADR-0005.
+// chạy trực tiếp lúc dev. Xem ADR-013.
 //
 // Tiền tố lấy từ trường `name` của service trong .github/services.json; đổi một bên mà
 // quên bên kia thì smoke test sau deploy sẽ đỏ.
@@ -41,7 +41,7 @@ app.UseAuthorization();
 app.MapXnkHealthEndpoints();
 app.MapDocumentsEndpoints();
 
-// Tài liệu OpenAPI sinh từ mã (ADR-0003) tại /corpus/openapi/v1.json.
+// Tài liệu OpenAPI sinh từ mã (ADR-011) tại /corpus/openapi/v1.json.
 app.MapOpenApi();
 
 await app.RunAsync();

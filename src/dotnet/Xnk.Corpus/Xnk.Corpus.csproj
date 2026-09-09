@@ -24,7 +24,7 @@
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" />
     <!--
       Chỉ dùng bộ sinh OpenAPI có sẵn trong ASP.NET Core 9 (MapOpenApi → /openapi/v1.json),
-      không thêm Swashbuckle. Quyết định code-first ở ADR-0003 chỉ cần TÀI LIỆU hợp đồng,
+      không thêm Swashbuckle. Quyết định code-first ở ADR-011 chỉ cần TÀI LIỆU hợp đồng,
       không cần thêm một giao diện web và một phụ thuộc phải theo kịp từng bản .NET.
     -->
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />

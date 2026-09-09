@@ -6,7 +6,7 @@ Hợp đồng vận hành (`.github/services.json` + `.github/scripts/smoke_test
 * healthcheck `/generation/health/ready`
 
 Mọi route nằm dưới tiền tố `/generation` vì ALB định tuyến theo tiền tố nhưng **không cắt
-tiền tố** trước khi chuyển tiếp. Xem ADR-0005.
+tiền tố** trước khi chuyển tiếp. Xem ADR-013.
 
 Ghi chú ranh giới: generation **không sở hữu schema nào** (docs/00 §4.2). Nó nhận ngữ
 cảnh đã truy xuất, gọi mô hình ngôn ngữ, áp guardrail, trả câu trả lời kèm trích dẫn.
