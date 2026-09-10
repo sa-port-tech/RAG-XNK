@@ -28,7 +28,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import urllib.robotparser
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 try:
@@ -56,14 +56,14 @@ TIMEOUT_GIAY = 60
 TRANG_THAI_DUOC_TAI = {"da_xac_minh", "da_tai", "da_doi_chieu"}
 
 
-class LoiThuThap(RuntimeError):
+class ThuThapError(RuntimeError):
     pass
 
 
 def lay_user_agent() -> str:
     email = os.environ.get("XNK_CRAWL_EMAIL", "").strip()
     if not email or "@" not in email:
-        raise LoiThuThap(
+        raise ThuThapError(
             "Chưa đặt XNK_CRAWL_EMAIL.\n"
             "docs/00 §9.1 và docs/05 §4 yêu cầu User-Agent định danh kèm email liên hệ.\n"
             "Đặt email liên hệ thật của tổ chức rồi chạy lại:\n"
@@ -74,7 +74,7 @@ def lay_user_agent() -> str:
 
 def doc_yaml(duong_dan: Path) -> dict:
     if not duong_dan.exists():
-        raise LoiThuThap(f"Không tìm thấy {duong_dan.relative_to(GOC)}")
+        raise ThuThapError(f"Không tìm thấy {duong_dan.relative_to(GOC)}")
     with duong_dan.open(encoding="utf-8") as f:
         return yaml.safe_load(f) or {}
 
@@ -193,7 +193,9 @@ def chon_ban_ghi(registry: dict, ma_loc: str | None) -> tuple[list[dict], list[t
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("--thuc-thi", action="store_true", help="tải thật (mặc định là dry-run)")
     ap.add_argument("--ma", help="chỉ xử lý một ma_van_ban")
     args = ap.parse_args()
@@ -262,7 +264,7 @@ def main() -> int:
         hang_doi.cho(urllib.parse.urlsplit(url).netloc)
         try:
             digest, kich_thuoc = tai_mot(url, dich, user_agent)
-        except Exception as e:  # noqa: BLE001 — báo lỗi rõ ràng rồi đi tiếp
+        except Exception as e:
             print(f"  ✗ {ma:<24} lỗi tải: {e}")
             so_bo += 1
             continue
@@ -272,13 +274,13 @@ def main() -> int:
             "sha256": digest,
             "kich_thuoc_byte": kich_thuoc,
             "nguon_url": url,
-            "tai_luc": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "tai_luc": datetime.now(UTC).isoformat(timespec="seconds"),
         }
         print(f"  ✓ {ma:<24} {kich_thuoc:>10,} byte  sha256={digest[:16]}…")
         so_tai += 1
 
     if args.thuc_thi and so_tai:
-        lock["cap_nhat_lan_cuoi"] = datetime.now(timezone.utc).date().isoformat()
+        lock["cap_nhat_lan_cuoi"] = datetime.now(UTC).date().isoformat()
         with LOCK.open("w", encoding="utf-8") as f:
             f.write(
                 "# SINH TỰ ĐỘNG bởi tools/corpus/thu_thap.py — đừng sửa tay.\n"
@@ -298,5 +300,5 @@ def main() -> int:
 if __name__ == "__main__":
     try:
         sys.exit(main())
-    except LoiThuThap as e:
+    except ThuThapError as e:
         sys.exit(f"\n{e}")

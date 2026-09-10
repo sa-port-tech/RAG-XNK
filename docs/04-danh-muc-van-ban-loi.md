@@ -34,6 +34,20 @@ Quy ước đặt tên, phân loại và vòng đời bản ghi: [`corpus/README
 
 **Tài liệu này vẫn là nơi giải thích *vì sao*; registry là nơi giữ *dữ liệu*.** Khi hai bên lệch nhau, registry là bản đúng về dữ liệu và tài liệu này phải được cập nhật theo.
 
+> ⚠️ **Ba file registry hiện phần lớn còn trống, và điều đó là đúng trạng thái — không phải lỗi.**
+> Đo ngày 10/09/2026 bằng `kiem_tra.py`: **2/9 hạng mục đạt**.
+>
+> | File | Hiện trạng |
+> |---|---|
+> | `van-ban.yaml` | 17 bản ghi, **7** chốt được số hiệu, 10 slot mới có `mo_ta_slot` |
+> | `quan-he-sua-doi.yaml` | 4 quan hệ, `loai` và `pham_vi_anh_huong` còn trống, `da_xac_minh: false` |
+> | `co-quan-ban-hanh.yaml` | 6 dòng `can_tra` đầy đủ; bản ghi `anh_xa` còn 7/8 trường trống |
+>
+> Phần trống là **dữ kiện chưa có**, không phải ô cần điền cho đẹp: xác minh hiệu lực và
+> quan hệ sửa đổi trên vbpl.vn là thẩm quyền của chuyên gia XNK (§8), và điền hộ chính là
+> thứ `docs/00` §10.3 gọi là nguồn gốc của trích dẫn sai. Trạng thái đọc bằng
+> `kiem_tra.py`, không đọc bằng cách nhìn file.
+
 ---
 
 ## 1. Tiêu chí chọn 15 văn bản

@@ -23,6 +23,15 @@ cap_nhat_lan_cuoi: 2026-08-17
 nguon_xac_minh_bat_buoc: "https://vbpl.vn"
 
 # Tiêu chí bộ 15 văn bản — docs/04 §1. Script kiem_tra.py đối chiếu với các cờ này.
+# ⚠️ `tieu_chi` là ĐÍCH PHẢI ĐẠT, không phải mô tả hiện trạng.
+#
+# `so_van_ban_muc_tieu: 15` nghĩa là "cần 15 văn bản chốt được số hiệu", không phải "đang
+# có 15". Hiện trạng đo bằng `python tools/corpus/kiem_tra.py`, và tại 10/09/2026 là
+# **17 bản ghi / 7 chốt được số hiệu / 10 slot mới chỉ có mô tả**.
+#
+# Ghi rõ ở đây vì review 03/09 đọc con số này thành một lời khẳng định về hiện trạng rồi
+# đối chiếu với seed (7 dòng) và kết luận file đang nói dối. Một trường tên là "mục tiêu"
+# vẫn bị đọc nhầm nếu không có gì bên cạnh nói hiện trạng là bao nhiêu.
 tieu_chi:
   so_van_ban_muc_tieu: 15
   so_cap_sua_doi_toi_thieu: 2

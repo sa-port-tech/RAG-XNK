@@ -40,6 +40,7 @@ jobs:
               - 'src/python/**'
               - '.github/workflows/ci-python.yml'
               - '.github/quality-gates.yml'
+              - 'tools/**/*.py'
               # Bộ test của retrieval áp chính db/migrations/*.sql lên một database trống,
               # nên nó cũng là phép kiểm chứng hợp đồng liên ngôn ngữ ở ADR-010. Đổi lược
               # đồ mà không chạy lại nhóm test này là bỏ qua đúng chỗ nó có ích nhất.
@@ -55,6 +56,9 @@ jobs:
               - 'src/python/pyproject.toml'
               - 'src/python/uv.lock'
               - '.github/workflows/ci-python.yml'
+            cong_cu:
+              - 'tools/**/*.py'
+              - 'src/python/pyproject.toml'
 
       - name: Dựng matrix service
         id: matrix
@@ -183,10 +187,46 @@ jobs:
           path: artifacts
           retention-days: 14
 
+  cong-cu:
+    name: tools · ruff
+    needs: changes
+    if: ${{ needs.changes.outputs.cong_cu == 'true' }}
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src/python
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: "src/python/**/pyproject.toml"
+
+      - name: Cài Python và phụ thuộc
+        run: uv sync --all-extras --dev
+
+      # Vì sao có job này: `tools/` nằm NGOÀI ma trận của job `quality` (ma trận đó dựng
+      # từ .github/services.json, và tools không phải service). Hệ quả trước đây là hơn
+      # một nghìn dòng Python không có cổng nào — trong đó `sinh_seed.py` sinh ra
+      # `db/seed/*.sql` và `render_nginx.py` sinh ra cấu hình định tuyến, tức là mã không
+      # được kiểm lại đang sinh ra artifact được commit.
+      #
+      # ⚠️ CHƯA có mypy ở đây. Chạy `mypy tools/` hiện ra 15 lỗi: thiếu tham số kiểu cho
+      # generic (`dict` trần), thiếu chú thích kiểu trả về ở hai hàm, và thiếu stub
+      # `types-PyYAML`. Đó là việc đo được và có kích thước, không phải việc vô hạn — nhưng
+      # nó là một story riêng, không phải một dòng thêm vào PR khung. Ghi ra đây để nó là
+      # một lỗ hổng CÓ ĐỊA CHỈ.
+      - name: ruff check
+        run: uv run ruff check --output-format=github ../../tools
+
+      - name: ruff format
+        run: uv run ruff format --check --diff ../../tools
+
   ci-python:
     # Context được khai báo required trong ruleset. Luôn chạy, luôn báo cáo.
     name: ci-python
-    needs: [changes, quality]
+    needs: [changes, quality, cong-cu]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

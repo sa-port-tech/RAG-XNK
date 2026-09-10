@@ -33,8 +33,8 @@ import json
 import re
 import shutil
 import subprocess
-import tempfile
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -97,7 +97,7 @@ def _khoi_location(ten: str, cong: int) -> str:
         "        proxy_set_header X-Real-IP $remote_addr;\n"
         "        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;\n"
         "        proxy_set_header X-Forwarded-Proto $scheme;\n"
-        # Thời gian chờ dài hơn mặc định: buổi hỏi–đáp đi qua LLM chạy trên máy dev có thể
+        # Thời gian chờ dài hơn mặc định: buổi hỏi-đáp đi qua LLM chạy trên máy dev có thể
         # mất hàng chục giây. 60s đủ rộng mà vẫn cắt được kết nối treo thật.
         "        proxy_read_timeout 60s;\n"
     )
@@ -217,7 +217,9 @@ def kiem_bang_nginx(duong_dan) -> str | None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument(
         "--services",
         type=Path,

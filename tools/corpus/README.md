@@ -4,9 +4,30 @@ Hai script phục vụ story `E2-03` (tải 15 văn bản, lưu S3 kèm `sha256`
 checklist gỡ chặn Sprint 1 của [`docs/04`](../../docs/04-danh-muc-van-ban-loi.md) §7.
 
 Đặt ở `tools/` chứ không ở `src/python/` là có chủ đích: đây là công cụ vận hành thủ công
-của Sprint 0–1, không phải mã chạy trong service. `src/python/` chịu cổng ruff + mypy +
-coverage của `ci-python.yml` theo `.github/services.json`; nhét công cụ một lần vào đó chỉ
-làm nhiễu ma trận build mà không đổi lấy gì.
+của Sprint 0–1, không phải mã chạy trong service. Ma trận của `ci-python.yml` dựng từ
+`.github/services.json`, và tools không phải service — nhét chúng vào đó chỉ làm nhiễu ma
+trận build mà không đổi lấy gì.
+
+**Nhưng "ngoài ma trận" từng bị hiểu thành "ngoài mọi cổng", và đó là một lỗ hổng thật.**
+Review 03/09/2026 đếm được **1.114 dòng Python dưới `tools/` không có cổng nào** — trong
+đó `sinh_seed.py` sinh ra `db/seed/*.sql` và `render_nginx.py` sinh ra cấu hình định tuyến
+của nginx. Mã không được kiểm lại đang sinh ra artifact được commit.
+
+Từ 10/09/2026 có job `tools · ruff` trong `ci-python.yml`:
+
+| Cổng | Trạng thái |
+|---|---|
+| `ruff check` | ✅ bật |
+| `ruff format --check` | ✅ bật |
+| `mypy` | ❌ **chưa** — chạy thử ra 15 lỗi: thiếu tham số kiểu cho generic (`dict` trần), thiếu chú thích kiểu trả về ở hai hàm, thiếu stub `types-PyYAML`. Việc có kích thước đo được, cần một story riêng |
+| coverage | ❌ chưa — các script này chưa có test |
+
+**Chạy bằng Python 3.12**, không phải `python` mặc định của máy: `thu_thap.py` dùng
+`datetime.UTC` (3.11+). Cách chắc chắn nhất là mượn interpreter của workspace:
+
+```bash
+cd src/python && uv run python ../../tools/corpus/kiem_tra.py
+```
 
 ---
 

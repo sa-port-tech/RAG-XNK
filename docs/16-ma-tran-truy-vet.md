@@ -142,6 +142,22 @@ Cập nhật cuối mỗi sprint. Cột "Đạt" là số quy tắc đã có đ�
 | Giữ danh tính qua nhiều chặng | `Xnk.Chat/Http/ForwardAuthorizationHandler.cs` |
 | Test | `TenantIsolationTests` (SQL) · `DocumentsApiTests` (HTTP) · `test_documents.py` (Python) · `ChatApiTests` (chuyển tiếp token) |
 
+**Ô "1/11" này từng dựa trên một assertion luôn đúng.** Review 03/09/2026 chỉ ra:
+`TenantIsolationTests` khẳng định `Contains("TenantId", sql)` trên **toàn bộ** câu SQL, mà
+`TenantId` nằm sẵn trong danh sách SELECT của mọi truy vấn trên bảng đó — gỡ hẳn
+`HasQueryFilter` đi thì test vẫn xanh. Một cổng như vậy không chứng minh gì, và độ phủ
+nâng lên nhờ nó là độ phủ trên giấy.
+
+Sửa ở `#11` (10/09/2026), và bằng chứng cho ô này nay là:
+
+| Phép kiểm | Nó hỏng khi nào |
+|---|---|
+| Assertion chỉ soi phần **sau** `WHERE` | Bộ lọc rời khỏi mệnh đề WHERE |
+| So câu SQL có lọc với chính nó khi `IgnoreQueryFilters()` | Bộ lọc không còn đóng góp gì vào SQL — không phụ thuộc cách EF đặt tên tham số |
+| `ExecuteDeleteAsync` của tenant A trên bản ghi của B trả 0 dòng | Ranh giới chỉ áp cho đường ĐỌC |
+| Token thiếu `tenant_id` bị từ chối (401) ở cả .NET và Python | Một phía nhận thứ phía kia từ chối |
+| `dem_test_trx.py` đếm theo lớp sở hữu BR-11 | Ai đó bỏ `--filter` ở `ci-dotnet.yml` (đo thật: cách cũ đếm 87, cách mới đếm 6) |
+
 Cột "BR có chỉ số" vẫn là 0/11: chỉ số **0 rò rỉ / 50 truy vấn chéo** cần bộ đo của `E7`,
 chưa tồn tại. Có test không có nghĩa là có số đo — hai cột khác nhau ở đúng chỗ đó.
 

@@ -29,6 +29,21 @@ public sealed class PasswordHasherTests
     {
         // Muối ngẫu nhiên. Nếu hai chuỗi giống nhau nghĩa là muối đã thành cố định ở đâu
         // đó, và khi ấy một bảng tra dựng sẵn phá được toàn bộ bảng người dùng cùng lúc.
+        //
+        // ⚠️ `tools/local/sinh_seed.py` CÓ dùng muối suy từ email, và đó KHÔNG phải vi
+        // phạm luật mà test này khoá. Hai chỗ, hai mục đích:
+        //
+        //   · `PasswordHasher.Bam` — đường mà người dùng THẬT đi qua. Muối phải ngẫu
+        //     nhiên, và test này canh đúng điều đó.
+        //   · `sinh_seed.py` — sinh bốn tài khoản mẫu cho máy local, mật khẩu in sẵn
+        //     trong header file seed. Muối suy từ email để đầu ra ỔN ĐỊNH, nhờ đó
+        //     `sinh_seed.py --kiem-tra` so được file cũ với file mới; muối ngẫu nhiên
+        //     làm mọi lần chạy sinh ra một diff, và khi ấy phép kiểm "seed đã lệch
+        //     registry chưa" mất hết ý nghĩa. Một bảng tra dựng sẵn cho một mật khẩu đã
+        //     công bố thì không phá được gì.
+        //
+        // Ghi ra đây vì hai chỗ này nhìn riêng thì mâu thuẫn, và người đọc một chỗ sẽ
+        // "sửa" chỗ kia.
         string a = PasswordHasher.Bam("cung-mot-mat-khau", soVong: 1_000);
         string b = PasswordHasher.Bam("cung-mot-mat-khau", soVong: 1_000);
 

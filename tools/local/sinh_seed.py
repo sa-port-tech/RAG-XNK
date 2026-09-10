@@ -75,9 +75,17 @@ TENANT_LOCAL = [
 # gì khi có dữ liệu RIÊNG của tenant để mà lọc — 15 văn bản quy phạm pháp luật đều dùng
 # chung (`TenantId IS NULL`) nên tự chúng không phân biệt được hai tenant.
 SOP_LOCAL = [
-    ("noi-bo", "SOP-NB-01", "[MẪU LOCAL] Quy trình nội bộ: kiểm tra bộ chứng từ trước khi mở tờ khai"),
+    (
+        "noi-bo",
+        "SOP-NB-01",
+        "[MẪU LOCAL] Quy trình nội bộ: kiểm tra bộ chứng từ trước khi mở tờ khai",
+    ),
     ("noi-bo", "SOP-NB-02", "[MẪU LOCAL] Quy trình nội bộ: xử lý tờ khai luồng đỏ"),
-    ("b2b-khach-hang", "SOP-KH-01", "[MẪU LOCAL] Hướng dẫn khách hàng: chuẩn bị hồ sơ nhập khẩu hàng bách hoá"),
+    (
+        "b2b-khach-hang",
+        "SOP-KH-01",
+        "[MẪU LOCAL] Hướng dẫn khách hàng: chuẩn bị hồ sơ nhập khẩu hàng bách hoá",
+    ),
     ("b2b-khach-hang", "SOP-KH-02", "[MẪU LOCAL] Hướng dẫn khách hàng: khai báo trị giá hải quan"),
 ]
 
@@ -210,7 +218,14 @@ ON CONFLICT ("Id") DO NOTHING;
     return noi_dung, len(dong), bo_qua
 
 
-def sinh_sop_tenant() -> str:
+def sinh_sop_tenant(so_dung_chung: int) -> str:
+    """Sinh seed SOP riêng của từng tenant.
+
+    ``so_dung_chung`` truyền vào chứ không viết cứng trong chuỗi: header của file này từng
+    ghi "Toàn bộ 16 văn bản ở seed 0001" trong khi seed 0001 chèn **7**. Con số ấy đúng ở
+    một thời điểm nào đó rồi ở lại sau khi registry đổi — và vì cả hai file đều do script
+    này sinh ra, không có lý do gì để một trong hai phải nhớ bằng tay.
+    """
     dong: list[str] = []
     for slug, so_hieu, trich_yeu in SOP_LOCAL:
         khoa = uuid.uuid5(NS_VAN_BAN, f"sop-local:{slug}:{so_hieu}")
@@ -230,8 +245,8 @@ def sinh_sop_tenant() -> str:
 -- trích yếu mang tiền tố [MẪU LOCAL] để không ai nhầm khi nhìn thấy trong giao diện.
 --
 -- Vì sao cần: bộ lọc cách ly tenant chỉ chứng minh được điều gì khi có dữ liệu RIÊNG của
--- tenant. Toàn bộ 16 văn bản ở seed 0001 đều dùng chung (TenantId IS NULL), nên tự chúng
--- không phân biệt được hai tenant.
+-- tenant. Toàn bộ {so_dung_chung} văn bản ở seed 0001 đều dùng chung (TenantId IS NULL),
+-- nên tự chúng không phân biệt được hai tenant.
 --
 -- Khoá tenant (suy ra bằng UUIDv5 từ slug, xem tools/local/sinh_seed.py):
 {bang_tenant}
@@ -270,8 +285,7 @@ def bam_mat_khau(mat_khau: str, email: str) -> str:
 def sinh_identity() -> str:
     """Sinh seed cho schema ``identity``: tenant và người dùng."""
     dong_tenant = ",\n".join(
-        f"    ('{ma_tenant(slug)}', '{_thoat_chuoi(slug)}', "
-        f"'{_thoat_chuoi(ten)}', '{loai}')"
+        f"    ('{ma_tenant(slug)}', '{_thoat_chuoi(slug)}', '{_thoat_chuoi(ten)}', '{loai}')"
         for slug, ten, loai in TENANT_LOCAL
     )
 
@@ -334,7 +348,7 @@ def main() -> int:
     sql_chung, so_dua_vao, so_bo_qua = sinh_van_ban_chung(ban_ghi)
     ket_qua = {
         THU_MUC_SEED / "0001_corpus_van_ban_chung.sql": sql_chung,
-        THU_MUC_SEED / "0002_corpus_sop_tenant.sql": sinh_sop_tenant(),
+        THU_MUC_SEED / "0002_corpus_sop_tenant.sql": sinh_sop_tenant(so_dua_vao),
         THU_MUC_SEED / "0003_identity_tenants_users.sql": sinh_identity(),
     }
 

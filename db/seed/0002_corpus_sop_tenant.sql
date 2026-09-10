@@ -4,8 +4,8 @@
 -- trích yếu mang tiền tố [MẪU LOCAL] để không ai nhầm khi nhìn thấy trong giao diện.
 --
 -- Vì sao cần: bộ lọc cách ly tenant chỉ chứng minh được điều gì khi có dữ liệu RIÊNG của
--- tenant. Toàn bộ 16 văn bản ở seed 0001 đều dùng chung (TenantId IS NULL), nên tự chúng
--- không phân biệt được hai tenant.
+-- tenant. Toàn bộ 7 văn bản ở seed 0001 đều dùng chung (TenantId IS NULL),
+-- nên tự chúng không phân biệt được hai tenant.
 --
 -- Khoá tenant (suy ra bằng UUIDv5 từ slug, xem tools/local/sinh_seed.py):
 --   noi-bo           82434b47-80ea-518c-95c3-7b2cc0d19263  (noi_bo)

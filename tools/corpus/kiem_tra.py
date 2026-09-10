@@ -37,6 +37,10 @@ QUAN_HE = THU_MUC / "quan-he-sua-doi.yaml"
 CO_QUAN = THU_MUC / "co-quan-ban-hanh.yaml"
 LOCK = THU_MUC / "tai-ve.lock.yaml"
 
+# Chữ ký của chuyên gia XNK cho hạng mục ⑧. File này KHÔNG có sẵn trong repo — nó xuất
+# hiện khi có người thật ký, và biến mất khỏi ý nghĩa nếu ai đó tạo nó hộ.
+CHU_KY = THU_MUC / "chu-ky-chuyen-gia.yaml"
+
 # docs/00 §9.4 — enum trạng thái hiệu lực. Registry chỉ được dùng đúng các giá trị này.
 TRANG_THAI_HOP_LE = {
     "chua_co_hieu_luc",
@@ -116,7 +120,9 @@ def kiem_tra() -> KetQua:
     for b in da_chot_list:
         ma, so_hieu = b["ma_van_ban"], b["so_hieu"]
         if ma != slug(so_hieu):
-            loi_cau_truc.append(f"{ma}: không khớp quy ước — từ '{so_hieu}' phải ra '{slug(so_hieu)}'")
+            loi_cau_truc.append(
+                f"{ma}: không khớp quy ước — từ '{so_hieu}' phải ra '{slug(so_hieu)}'"
+            )
         if ma in thay:
             loi_cau_truc.append(f"{ma}: trùng ma_van_ban")
         thay[ma] = b
@@ -220,17 +226,58 @@ def kiem_tra() -> KetQua:
     )
 
     # ── §7 ⑧  Chuyên gia ký xác nhận
-    kq.them(
-        False,
-        "⑧ Chuyên gia XNK ký xác nhận (docs/04 §8)",
-        ["ô chữ ký trong docs/04 §8 còn trống — đây là bước thủ công, không tự động hoá được"],
-    )
+    #
+    # Trước đây hạng mục này là hằng `False`. Hệ quả số học: `dat_het` không bao giờ đúng,
+    # nên `main()` không bao giờ tới được `return 0` — trong khi docstring đầu file quảng
+    # cáo "Mã thoát: 0 = đủ điều kiện". Một script chỉ có một kết cục thì nó không trả lời
+    # câu hỏi nào cả; nó chỉ in ra một bảng.
+    #
+    # Nay nó đọc một file chữ ký có thật. File đó KHÔNG nằm sẵn trong repo và script này
+    # cũng không tạo nó: chữ ký do script sinh ra thì không phải chữ ký. Người ký commit
+    # nó, và commit ấy là dấu vết truy được.
+    kq.them(*_kiem_chu_ky())
 
     return kq
 
 
+def _kiem_chu_ky() -> tuple[bool, str, list[str]]:
+    """Đọc chữ ký chuyên gia cho hạng mục ⑧ của docs/04 §7."""
+    nhan = "⑧ Chuyên gia XNK ký xác nhận (docs/04 §8)"
+
+    if not CHU_KY.is_file():
+        return (
+            False,
+            nhan,
+            [
+                f"chưa có {CHU_KY.relative_to(GOC)}",
+                "chuyên gia ký bằng cách commit file đó với: nguoi_ky, ngay_ky, "
+                "pham_vi (danh sách ma_van_ban đã xác minh)",
+            ],
+        )
+
+    try:
+        noi_dung = yaml.safe_load(CHU_KY.read_text("utf-8")) or {}
+    except yaml.YAMLError as loi:
+        return (False, nhan, [f"{CHU_KY.name} không đọc được: {loi}"])
+
+    thieu = [k for k in ("nguoi_ky", "ngay_ky", "pham_vi") if not noi_dung.get(k)]
+    if thieu:
+        return (False, nhan, [f"{CHU_KY.name} thiếu trường: {', '.join(thieu)}"])
+
+    return (
+        True,
+        nhan,
+        [
+            f"{noi_dung['nguoi_ky']} ký ngày {noi_dung['ngay_ky']}, "
+            f"{len(noi_dung['pham_vi'])} văn bản"
+        ],
+    )
+
+
 def main() -> int:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     ap.add_argument("--chi-tiet", action="store_true", help="in đầy đủ chi tiết từng hạng mục")
     args = ap.parse_args()
 

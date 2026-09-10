@@ -20,10 +20,14 @@ POST /chat/ask ──▶ chat (.NET) ──▶ retrieval (Python) ──▶ Post
 
 Đo trên máy dev, mô hình `qwen2.5:0.5b-instruct` chạy CPU:
 
-| Chặng | Thời gian |
-|---|---|
-| `chat` → `retrieval` | ~45 ms |
-| `chat` → `generation` → mô hình | 13–21 s |
+| Chặng | Thời gian | ⚠️ Con số này đo cái gì |
+|---|---|---|
+| `chat` → `retrieval` | ~45 ms | **KHÔNG phải độ trễ retrieval.** Nó đo một `SELECT … ORDER BY "DocumentNumber" LIMIT 10` trên bảng 7 dòng, với **câu hỏi bị bỏ đi**. Không embedding, không tìm kiếm ngữ nghĩa, không rerank, không lọc hiệu lực — xem §3. Retrieval thật sẽ cách con số này nhiều bậc |
+| `chat` → `generation` → mô hình | 13–21 s | Mô hình 0.5B trên CPU của một máy dev. Không suy ra được gì về mô hình thật |
+
+**Đừng trích hai con số này làm baseline.** Cảnh báo nằm ngay trong bảng chứ không ở §3
+phía dưới, vì một con số đứng một mình sẽ bị chép đi mà không kèm hai mươi dòng ngữ cảnh
+của nó — đúng điều review 03/09 nêu.
 
 Toàn bộ độ trễ nằm ở bước sinh chữ. Đó là lý do `chat` **không** thử lại lời gọi
 `generation` (POST, tốn kém) trong khi **có** thử lại `retrieval` (GET, rẻ).
