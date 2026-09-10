@@ -100,7 +100,7 @@ Dùng cho L2, L5, L6. Chín bước, đúng thứ tự, tất cả đều tái s
 4. `Program.cs` gọi đúng bộ đã có: `AddXnkServiceDefaults()` · `AddXnkJwtAuthentication(builder.Configuration)` · `app.UsePathBase("/<ten trong services.json>")` **trước mọi middleware định tuyến** · `UseAuthentication`/`UseAuthorization` · `MapXnkHealthEndpoints()` · `MapOpenApi()`
 5. Health check phụ thuộc gắn tag `ServiceDefaultsExtensions.ReadinessTag` — chỉ readiness, **không** đụng liveness
 6. `appsettings.json` (giá trị rỗng) + `appsettings.Development.json` (giá trị local, khớp `.env.example`)
-7. `Dockerfile` theo mẫu `Xnk.Corpus/Dockerfile`: **build context là gốc repo**, chép `.csproj` trước rồi `restore`, `USER app`, `EXPOSE 8080`, `ENTRYPOINT ["dotnet","Xnk.<Ten>.dll"]` (vì `UseAppHost=false`)
+7. **Không viết Dockerfile mới.** Bốn service API .NET dùng chung `src/dotnet/Dockerfile`, ba service Python dùng chung `src/python/Dockerfile`; chỉ cần thêm `args: { DU_AN: Xnk.<Ten> }` (hoặc `GOI: <gói>`) vào `docker-compose.yml`. Bốn bản sao trước đây khác nhau đúng ở tên project và đã bắt đầu trôi — gộp ngày 10/09/2026
 8. Project test `Xnk.<Ten>.Tests` theo mẫu `Xnk.Corpus.Tests.csproj`; dùng lại `PostgresFixture`/`PostgresCollection` nếu chạm DB
 9. **Không sửa `.github/services.json`** — cả 9 mục đã khai sẵn, chỉ cần đường dẫn tồn tại
 

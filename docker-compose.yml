@@ -152,7 +152,9 @@ services:
     build:
       # Context là GỐC REPO — xem chú thích đầu mỗi Dockerfile.
       context: .
-      dockerfile: src/dotnet/Xnk.IdentityTenant/Dockerfile
+      dockerfile: src/dotnet/Dockerfile
+      args:
+        DU_AN: Xnk.IdentityTenant
     container_name: xnk-identity-tenant
     profiles: ["app", "full"]
     depends_on:
@@ -167,7 +169,9 @@ services:
   corpus:
     build:
       context: .
-      dockerfile: src/dotnet/Xnk.Corpus/Dockerfile
+      dockerfile: src/dotnet/Dockerfile
+      args:
+        DU_AN: Xnk.Corpus
     container_name: xnk-corpus
     profiles: ["app", "full"]
     depends_on:
@@ -182,7 +186,9 @@ services:
   ingestion:
     build:
       context: .
-      dockerfile: src/python/ingestion/Dockerfile
+      dockerfile: src/python/Dockerfile
+      args:
+        GOI: ingestion
     container_name: xnk-ingestion
     profiles: ["app", "full"]
     environment:
@@ -193,7 +199,9 @@ services:
   retrieval:
     build:
       context: .
-      dockerfile: src/python/retrieval/Dockerfile
+      dockerfile: src/python/Dockerfile
+      args:
+        GOI: retrieval
     container_name: xnk-retrieval
     profiles: ["app", "full"]
     depends_on:
@@ -210,7 +218,9 @@ services:
   generation:
     build:
       context: .
-      dockerfile: src/python/generation/Dockerfile
+      dockerfile: src/python/Dockerfile
+      args:
+        GOI: generation
     container_name: xnk-generation
     profiles: ["app", "full"]
     depends_on:
@@ -225,7 +235,9 @@ services:
   chat:
     build:
       context: .
-      dockerfile: src/dotnet/Xnk.Chat/Dockerfile
+      dockerfile: src/dotnet/Dockerfile
+      args:
+        DU_AN: Xnk.Chat
     container_name: xnk-chat
     profiles: ["app", "full"]
     # `chat` gọi retrieval và generation ở mọi câu hỏi, nên nó phải khai hai phụ thuộc đó.
@@ -287,7 +299,9 @@ services:
   workflow-worker:
     build:
       context: .
-      dockerfile: src/dotnet/Xnk.WorkflowWorker/Dockerfile
+      dockerfile: src/dotnet/Dockerfile
+      args:
+        DU_AN: Xnk.WorkflowWorker
     container_name: xnk-workflow-worker
     profiles: ["app", "full"]
     depends_on:

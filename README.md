@@ -162,6 +162,7 @@ có đồ thị hiệu lực. Xem `AREA-STATUS.md` và [`docs/19`](docs/19-ke-ho
 | Loại story | Chép mẫu nào |
 |---|---|
 | Endpoint .NET đọc/ghi dữ liệu | `Xnk.Corpus/Endpoints/DocumentsEndpoints.cs` — route → auth → tenant → EF → DTO → test |
+| Đóng gói một service | **Không viết Dockerfile mới.** `src/dotnet/Dockerfile` và `src/python/Dockerfile` dùng chung, tham số hoá bằng `DU_AN` / `GOI` |
 | Endpoint Python chạm database | `retrieval/db.py` + `retrieval/main.py` — điều kiện tenant nằm trong câu SQL |
 | Service .NET gọi service khác | `Xnk.Chat/Clients/` + `Http/ForwardAuthorizationHandler.cs` |
 | Bước quy trình BPMN | `Xnk.WorkflowWorker/Handlers/` — thêm một `IExternalTaskHandler` |

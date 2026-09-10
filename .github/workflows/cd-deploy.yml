@@ -149,12 +149,36 @@ jobs:
           {
             echo "path=$(jq -r --arg n '${{ matrix.service }}' '.services[] | select(.name==$n) | .path' .github/services.json)"
             echo "ecr=$(jq -r --arg n '${{ matrix.service }}' '.services[] | select(.name==$n) | .ecr_repository' .github/services.json)"
+            echo "stack=$(jq -r --arg n '${{ matrix.service }}' '.services[] | select(.name==$n) | .stack' .github/services.json)"
           } >> "$GITHUB_OUTPUT"
+
+      # MỘT Dockerfile cho mỗi stack, tham số hoá bằng build-arg — không còn một file cho
+      # mỗi service. Bốn bản .NET trước đây khác nhau đúng ở tên project, và chúng đã bắt
+      # đầu trôi: một đoạn giải thích có ở bản này, mất ở ba bản kia.
+      - name: Xác định Dockerfile và tham số build
+        id: dockerfile
+        run: |
+          case "${{ steps.svc.outputs.stack }}" in
+            dotnet)
+              du_an=$(basename "${{ steps.svc.outputs.path }}")
+              echo "file=src/dotnet/Dockerfile" >> "$GITHUB_OUTPUT"
+              echo "args=DU_AN=${du_an}" >> "$GITHUB_OUTPUT"
+              ;;
+            python)
+              goi=$(basename "${{ steps.svc.outputs.path }}")
+              echo "file=src/python/Dockerfile" >> "$GITHUB_OUTPUT"
+              echo "args=GOI=${goi}" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::error::Stack '${{ steps.svc.outputs.stack }}' của ${{ matrix.service }} không có Dockerfile dùng chung."
+              exit 1
+              ;;
+          esac
 
       - name: Kiểm tra Dockerfile tồn tại
         run: |
-          if [ ! -f "${{ steps.svc.outputs.path }}/Dockerfile" ]; then
-            echo "::error::Thiếu ${{ steps.svc.outputs.path }}/Dockerfile — mỗi service phải tự mô tả cách đóng gói (story E1-11)."
+          if [ ! -f "${{ steps.dockerfile.outputs.file }}" ]; then
+            echo "::error::Thiếu ${{ steps.dockerfile.outputs.file }}."
             exit 1
           fi
 
@@ -175,7 +199,7 @@ jobs:
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
-          file: ${{ steps.svc.outputs.path }}/Dockerfile
+          file: ${{ steps.dockerfile.outputs.file }}
           push: true
           provenance: false
           tags: |
@@ -184,6 +208,7 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
           build-args: |
+            ${{ steps.dockerfile.outputs.args }}
             VERSION=${{ needs.plan.outputs.version }}
             GIT_SHA=${{ github.sha }}
 
