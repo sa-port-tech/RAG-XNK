@@ -24,7 +24,8 @@ namespace Xnk.Chat.Tests;
 /// </remarks>
 public sealed class GhiLaiHandler : HttpMessageHandler
 {
-    private readonly Queue<Func<HttpRequestMessage, HttpResponseMessage>> _kichBan = new();
+    private readonly Queue<Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>>>
+        _kichBan = new();
 
     /// <summary>Các request đã đi qua, theo thứ tự.</summary>
     public List<HttpRequestMessage> DaGoi { get; } = [];
@@ -44,9 +45,29 @@ public sealed class GhiLaiHandler : HttpMessageHandler
     /// </remarks>
     public GhiLaiHandler TraVe(HttpStatusCode ma, string? json = null, string? duongDanMongDoi = null)
     {
-        _kichBan.Enqueue(request =>
+        _kichBan.Enqueue((request, _) =>
         {
             KiemDuongDan(request, duongDanMongDoi);
+            return Task.FromResult(new HttpResponseMessage(ma)
+            {
+                Content = new StringContent(json ?? "{}", Encoding.UTF8, "application/json"),
+            });
+        });
+        return this;
+    }
+
+    /// <summary>Lần gọi kế tiếp <b>chờ</b> rồi mới trả lời.</summary>
+    /// <remarks>
+    /// Cần thiết để chạm tới nhánh "quá hạn thì thử lại" của
+    /// <c>TransientRetryHandler</c>. Trước đây kịch bản chỉ biết trả
+    /// <c>Task.FromResult</c>, nên không test nào làm cho một lần gọi CHẬM được — và nhánh
+    /// đó vừa là mã chết vừa không có test, hai điều che nhau.
+    /// </remarks>
+    public GhiLaiHandler ChoRoiTraVe(TimeSpan cho, HttpStatusCode ma, string? json = null)
+    {
+        _kichBan.Enqueue(async (_, huy) =>
+        {
+            await Task.Delay(cho, huy);
             return new HttpResponseMessage(ma)
             {
                 Content = new StringContent(json ?? "{}", Encoding.UTF8, "application/json"),
@@ -66,7 +87,7 @@ public sealed class GhiLaiHandler : HttpMessageHandler
     {
         ArgumentNullException.ThrowIfNull(loi);
 
-        _kichBan.Enqueue(request =>
+        _kichBan.Enqueue((request, _) =>
         {
             KiemDuongDan(request, duongDanMongDoi);
             throw loi;
@@ -98,11 +119,12 @@ public sealed class GhiLaiHandler : HttpMessageHandler
 
         // Hết kịch bản thì 500 — im lặng trả 200 rỗng sẽ biến một test thiếu kịch bản
         // thành một test xanh vô nghĩa.
-        Func<HttpRequestMessage, HttpResponseMessage> tiep = _kichBan.Count > 0
-            ? _kichBan.Dequeue()
-            : _ => new HttpResponseMessage(HttpStatusCode.InternalServerError);
+        Func<HttpRequestMessage, CancellationToken, Task<HttpResponseMessage>> tiep =
+            _kichBan.Count > 0
+                ? _kichBan.Dequeue()
+                : (_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.InternalServerError));
 
-        return Task.FromResult(tiep(request));
+        return tiep(request, cancellationToken);
     }
 }
 

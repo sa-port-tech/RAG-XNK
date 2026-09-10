@@ -66,7 +66,7 @@ public sealed class RetrievalClient(IHttpClientFactory httpClientFactory)
     /// chat gửi kèm một tham số tenant, hệ thống sẽ có hai nguồn sự thật cho cùng một điều
     /// — và nguồn dễ giả mạo hơn nằm ở phía người gọi.
     /// </remarks>
-    public async Task<IReadOnlyList<Citation>> LayCanCuAsync(int soLuong, CancellationToken huy)
+    public async Task<IReadOnlyList<TaiLieuThamKhao>> LayTaiLieuThamKhaoAsync(int soLuong, CancellationToken huy)
     {
         using HttpClient client = httpClientFactory.CreateClient(TenClient.Retrieval);
 
@@ -75,7 +75,7 @@ public sealed class RetrievalClient(IHttpClientFactory httpClientFactory)
 
         return trang is null
             ? []
-            : [.. trang.Items.Select(d => new Citation(d.DocumentNumber, d.Title, d.IsShared))];
+            : [.. trang.Items.Select(d => new TaiLieuThamKhao(d.DocumentNumber, d.Title, d.IsShared))];
     }
 }
 
@@ -86,7 +86,7 @@ public sealed class GenerationClient(IHttpClientFactory httpClientFactory)
     /// <summary>Sinh câu trả lời từ câu hỏi và các căn cứ đã lấy được.</summary>
     public async Task<GenerationResult> TraLoiAsync(
         string cauHoi,
-        IReadOnlyList<Citation> canCu,
+        IReadOnlyList<TaiLieuThamKhao> canCu,
         CancellationToken huy)
     {
         using HttpClient client = httpClientFactory.CreateClient(TenClient.Generation);

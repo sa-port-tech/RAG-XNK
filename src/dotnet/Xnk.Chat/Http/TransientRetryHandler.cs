@@ -35,6 +35,32 @@ public sealed class TransientRetryHandler(ILogger<TransientRetryHandler> log) : 
     /// <summary>Khoảng chờ trước lần thử thứ hai.</summary>
     public static readonly TimeSpan KhoangCho = TimeSpan.FromMilliseconds(200);
 
+    /// <summary>Ngân sách cho MỖI lần thử.</summary>
+    /// <remarks>
+    /// <para>
+    /// ⚠️ Đây là thứ làm cho nhánh "quá hạn thì thử lại" tồn tại thật.
+    /// </para>
+    /// <para>
+    /// Bản trước bắt <c>TaskCanceledException</c> với bộ lọc
+    /// <c>when (!cancellationToken.IsCancellationRequested)</c>. Bộ lọc đó
+    /// <b>không bao giờ đúng</b>: <see cref="HttpClient.Timeout"/> được cài đặt bằng cách
+    /// liên kết token của người gọi vào một CTS nội bộ, và token mà handler nhận CHÍNH LÀ
+    /// token đã liên kết đó. Hết giờ thì nó đã bị huỷ; người gọi bỏ đi thì nó cũng bị huỷ.
+    /// Hai trường hợp, một tín hiệu, và nhánh retry-sau-quá-hạn là mã chết.
+    /// </para>
+    /// <para>
+    /// Nay mỗi lần thử chạy dưới một CTS RIÊNG. Khi CTS đó hết giờ mà token bên ngoài vẫn
+    /// sống, ta biết chắc đây là "lần gọi này chậm" chứ không phải "người gọi đã bỏ đi" —
+    /// và chỉ khi đó mới thử lại.
+    /// </para>
+    /// <para>
+    /// 4 giây: hai lần thử cộng khoảng chờ vẫn nằm gọn trong
+    /// <c>RetrievalTimeoutSeconds</c> mặc định 10 giây, nên trần của người gọi mới là thứ
+    /// chốt hạ chứ không phải một cuộc đua giữa hai bộ đếm.
+    /// </para>
+    /// </remarks>
+    public static readonly TimeSpan NganSachMoiLan = TimeSpan.FromSeconds(4);
+
     private static readonly HttpStatusCode[] _maTamThoi =
     [
         HttpStatusCode.BadGateway,
@@ -54,30 +80,40 @@ public sealed class TransientRetryHandler(ILogger<TransientRetryHandler> log) : 
             return await base.SendAsync(request, cancellationToken);
         }
 
-        try
+        using (var lanDau = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
         {
-            HttpResponseMessage phanHoi = await base.SendAsync(request, cancellationToken);
-            if (!_maTamThoi.Contains(phanHoi.StatusCode))
-            {
-                return phanHoi;
-            }
+            lanDau.CancelAfter(NganSachMoiLan);
 
-            log.LogWarning(
-                "{Method} {Uri} trả {Code}, thử lại một lần.",
-                request.Method, request.RequestUri, (int)phanHoi.StatusCode);
-            phanHoi.Dispose();
-        }
-        catch (HttpRequestException loi)
-        {
-            log.LogWarning(loi, "{Method} {Uri} lỗi mạng, thử lại một lần.", request.Method, request.RequestUri);
-        }
-        catch (TaskCanceledException loi) when (!cancellationToken.IsCancellationRequested)
-        {
-            // Người gọi huỷ thì KHÔNG thử lại — chỉ thử lại khi chính client hết giờ.
-            log.LogWarning(loi, "{Method} {Uri} quá hạn, thử lại một lần.", request.Method, request.RequestUri);
+            try
+            {
+                HttpResponseMessage phanHoi = await base.SendAsync(request, lanDau.Token);
+                if (!_maTamThoi.Contains(phanHoi.StatusCode))
+                {
+                    return phanHoi;
+                }
+
+                log.LogWarning(
+                    "{Method} {Uri} trả {Code}, thử lại một lần.",
+                    request.Method, request.RequestUri, (int)phanHoi.StatusCode);
+                phanHoi.Dispose();
+            }
+            catch (HttpRequestException loi)
+            {
+                log.LogWarning(loi, "{Method} {Uri} lỗi mạng, thử lại một lần.", request.Method, request.RequestUri);
+            }
+            catch (OperationCanceledException loi) when (!cancellationToken.IsCancellationRequested)
+            {
+                // Ngân sách của LẦN NÀY hết, nhưng người gọi vẫn đang chờ, nên thử lại.
+                // Người gọi bỏ đi thì cancellationToken đã bị huỷ, bộ lọc thành false, và
+                // ngoại lệ đi thẳng ra ngoài — không thử lại, đúng như ý đồ ban đầu.
+                log.LogWarning(loi, "{Method} {Uri} quá hạn, thử lại một lần.", request.Method, request.RequestUri);
+            }
         }
 
         await Task.Delay(KhoangCho, cancellationToken);
-        return await base.SendAsync(request, cancellationToken);
+
+        using var lanHai = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        lanHai.CancelAfter(NganSachMoiLan);
+        return await base.SendAsync(request, lanHai.Token);
     }
 }

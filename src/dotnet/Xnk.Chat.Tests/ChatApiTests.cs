@@ -1,3 +1,4 @@
+using Xnk.Chat.Http;
 using System.Net;
 using System.Net.Http.Json;
 using Xnk.Chat.Contracts;
@@ -59,8 +60,8 @@ public sealed class ChatApiTests : IAsyncLifetime
         Assert.NotNull(ketQua);
         Assert.Equal("Theo Thông tư 39/2018/TT-BTC…", ketQua.Answer);
         Assert.Equal("mo-hinh-dung-cho-test", ketQua.Model);
-        Assert.Equal(2, ketQua.Citations.Count);
-        Assert.Contains(ketQua.Citations, c => c.DocumentNumber == "SOP-NB-01" && !c.IsShared);
+        Assert.Equal(2, ketQua.ReferencedDocuments.Count);
+        Assert.Contains(ketQua.ReferencedDocuments, c => c.DocumentNumber == "SOP-NB-01" && !c.IsShared);
     }
 
     [Fact]
@@ -196,6 +197,32 @@ public sealed class ChatApiTests : IAsyncLifetime
 
         Assert.Equal(HttpStatusCode.OK, phanHoi.StatusCode);
         Assert.Contains("Degraded", than, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Retrieval_qua_han_mot_lan_thi_duoc_thu_lai()
+    {
+        // ⚠️ HỒI QUY cho một nhánh MÃ CHẾT.
+        //
+        // TransientRetryHandler từng bắt TaskCanceledException với bộ lọc
+        // `when (!cancellationToken.IsCancellationRequested)`. Bộ lọc đó không bao giờ
+        // đúng: HttpClient.Timeout được cài đặt bằng cách liên kết token của người gọi vào
+        // một CTS nội bộ, và token mà handler nhận CHÍNH LÀ token đã liên kết đó. Hết giờ
+        // thì nó đã bị huỷ; người gọi bỏ đi thì nó cũng bị huỷ.
+        //
+        // Không test nào chạm tới nhánh ấy, vì kịch bản của fake chỉ biết trả
+        // Task.FromResult — không có cách nào làm cho một lần gọi CHẬM. Mã chết và thiếu
+        // test che nhau.
+        _factory.Retrieval
+            .ChoRoiTraVe(TransientRetryHandler.NganSachMoiLan + TimeSpan.FromSeconds(2), HttpStatusCode.OK)
+            .TraVe(HttpStatusCode.OK, _trangRetrieval);
+        _factory.Generation.TraVe(HttpStatusCode.OK, _phanHoiGeneration);
+
+        using HttpClient client = _factory.TaoClientCuaTenant(_tenant);
+        ChatResponse? ketQua = await client.GetChatResponse("Hỏi gì đó?");
+
+        Assert.NotNull(ketQua);
+        Assert.Equal(2, _factory.Retrieval.DaGoi.Count);
     }
 
     [Fact]

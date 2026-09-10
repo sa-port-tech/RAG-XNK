@@ -92,6 +92,22 @@ public sealed class PhienDangNhap(IJSRuntime js)
             payload = payload.PadRight(payload.Length + ((4 - (payload.Length % 4)) % 4), '=');
 
             using JsonDocument doc = JsonDocument.Parse(Convert.FromBase64String(payload));
+
+            // ⚠️ Kiểm ValueKind TRƯỚC khi gọi TryGetProperty.
+            //
+            // Cái tên `TryGetProperty` gợi ý nó không bao giờ ném. Nó có: gọi trên một
+            // phần tử KHÔNG phải object — mảng, số, chuỗi, boolean — thì nó ném
+            // InvalidOperationException, chứ không trả false. Payload `W10` giải mã ra
+            // `[]` là đủ để chạm vào đó, và bộ lọc bên dưới liệt kê FormatException với
+            // JsonException nên ngoại lệ ấy thoát thẳng ra ngoài.
+            //
+            // Bộ lọc liệt kê những ngoại lệ người viết NGHĨ TỚI. Kiểm điều kiện thì không
+            // phụ thuộc vào việc nghĩ đủ hay chưa.
+            if (doc.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                return null;
+            }
+
             return doc.RootElement.TryGetProperty("email", out JsonElement email)
                 ? email.GetString()
                 : null;

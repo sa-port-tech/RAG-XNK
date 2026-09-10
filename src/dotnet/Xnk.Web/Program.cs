@@ -24,7 +24,20 @@ builder.Services.AddSingleton<TokenHandler>();
 // đều đưa cả giao diện lẫn API về cùng một origin, nên không có CORS và không có địa chỉ
 // nào phải cấu hình theo môi trường.
 builder.Services.AddHttpClient<XnkApiClient>(client =>
-        client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress))
+    {
+        client.BaseAddress = new Uri(builder.HostEnvironment.BaseAddress);
+
+        // ⚠️ Không đặt Timeout thì mặc định của HttpClient là 100 giây, nhưng trong Blazor
+        // WASM lời gọi đi qua fetch của trình duyệt và mặc định đó KHÔNG áp — thực tế là
+        // chờ vô hạn.
+        //
+        // `chat` cho generation 120 giây (DownstreamOptions.GenerationTimeoutSeconds), nên
+        // trần của giao diện phải RỘNG HƠN con số đó: hẹp hơn thì giao diện bỏ cuộc trong
+        // khi backend vẫn đang làm việc, và người dùng thấy một lỗi cho một câu trả lời
+        // sắp có. Rộng hơn một chút để lỗi thật hiện ra là "backend trả 502", đúng nơi có
+        // thông tin, thay vì "Đang tải…" đứng mãi cho tới khi người dùng tự tải lại trang.
+        client.Timeout = TimeSpan.FromSeconds(150);
+    })
     .AddHttpMessageHandler<TokenHandler>();
 
 await builder.Build().RunAsync();

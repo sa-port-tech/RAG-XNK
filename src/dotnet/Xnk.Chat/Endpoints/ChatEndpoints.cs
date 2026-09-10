@@ -53,10 +53,25 @@ public static class ChatEndpoints
             });
         }
 
-        IReadOnlyList<Citation> canCu;
+        IReadOnlyList<TaiLieuThamKhao> canCu;
         try
         {
-            canCu = await retrieval.LayCanCuAsync(options.Value.MaxContextDocuments, huy);
+            canCu = await retrieval.LayTaiLieuThamKhaoAsync(options.Value.MaxContextDocuments, huy);
+        }
+        catch (OperationCanceledException) when (huy.IsCancellationRequested)
+        {
+            // Người gọi đóng tab. KHÔNG phải sự cố của retrieval.
+            //
+            // Bản trước gộp ca này vào khối 502 bên dưới, nên mỗi lần một người dùng bỏ đi
+            // giữa chừng là một dòng LogError đổ lỗi cho một service hoàn toàn khoẻ mạnh,
+            // và người trực đêm được chỉ sang đúng chỗ không có gì để xem. Với một mô hình
+            // mất 20-60 giây mỗi câu trả lời, người dùng bỏ đi giữa chừng KHÔNG hiếm.
+            //
+            // 499 là mã nginx dùng cho "client closed request". Không phải mã chuẩn IANA,
+            // nhưng là mã mà lớp proxy ngay phía trước đã dùng cho đúng tình huống này,
+            // nên log của hai tầng đọc chung được.
+            log.LogInformation("Người gọi huỷ trước khi retrieval trả lời.");
+            return TypedResults.StatusCode(499);
         }
         catch (Exception loi) when (loi is HttpRequestException or TaskCanceledException)
         {
@@ -73,6 +88,13 @@ public static class ChatEndpoints
         try
         {
             ketQua = await generation.TraLoiAsync(yeuCau.Question, canCu, huy);
+        }
+        catch (OperationCanceledException) when (huy.IsCancellationRequested)
+        {
+            // Cùng lý do như khối retrieval phía trên, và ở đây còn hay xảy ra hơn: sinh
+            // chữ là bước lâu nhất của cả đường ống.
+            log.LogInformation("Người gọi huỷ trước khi generation trả lời.");
+            return TypedResults.StatusCode(499);
         }
         catch (Exception loi) when (loi is HttpRequestException or TaskCanceledException or InvalidOperationException)
         {
