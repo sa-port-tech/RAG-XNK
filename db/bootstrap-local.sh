@@ -41,6 +41,37 @@ echo "✓ Xong."
 
 echo
 echo "═══ 3/3 · Dữ liệu seed ═══"
+
+# ⚠️ CỔNG SEED — thứ duy nhất ngăn dữ liệu mẫu vào một database thật.
+#
+# Bản trước chỉ đếm SỐ FILE rồi chạy hết, không kiểm môi trường lần nào. Cái duy nhất giữ
+# cho nó không nạp SOP giả vào database thật là chữ "local" trong tên file — và tên file
+# thì không thi hành được gì. Tệ hơn: `db/Dockerfile` đặt ENTRYPOINT trỏ thẳng vào script
+# này, và chính tài liệu nói ảnh đó là mẫu cho task migration trên ECS.
+#
+# Nay cần MỘT trong hai điều kiện, cả hai đều tường minh:
+#   · XNK_CHO_PHEP_SEED=1  — quyết định có tên, ai đặt cũng biết mình đang cho phép gì
+#   · tên database nằm trong danh sách an toàn
+XNK_DB_SEED_AN_TOAN="${XNK_DB_SEED_AN_TOAN:-xnk xnk_test xnk_dev}"
+ten_db="$(basename "${DATABASE_URL%%\?*}")"
+
+cho_phep=0
+if [ "${XNK_CHO_PHEP_SEED:-0}" = "1" ]; then
+  cho_phep=1
+else
+  for an_toan in $XNK_DB_SEED_AN_TOAN; do
+    if [ "$ten_db" = "$an_toan" ]; then
+      cho_phep=1
+      break
+    fi
+  done
+fi
+
+if [ "$cho_phep" != "1" ]; then
+  echo "Bỏ qua seed: database '$ten_db' không nằm trong danh sách an toàn ($XNK_DB_SEED_AN_TOAN)." >&2
+  echo "Cố ý seed vào database này thì đặt XNK_CHO_PHEP_SEED=1." >&2
+  exit 0
+fi
 so_file=$(find "$THU_MUC/seed" -maxdepth 1 -name '*.sql' 2>/dev/null | wc -l | tr -d ' ')
 if [ "$so_file" = "0" ]; then
   echo "Không có file seed nào — bỏ qua."

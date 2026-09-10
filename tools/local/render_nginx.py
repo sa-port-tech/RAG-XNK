@@ -30,6 +30,10 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
+import shutil
+import subprocess
+import tempfile
 import sys
 from pathlib import Path
 from typing import Any
@@ -151,6 +155,67 @@ def sinh_cau_hinh(manifest: dict[str, Any]) -> str:
     )
 
 
+# Tên service đi thẳng vào directive `location` và vào tên upstream. Một ký tự lạ ở đó —
+# `;`, `{`, `}`, khoảng trắng — biến cấu hình thành thứ nginx không parse được, hoặc tệ hơn,
+# thành thứ nginx parse được nhưng định tuyến sai. Danh mục là file trong repo nên đây
+# không phải chống người dùng độc hại; nó là chống một lỗi gõ phím mà không ai soi ra được
+# từ một file "sinh tự động, đừng sửa tay".
+_TEN_HOP_LE = re.compile(r"^[a-z0-9]([a-z0-9-]*[a-z0-9])?$")
+
+
+def kiem_ten_service(manifest: dict) -> None:
+    """Chặn tên service không dùng được làm tiền tố đường dẫn."""
+    for muc in manifest["services"]:
+        ten = muc.get("name", "")
+        if not _TEN_HOP_LE.match(ten):
+            raise SystemExit(
+                f"Tên service không hợp lệ: {ten!r}. Chỉ chấp nhận chữ thường, số và dấu "
+                "gạch ngang — đây là chuỗi đi thẳng vào directive `location` của nginx."
+            )
+
+
+def kiem_bang_nginx(duong_dan) -> str | None:
+    """Chạy ``nginx -t``; trả thông báo lỗi, hoặc ``None`` nếu cấu hình hợp lệ.
+
+    Không có ``nginx`` trong PATH thì bỏ qua và nói ra — script này cũng được chạy tay trên
+    máy dev để xem thử kết quả, và bắt buộc phải cài nginx ở đó là thêm ma sát không đổi
+    lấy gì. Trong container thì luôn có, vì image nền chính là nginx.
+    """
+    if shutil.which("nginx") is None:
+        print("⚠ Không có nginx trong PATH — bỏ qua bước kiểm cú pháp.", file=sys.stderr)
+        return None
+
+    # File sinh ra là một MẢNH nằm trong khối `http { }` của nginx.conf, không phải một
+    # cấu hình gốc. Gọi thẳng `nginx -t -c <mảnh>` sẽ báo `"resolver" directive is not
+    # allowed here` — một lỗi của phép kiểm, không phải của cấu hình. Nên bọc mảnh vào một
+    # cấu hình gốc tối thiểu rồi mới kiểm, và kiểm được ở bất kỳ đường dẫn nào.
+    with tempfile.TemporaryDirectory() as thu_muc:
+        goc = Path(thu_muc) / "nginx.conf"
+        goc.write_text(
+            "events {}" + chr(10) + "http { include " + str(duong_dan) + "; }" + chr(10),
+            encoding="utf-8",
+            newline=chr(10),
+        )
+
+        ket_qua = subprocess.run(
+            ["nginx", "-t", "-c", str(goc)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    if ket_qua.returncode == 0:
+        return None
+
+    return (
+        "✗ Cấu hình vừa sinh KHÔNG hợp lệ: "
+        + str(duong_dan)
+        + chr(10)
+        + ket_qua.stderr.strip()
+        + chr(10)
+        + "Container nginx sẽ crash-loop nếu nạp file này, nên dừng ở đây."
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(
@@ -165,15 +230,27 @@ def main() -> int:
         required=True,
         help="Nơi ghi file cấu hình nginx",
     )
+    parser.add_argument(
+        "--kiem-cu-phap",
+        action="store_true",
+        help="Chạy `nginx -t` trên file vừa sinh; không hợp lệ thì thoát khác 0",
+    )
     tham_so = parser.parse_args()
 
     manifest = _doc_manifest(tham_so.services)
+    kiem_ten_service(manifest)
     cau_hinh = sinh_cau_hinh(manifest)
 
     tham_so.output.parent.mkdir(parents=True, exist_ok=True)
     # newline="\n" tường minh: script này chạy được cả trên Windows lúc gỡ lỗi, mà nginx
     # đọc file có CRLF thì báo lỗi cú pháp ở một dòng trông hoàn toàn bình thường.
     tham_so.output.write_text(cau_hinh, encoding="utf-8", newline="\n")
+
+    if tham_so.kiem_cu_phap:
+        loi = kiem_bang_nginx(tham_so.output)
+        if loi is not None:
+            print(loi, file=sys.stderr)
+            return 1
 
     ten_service = ", ".join(s["name"] for s in manifest["services"])
     print(f"✓ Đã sinh {tham_so.output} cho {len(manifest['services'])} service: {ten_service}")

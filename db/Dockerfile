@@ -13,11 +13,23 @@
 # migration vào image làm cho cơ chế ở local trùng với cơ chế trên cloud — thay vì hai
 # đường khác nhau, và loại sai lệch chỉ lộ ra sau khi deploy.
 #
-# Ảnh nền postgres:16 có sẵn `psql` và `bash`. Không dùng ảnh .NET SDK để gọi
-# `dotnet ef database update`: ba service Python và mọi công cụ vận hành đều cần đúng lược
-# đồ này mà không nên phải cài SDK .NET để có nó (ADR-010).
+# ── Vì sao alpine + postgresql-client, không phải postgres:16 ───────────────────────
+# Container này cần đúng hai thứ: `psql` và `bash`. Ảnh `postgres:16` có cả hai, nhưng nó
+# mang theo cả một MÁY CHỦ PostgreSQL — initdb, binary server, contrib — khoảng 430 MB cho
+# một tiến trình chạy vài giây rồi thoát và không bao giờ phục vụ kết nối nào.
+#
+# Trên máy dev đó là vài phút tải thêm. Trên ECS nó là thứ kéo mỗi lần task migration khởi
+# động, tức là nằm ngay trên đường tới hạn của mỗi lần deploy.
+#
+# Phiên bản client giữ đúng 16 để khớp máy chủ: `psql` mới hơn máy chủ thì cảnh báo, cũ hơn
+# thì có cú pháp không hiểu.
+#
+# Không dùng ảnh .NET SDK để gọi `dotnet ef database update`: ba service Python và mọi công
+# cụ vận hành đều cần đúng lược đồ này mà không nên phải cài SDK .NET để có nó (ADR-010).
 
-FROM postgres:16
+FROM alpine:3.20
+
+RUN apk add --no-cache bash postgresql16-client
 
 # Toàn bộ thư mục db/: apply-migrations.sh, roles.sql, migrations/, seed/.
 # Sửa bất cứ file nào trong đó thì phải build lại — `docker compose --profile app up -d --build`.

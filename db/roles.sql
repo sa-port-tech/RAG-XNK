@@ -79,11 +79,33 @@ $tao_vai_tro$;
 -- nhất một service được đọc schema của service khác — thêm dòng thứ hai vào bảng này là
 -- một quyết định kiến trúc, cần ADR riêng.
 
+-- ⚠️ CHỦ SỞ HỮU BẢNG TƯƠNG LAI — đọc trước khi đổi.
+--
+-- `ALTER DEFAULT PRIVILEGES FOR ROLE <X>` chỉ áp cho bảng do **chính X** tạo ra về sau.
+-- Nó không phải một luật chung của schema; nó là một luật gắn với một vai trò cụ thể.
+--
+-- Bản trước lấy `current_user` — tức là "ai đang chạy chính file này". Ở local thì đúng,
+-- vì `bootstrap-local.sh` chạy cả roles.sql lẫn migration bằng cùng một kết nối
+-- `DATABASE_URL`. Trên AWS thì task migration là một vai trò khác với vai trò chạy
+-- roles.sql, và khi ấy mọi ALTER DEFAULT PRIVILEGES bên dưới áp cho MỘT VAI TRÒ KHÔNG BAO
+-- GIỜ TẠO BẢNG NÀO — không lỗi, không cảnh báo, chỉ là mỗi migration mới lại kèm một sự
+-- cố "service đọc không được bảng vừa tạo".
+--
+-- Nay chủ sở hữu đến từ tham số `xnk.chu_so_huu_luoc_do`, và chỉ rơi về `current_user`
+-- khi tham số vắng mặt — tức đúng trường hợp local. Truyền tham số:
+--
+--   psql --set chu_so_huu_luoc_do=xnk_migration --file db/roles.sql
+--
+-- hoặc `SET xnk.chu_so_huu_luoc_do = 'xnk_migration';` trước khi chạy.
 DO $cap_quyen$
 DECLARE
     r record;
-    chu_so_huu text := current_user;
+    chu_so_huu text := coalesce(
+        nullif(current_setting('xnk.chu_so_huu_luoc_do', true), ''),
+        current_user);
 BEGIN
+    RAISE NOTICE 'Chủ sở hữu bảng tương lai: % (đổi bằng xnk.chu_so_huu_luoc_do).', chu_so_huu;
+
     FOR r IN
         SELECT * FROM (VALUES
             ('xnk_identity',  'identity',     'crud'),

@@ -1,11 +1,14 @@
 # Môi trường chạy local.
 #
-# `docker compose up -d` mặc định CHỈ khởi PostgreSQL. Camunda, LocalStack và Jaeger nằm
-# sau profile vì chúng kéo về khoảng 3 GB ảnh mà lát cắt dọc hiện tại (corpus + retrieval)
-# không dùng tới. Bật khi cần:
+# `docker compose up -d` mặc định CHỈ khởi PostgreSQL. LocalStack và Jaeger nằm sau profile
+# riêng vì chúng kéo thêm ảnh mà phần lớn buổi làm việc không dùng tới. Bật khi cần:
 #
-#   docker compose --profile app up -d           # ★ toàn bộ hệ thống: 4 service + nginx
-#   docker compose --profile workflow up -d      # thêm Camunda 7
+# ⚠️ KHÔNG có profile `workflow`. Khối này từng ghi `--profile workflow up -d # thêm
+# Camunda 7`, nhưng không service nào khai profile đó — lệnh ấy khởi động ĐÚNG KHÔNG
+# CONTAINER NÀO và thoát với mã 0. Camunda nằm trong profile `app`, cùng lý do đã ghi ở
+# khối `ollama`: `workflow-worker` có phụ thuộc thật vào nó.
+#
+#   docker compose --profile app up -d           # ★ toàn bộ hệ thống: 7 service + nginx
 #   docker compose --profile aws up -d           # thêm LocalStack
 #   docker compose --profile tracing up -d       # thêm Jaeger
 #   docker compose --profile full up -d          # tất cả
@@ -29,7 +32,13 @@ services:
       # Không phải bí mật — chỉ dùng cho máy local, và trùng với appsettings.Development.json.
       POSTGRES_PASSWORD: xnk-local-dev
     ports:
-      - "5432:5432"
+      # Chỉ loopback. `"5432:5432"` mở PostgreSQL ra MỌI interface của máy — kèm mật khẩu
+      # nằm ngay phía trên — nên trên một mạng Wi-Fi công cộng đây là một database mở. Mẫu
+      # đúng đã có sẵn ở service `nginx` phía dưới; chỗ này chỉ là chưa theo.
+      #
+      # Container gọi nhau qua mạng nội bộ của compose, không qua cổng này. Cổng này chỉ
+      # để psql/DBeaver trên máy nối vào, và cả hai đều chạy trên chính máy đó.
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -219,6 +228,18 @@ services:
       dockerfile: src/dotnet/Xnk.Chat/Dockerfile
     container_name: xnk-chat
     profiles: ["app", "full"]
+    # `chat` gọi retrieval và generation ở mọi câu hỏi, nên nó phải khai hai phụ thuộc đó.
+    # Thiếu `depends_on`, `docker compose up` khởi chat trước hai service kia và mọi câu
+    # hỏi trong vài giây đầu trả 502 — một lỗi trông y hệt sự cố thật.
+    #
+    # `service_started` chứ không `service_healthy`: chat cố tình KHÔNG chết theo phụ
+    # thuộc (xem Xnk.Chat/Program.cs), nên chờ chúng khoẻ hẳn là mâu thuẫn với chính
+    # quyết định đó — chỉ cần chúng đã được khởi.
+    depends_on:
+      retrieval:
+        condition: service_started
+      generation:
+        condition: service_started
     environment:
       Jwt__Issuer: ${XNK_JWT_ISSUER:?Thiếu .env}
       Jwt__Audience: ${XNK_JWT_AUDIENCE:?Thiếu .env}

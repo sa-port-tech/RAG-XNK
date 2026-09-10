@@ -19,7 +19,20 @@
 # Cái giá: sửa render_nginx.py hay services.json thì phải `up -d --build`. Đổi lại, stack
 # chạy được trên mọi máy mà không phụ thuộc cấu hình chia sẻ ổ đĩa của từng người.
 
-FROM python:3.12-slim
+# ── Vì sao nền là nginx chứ không phải python ────────────────────────────────────────
+# Vì container này phải KIỂM cấu hình nó vừa sinh, và `nginx -t` chỉ có trong image nginx.
+#
+# Bản trước nền `python:3.12-slim`: nó ghi file rồi in "✓ Đã sinh" và thoát 0 — kể cả khi
+# nội dung không parse được. Container `nginx` chờ nó bằng `service_completed_successfully`
+# nên nginx-conf XANH, rồi nginx crash-loop với một lỗi trỏ vào file mà chính header của
+# file dặn "ĐỪNG SỬA TAY". Người gỡ lỗi bắt đầu từ chỗ sai nhất có thể.
+#
+# Phải đúng tag mà service `nginx` dùng trong docker-compose.yml: kiểm bằng một phiên bản
+# rồi chạy bằng phiên bản khác là kiểm một thứ khác.
+FROM nginx:1.27-alpine
+
+# Chỉ python3, không pip, không gói ngoài — script dùng thuần thư viện chuẩn.
+RUN apk add --no-cache python3
 
 WORKDIR /opt/xnk
 
@@ -28,6 +41,7 @@ COPY tools/local/render_nginx.py ./render_nginx.py
 COPY .github/services.json ./services.json
 
 # Ghi vào volume `nginx-conf` dùng chung với container nginx.
-ENTRYPOINT ["python", "/opt/xnk/render_nginx.py", \
+ENTRYPOINT ["python3", "/opt/xnk/render_nginx.py", \
             "--services=/opt/xnk/services.json", \
-            "--output=/etc/nginx/conf.d/default.conf"]
+            "--output=/etc/nginx/conf.d/default.conf", \
+            "--kiem-cu-phap"]
