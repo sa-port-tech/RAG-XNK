@@ -94,8 +94,66 @@ public sealed class TenantIsolationTests(PostgresFixture postgres)
         // docs/00 §12 yêu cầu tường minh: lọc trong mệnh đề WHERE của chính truy vấn ở
         // tầng database, KHÔNG lọc ở tầng application. Ba test trên vẫn xanh nếu ai đó
         // chuyển việc lọc lên C# — test này thì không.
-        Assert.Contains("WHERE", sql, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("TenantId", sql, StringComparison.Ordinal);
+        //
+        // ⚠️ Bản trước của test này là `Assert.Contains("TenantId", sql)` trên TOÀN BỘ câu
+        // SQL. Phép kiểm đó **luôn đúng**: `TenantId` nằm sẵn trong danh sách SELECT của
+        // mọi truy vấn trên bảng này. Gỡ hẳn `HasQueryFilter` đi thì nó vẫn xanh — tức là
+        // cổng BR-11, thứ mà docs/16 dùng để nâng độ phủ lên 1/11, không kiểm gì cả.
+        int viTriWhere = sql.IndexOf("WHERE", StringComparison.OrdinalIgnoreCase);
+        Assert.True(viTriWhere >= 0, $"Truy vấn không có mệnh đề WHERE nào. SQL: {sql}");
+
+        // Chỉ soi phần SAU `WHERE`, để lần xuất hiện trong danh sách SELECT không tính.
+        string menhDeWhere = sql[viTriWhere..];
+        Assert.Contains("TenantId", menhDeWhere, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Go_bo_loc_toan_cuc_di_thi_cau_SQL_PHAI_khac()
+    {
+        // Phép kiểm không phụ thuộc vào cách EF đặt tên tham số hay xuống dòng: so câu SQL
+        // có bộ lọc với chính nó khi bộ lọc bị tắt. Hai câu giống nhau nghĩa là bộ lọc
+        // không đóng góp gì vào SQL — dù `HasQueryFilter` còn nằm đó hay không.
+        //
+        // Đây là vế mà một assertion dạng "chuỗi có chứa X" không bao giờ bắt được.
+        Guid tenantA = Guid.NewGuid();
+
+        using CorpusDbContext context = _postgres.CreateContext(tenantA);
+
+        string coLoc = context.Documents.ToQueryString();
+        string khongLoc = context.Documents.IgnoreQueryFilters().ToQueryString();
+
+        Assert.NotEqual(khongLoc, coLoc);
+        Assert.DoesNotContain("WHERE", khongLoc, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Tenant_nay_KHONG_xoa_duoc_ban_ghi_cua_tenant_kia()
+    {
+        // Bộ lọc toàn cục của EF áp cho truy vấn ĐỌC. Câu hỏi hiển nhiên tiếp theo — "thế
+        // còn ghi?" — chưa test nào trả lời, và ranh giới cách ly chỉ có một vế thì nó là
+        // nửa ranh giới.
+        //
+        // ExecuteDelete/ExecuteUpdate dịch thẳng thành DELETE/UPDATE ... WHERE, và EF áp
+        // bộ lọc vào phần WHERE đó. Test này khoá lại điều ấy: nếu một phiên bản EF sau
+        // đổi hành vi, hoặc ai đó thêm IgnoreQueryFilters cho "tiện", nó đỏ.
+        Guid tenantA = Guid.NewGuid();
+        Guid tenantB = Guid.NewGuid();
+        string moc = Guid.NewGuid().ToString("N");
+
+        await SeedAsync(moc, tenantA, tenantB);
+
+        await using CorpusDbContext cuaA = _postgres.CreateContext(tenantA);
+        int soDongXoa = await cuaA.Documents
+            .Where(d => d.Title.EndsWith(moc) && d.TenantId == tenantB)
+            .ExecuteDeleteAsync();
+
+        Assert.Equal(0, soDongXoa);
+
+        // Và bản ghi của B vẫn còn nguyên khi nhìn bằng ngữ cảnh của B.
+        await using CorpusDbContext cuaB = _postgres.CreateContext(tenantB);
+        Assert.Single(await cuaB.Documents
+            .Where(d => d.Title.EndsWith(moc) && d.TenantId == tenantB)
+            .ToListAsync());
     }
 
     /// <summary>

@@ -69,7 +69,7 @@
     <!--
       Testcontainers để test cách ly tenant chạy được trên máy dev mà không cần dựng gì
       trước. Trên CI thì job tenant-isolation đã cấp sẵn một Postgres qua
-      XNK_TEST_CONNECTION, nên fixture ưu tiên biến môi trường và chỉ khởi container khi
+      XNK_TEST_DATABASE_URL, nên fixture ưu tiên biến môi trường và chỉ khởi container khi
       không có nó.
     -->
     <PackageVersion Include="Testcontainers.PostgreSql" Version="4.14.0" />

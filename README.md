@@ -115,8 +115,8 @@ cd src/python && uv run pytest retrieval        # Python — MỘT service mỗi
 ```
 
 Không cần dựng gì trước: cả hai phía tự khởi container `pgvector/pgvector:pg16` — đúng ảnh
-mà CI dùng — khi không có biến trỏ sẵn (`XNK_TEST_CONNECTION` bên .NET,
-`XNK_TEST_DATABASE_URL` bên Python).
+mà CI dùng — khi không có biến `XNK_TEST_DATABASE_URL` trỏ sẵn. Một tên biến cho cả hai
+bộ test; phía .NET tự quy đổi DSN sang chuỗi Npgsql.
 
 **Python phải chạy từng service một.** Ba service có cùng tên gói `tests`, nên
 `uv run pytest` gộp cả ba sẽ dừng với "import file mismatch". CI cũng chạy từng service một

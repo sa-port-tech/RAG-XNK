@@ -15,7 +15,7 @@
 # container Linux thì không có chính sách đó.
 #
 # Lợi ích kèm theo: đây đúng là cách CI chạy — `PostgresFixture` ưu tiên biến
-# XNK_TEST_CONNECTION và chỉ tự khởi Testcontainers khi không có nó. Trong container, biến
+# XNK_TEST_DATABASE_URL và chỉ tự khởi Testcontainers khi không có nó. Trong container, biến
 # đó trỏ tới PostgreSQL của docker-compose, nên không cần docker-in-docker.
 
 FROM mcr.microsoft.com/dotnet/sdk:9.0

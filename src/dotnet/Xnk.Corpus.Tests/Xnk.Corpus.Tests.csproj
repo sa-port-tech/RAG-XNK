@@ -39,4 +39,11 @@
     <Using Include="Xunit" />
   </ItemGroup>
 
+
+  <ItemGroup>
+    <!-- Link, không chép: xem đầu ChuoiKetNoiTest.cs. Hai bộ test dùng chung phần đọc
+         biến môi trường và quy đổi DSN, nhưng vẫn giữ fixture riêng của mình. -->
+    <Compile Include="../TestSupport/ChuoiKetNoiTest.cs" Link="TestSupport/ChuoiKetNoiTest.cs" />
+  </ItemGroup>
+
 </Project>

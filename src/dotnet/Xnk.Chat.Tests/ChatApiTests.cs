@@ -152,6 +152,56 @@ public sealed class ChatApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Retrieval_nem_HttpRequestException_thi_502()
+    {
+        // Nhánh NGOẠI LỆ của đường gọi ra ngoài. Trước đây không test nào chạm tới nó, vì
+        // kịch bản của GhiLaiHandler chỉ biết trả Task.FromResult — nghĩa là toàn bộ khối
+        // catch trong TransientRetryHandler và ChatEndpoints chưa từng được chạy một lần.
+        //
+        // Mất kết nối là hình dạng hỏng phổ biến hơn "trả 503" rất nhiều: container phía
+        // sau vừa khởi động lại, DNS chưa cập nhật, ALB rút target ra khỏi nhóm.
+        _factory.Retrieval
+            .Nem(new HttpRequestException("Không nối được retrieval."), "/retrieval/documents")
+            .Nem(new HttpRequestException("Lần thử lại cũng hỏng."), "/retrieval/documents");
+
+        using HttpClient client = _factory.TaoClientCuaTenant(_tenant);
+
+        HttpResponseMessage phanHoi = await client.PostAsJsonAsync(
+            new Uri("/chat/ask", UriKind.Relative), new { question = "Hỏi gì đó?" });
+
+        Assert.Equal(HttpStatusCode.BadGateway, phanHoi.StatusCode);
+
+        // GET được thử lại đúng một lần — cùng luật với ca 503, và ca này chứng minh luật
+        // đó áp cho cả ngoại lệ chứ không riêng mã trạng thái.
+        Assert.Equal(2, _factory.Retrieval.DaGoi.Count);
+    }
+
+    [Fact]
+    public async Task Kich_ban_lech_pha_thi_bao_loi_chu_khong_xanh_am_tham()
+    {
+        // Hàng đợi kịch bản không nhìn request. Một lần thử lại ngoài dự kiến ăn mất một
+        // phản hồi, rồi mọi khẳng định sau đó lệch một bước — test vẫn chạy, vẫn cho kết
+        // quả, chỉ là kết quả của một kịch bản khác.
+        //
+        // Khai đường dẫn mong đợi biến lệch pha im lặng thành lỗi nói rõ nó lệch ở đâu.
+        // Ở đây cố tình khai sai để chứng minh cơ chế bảo vệ đó có chạy.
+        _factory.Retrieval.TraVe(HttpStatusCode.OK, _trangRetrieval, "/duong-dan-khac-hoan-toan");
+
+        using HttpClient client = _factory.TaoClientCuaTenant(_tenant);
+
+        // Lệch pha PHẢI nổ, và nổ kèm thông báo chỉ đúng chỗ. Nó cố tình KHÔNG bị bọc
+        // thành 502: một kịch bản test sai không phải sự cố vận hành, và biến nó thành mã
+        // trạng thái là đẩy lỗi của bộ test vào đúng chỗ người ta sẽ đọc nhầm thành lỗi
+        // của mã sản phẩm.
+        InvalidOperationException loi = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => client.PostAsJsonAsync(
+                new Uri("/chat/ask", UriKind.Relative), new { question = "Hỏi gì đó?" }));
+
+        Assert.Contains("lệch pha", loi.Message, StringComparison.Ordinal);
+        Assert.Contains("/retrieval/documents", loi.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Generation_KHONG_duoc_thu_lai()
     {
         // POST không được thử lại: có thể tạo ra hai lần cùng một tác dụng phụ, và một lần

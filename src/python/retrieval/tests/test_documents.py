@@ -252,6 +252,54 @@ def test_tham_so_phan_trang_sai_thi_422(settings: Settings, tham_so: str, gia_tr
 
 
 @pytest.mark.usefixtures("engine")
+def test_trang_qua_lon_thi_422_chu_khong_phai_loi_may_chu(settings: Settings) -> None:
+    """``page`` và ``page_size`` hợp lệ khi xét RIÊNG, tích của chúng thì không.
+
+    Bản .NET của cùng endpoint này tràn ``int`` ở đúng đầu vào dưới đây: phép nhân quấn
+    vòng thành số âm, EF dịch thành ``OFFSET <âm>``, PostgreSQL từ chối — tức **500 sinh ra
+    từ tham số truy vấn của người dùng**, trên endpoint mà mọi tenant đã xác thực đều gọi
+    được.
+
+    Số nguyên Python vô hạn nên bản này không tràn; nó từng trả 200 với danh sách rỗng. Hai
+    hành vi khác nhau cho cùng một URL là một hợp đồng có hai bản dịch, nên cả hai nay cùng
+    từ chối tại cùng một ngưỡng.
+    """
+    with TestClient(create_app(settings)) as client:
+        phan_hoi = client.get(
+            "/retrieval/documents",
+            params={"page": 2_000_000_000, "page_size": 100},
+            headers={"Authorization": f"Bearer {_token(uuid.uuid4())}"},
+        )
+
+    assert phan_hoi.status_code == 422
+
+
+@pytest.mark.usefixtures("engine")
+def test_tong_va_danh_sach_den_tu_cung_mot_anh_chup(
+    settings: Settings,
+    tenant_co_du_lieu: tuple[uuid.UUID, uuid.UUID, str, str, str],
+) -> None:
+    """``total_count`` và ``items`` phải nhất quán với nhau.
+
+    Không mô phỏng được cuộc đua ở đây, nên test này khoá **tính chất quan sát được**: một
+    trang đầy đủ thì số phần tử không vượt tổng, và trang cuối cộng lại đúng bằng tổng. Bảo
+    đảm thật nằm ở ``db.dem_va_liet_ke`` — hai câu SQL trong một giao dịch REPEATABLE READ.
+    """
+    tenant_a, _, _, _, _ = tenant_co_du_lieu
+
+    with TestClient(create_app(settings)) as client:
+        phan_hoi = client.get(
+            "/retrieval/documents",
+            params={"page_size": 100},
+            headers={"Authorization": f"Bearer {_token(tenant_a)}"},
+        )
+
+    assert phan_hoi.status_code == 200
+    than = phan_hoi.json()
+    assert len(than["items"]) == than["total_count"]
+
+
+@pytest.mark.usefixtures("engine")
 def test_lay_mot_van_ban_theo_id(
     settings: Settings,
     tenant_co_du_lieu: tuple[uuid.UUID, uuid.UUID, str, str, str],

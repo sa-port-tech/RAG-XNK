@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Testcontainers.PostgreSql;
+using Xnk.TestSupport;
 using Xnk.IdentityTenant.Data;
 
 namespace Xnk.IdentityTenant.Tests.Api;
@@ -9,7 +10,7 @@ namespace Xnk.IdentityTenant.Tests.Api;
 /// </summary>
 /// <remarks>
 /// Cùng khuôn với <c>PostgresFixture</c> của Xnk.Corpus.Tests, và cùng lý do: hai chế độ
-/// chọn tự động — có <c>XNK_TEST_CONNECTION</c> thì dùng luôn (đường đi trên CI và trong
+/// chọn tự động — có <c>XNK_TEST_DATABASE_URL</c> thì dùng luôn (đường đi trên CI và trong
 /// container test), không có thì tự khởi container cùng ảnh mà CI dùng (đường đi trên máy
 /// dev, chạy được ngay sau khi clone).
 /// <para>
@@ -21,10 +22,10 @@ namespace Xnk.IdentityTenant.Tests.Api;
 public sealed class IdentityPostgresFixture : IAsyncLifetime
 {
     /// <summary>Biến môi trường mà CI dùng để trỏ tới PostgreSQL có sẵn.</summary>
-    public const string ConnectionEnvironmentVariable = "XNK_TEST_CONNECTION";
+    public const string ConnectionEnvironmentVariable = ChuoiKetNoiTest.TenBienMoiTruong;
 
     /// <summary>Ảnh container, khớp đúng ảnh trong ci-dotnet.yml và docker-compose.yml.</summary>
-    public const string PostgresImage = "pgvector/pgvector:pg16";
+    public const string PostgresImage = ChuoiKetNoiTest.AnhPostgres;
 
     private PostgreSqlContainer? _container;
 
@@ -34,9 +35,9 @@ public sealed class IdentityPostgresFixture : IAsyncLifetime
     /// <inheritdoc />
     public async Task InitializeAsync()
     {
-        string? provided = Environment.GetEnvironmentVariable(ConnectionEnvironmentVariable);
+        string? provided = ChuoiKetNoiTest.TuMoiTruong();
 
-        if (string.IsNullOrWhiteSpace(provided))
+        if (provided is null)
         {
             _container = new PostgreSqlBuilder(PostgresImage)
                 .WithDatabase("xnk_test")

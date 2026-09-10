@@ -33,6 +33,24 @@
     -->
     <InvariantGlobalization>true</InvariantGlobalization>
 
+    <!--
+      Phép tính số nguyên tràn thì NÉM, không quấn vòng.
+
+      Mặc định của C# là quấn vòng im lặng: `int.MaxValue + 1` cho ra số âm, không lỗi,
+      không cảnh báo. Đó chính là cách `(page - 1) * pageSize` trong DocumentsEndpoints
+      biến một tham số truy vấn hợp lệ thành `OFFSET` âm và một lỗi 500.
+
+      File này bật `TreatWarningsAsErrors` và analyzer ở mức cao nhất, tức là đã chọn
+      hướng "thà đỏ sớm còn hơn sai muộn". Thiếu đúng cờ này là một lỗ hổng trong chính
+      hướng đó — và là lỗ hổng mà không cảnh báo nào chỉ ra được, vì quấn vòng là hành vi
+      ĐÚNG theo đặc tả ngôn ngữ.
+
+      Cái giá: một phép tính cố ý quấn vòng (băm tự viết, checksum) sẽ ném. Không có chỗ
+      nào trong repo làm thế; nếu sau này có, gói riêng chỗ đó trong `unchecked { }` chứ
+      đừng tắt cờ này cho cả solution.
+    -->
+    <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
+
     <IsPackable>false</IsPackable>
 
     <!--

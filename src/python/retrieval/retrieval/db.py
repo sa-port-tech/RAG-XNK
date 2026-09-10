@@ -91,11 +91,55 @@ async def kiem_tra_san_sang(engine: AsyncEngine) -> None:
         await conn.execute(text(CAU_KIEM_TRA))
 
 
-async def dem_van_ban(engine: AsyncEngine, tenant_id: uuid.UUID) -> int:
-    """Đếm số văn bản mà tenant được phép thấy."""
+def _thanh_van_ban(dong: Any) -> VanBan:
+    return VanBan(
+        id=dong.Id,
+        document_number=dong.DocumentNumber,
+        title=dong.Title,
+        effective_from=dong.EffectiveFrom,
+        effective_to=dong.EffectiveTo,
+        is_shared=dong.is_shared,
+    )
+
+
+async def dem_va_liet_ke(
+    engine: AsyncEngine,
+    tenant_id: uuid.UUID,
+    limit: int,
+    offset: int,
+) -> tuple[int, list[VanBan]]:
+    """Đếm và liệt kê trong **cùng một ảnh chụp** dữ liệu.
+
+    Hai câu SQL, một giao dịch ``REPEATABLE READ`` — và cả hai vế đều cần thiết.
+
+    Trước đây đây là hai hàm, mỗi hàm tự mở connection riêng. Hệ quả: ``total_count`` đếm
+    trên trạng thái bảng lúc t1, còn ``items`` đọc trạng thái lúc t2. Một lần chèn hay xoá
+    xen vào giữa là người dùng thấy triệu chứng kinh điển của phân trang lệch — trang 3/3
+    trả về rỗng, hoặc một văn bản xuất hiện ở hai trang liền nhau. Không có lỗi nào được
+    ghi, và ai gặp cũng sẽ mô tả là "hệ thống chạy lung tung".
+
+    Gộp vào một connection thôi thì **chưa đủ**: PostgreSQL mặc định ``READ COMMITTED``,
+    và ở mức đó mỗi CÂU LỆNH lấy một ảnh chụp mới — hai câu trong cùng một giao dịch vẫn
+    thấy hai trạng thái khác nhau. ``REPEATABLE READ`` là thứ khoá cả giao dịch vào một
+    ảnh chụp duy nhất.
+
+    Vì sao không dùng ``COUNT(*) OVER ()`` để gộp thành một câu: cửa sổ đó tính trên các
+    dòng ĐƯỢC TRẢ VỀ, nên một trang vượt quá cuối danh sách trả 0 dòng và khi ấy không có
+    chỗ nào mang con số tổng — đúng cái trang mà người dùng cần biết tổng nhất.
+    """
     async with engine.connect() as conn:
-        ket_qua = await conn.execute(text(CAU_DEM), {"tenant_id": tenant_id})
-        return int(ket_qua.scalar_one())
+        rr = await conn.execution_options(isolation_level="REPEATABLE READ")
+        async with rr.begin():
+            dem = await rr.execute(text(CAU_DEM), {"tenant_id": tenant_id})
+            tong = int(dem.scalar_one())
+
+            ds = await rr.execute(
+                text(CAU_LIET_KE),
+                {"tenant_id": tenant_id, "limit": limit, "offset": offset},
+            )
+            ban_ghi = [_thanh_van_ban(dong) for dong in ds]
+
+    return tong, ban_ghi
 
 
 async def lay_van_ban(
@@ -115,38 +159,4 @@ async def lay_van_ban(
             text(CAU_LAY_MOT), {"tenant_id": tenant_id, "document_id": document_id}
         )
         dong = ket_qua.first()
-        if dong is None:
-            return None
-        return VanBan(
-            id=dong.Id,
-            document_number=dong.DocumentNumber,
-            title=dong.Title,
-            effective_from=dong.EffectiveFrom,
-            effective_to=dong.EffectiveTo,
-            is_shared=dong.is_shared,
-        )
-
-
-async def liet_ke_van_ban(
-    engine: AsyncEngine,
-    tenant_id: uuid.UUID,
-    limit: int,
-    offset: int,
-) -> list[VanBan]:
-    """Liệt kê văn bản mà tenant được phép thấy, đã phân trang."""
-    async with engine.connect() as conn:
-        ket_qua = await conn.execute(
-            text(CAU_LIET_KE),
-            {"tenant_id": tenant_id, "limit": limit, "offset": offset},
-        )
-        return [
-            VanBan(
-                id=dong.Id,
-                document_number=dong.DocumentNumber,
-                title=dong.Title,
-                effective_from=dong.EffectiveFrom,
-                effective_to=dong.EffectiveTo,
-                is_shared=dong.is_shared,
-            )
-            for dong in ket_qua
-        ]
+        return None if dong is None else _thanh_van_ban(dong)

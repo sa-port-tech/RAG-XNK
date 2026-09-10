@@ -30,13 +30,63 @@ public sealed class GhiLaiHandler : HttpMessageHandler
     public List<HttpRequestMessage> DaGoi { get; } = [];
 
     /// <summary>Đặt phản hồi cho lần gọi kế tiếp.</summary>
-    public GhiLaiHandler TraVe(HttpStatusCode ma, string? json = null)
+    /// <param name="ma">Mã trạng thái trả về.</param>
+    /// <param name="json">Thân phản hồi.</param>
+    /// <param name="duongDanMongDoi">
+    /// Nếu đặt, bước này <b>kiểm</b> đường dẫn của request trước khi trả lời.
+    /// </param>
+    /// <remarks>
+    /// Vì sao có <paramref name="duongDanMongDoi"/>: kịch bản là một hàng đợi, và hàng đợi
+    /// không nhìn request. Một lần thử lại ngoài dự kiến ăn mất một phản hồi, rồi **mọi**
+    /// khẳng định sau đó lệch đi một bước — test vẫn chạy, vẫn cho kết quả, chỉ là kết quả
+    /// của một kịch bản khác. Khai đường dẫn mong đợi biến lệch pha im lặng thành một lỗi
+    /// nói rõ nó lệch ở đâu.
+    /// </remarks>
+    public GhiLaiHandler TraVe(HttpStatusCode ma, string? json = null, string? duongDanMongDoi = null)
     {
-        _kichBan.Enqueue(_ => new HttpResponseMessage(ma)
+        _kichBan.Enqueue(request =>
         {
-            Content = new StringContent(json ?? "{}", Encoding.UTF8, "application/json"),
+            KiemDuongDan(request, duongDanMongDoi);
+            return new HttpResponseMessage(ma)
+            {
+                Content = new StringContent(json ?? "{}", Encoding.UTF8, "application/json"),
+            };
         });
         return this;
+    }
+
+    /// <summary>Lần gọi kế tiếp <b>ném</b> ngoại lệ thay vì trả phản hồi.</summary>
+    /// <remarks>
+    /// Nhánh ngoại lệ của <c>SendAsync</c> trước đây không có test nào chạm tới, vì kịch
+    /// bản chỉ biết trả <c>Task.FromResult</c>. Đó đúng là vùng chứa bộ lọc bắt ngoại lệ
+    /// của <c>TransientRetryHandler</c> và của <c>ChatEndpoints</c> — tức là phần logic
+    /// tinh vi nhất trong đường gọi ra ngoài lại là phần chưa từng được chạy trong test.
+    /// </remarks>
+    public GhiLaiHandler Nem(Exception loi, string? duongDanMongDoi = null)
+    {
+        ArgumentNullException.ThrowIfNull(loi);
+
+        _kichBan.Enqueue(request =>
+        {
+            KiemDuongDan(request, duongDanMongDoi);
+            throw loi;
+        });
+        return this;
+    }
+
+    private static void KiemDuongDan(HttpRequestMessage request, string? duongDanMongDoi)
+    {
+        if (duongDanMongDoi is null)
+        {
+            return;
+        }
+
+        string thuc = request.RequestUri?.AbsolutePath ?? "(không có URI)";
+        if (!thuc.Equals(duongDanMongDoi, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"Kịch bản lệch pha: bước này chờ '{duongDanMongDoi}' nhưng nhận '{thuc}'.");
+        }
     }
 
     /// <inheritdoc />

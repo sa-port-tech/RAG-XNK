@@ -167,7 +167,7 @@ jobs:
           --health-cmd "pg_isready -U postgres"
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
-      XNK_TEST_CONNECTION: "Host=localhost;Port=5432;Database=xnk_test;Username=postgres;Password=ci-only-not-a-secret"
+      XNK_TEST_DATABASE_URL: "postgresql://postgres:ci-only-not-a-secret@localhost:5432/xnk_test"
     steps:
       - uses: actions/checkout@v4
 
@@ -217,18 +217,10 @@ jobs:
 
       - name: Bảo đảm cổng BR-11 không rỗng
         run: |
-          tong=$(python3 .github/scripts/dem_test_trx.py artifacts/tenant-isolation)
-          echo "Số test mang trait Category=TenantIsolation đã chạy: $tong"
-
-          if [ "$tong" -eq 0 ]; then
-            echo "::error::Không có test nào mang trait Category=TenantIsolation trong toàn solution."
-            echo "::error::BR-11 là ranh giới bảo mật và là required check (docs/16 §3). Mọi PR .NET phải giữ ít nhất một test như vậy."
-            exit 1
-          fi
-
-      - name: Bảo đảm cổng BR-11 không rỗng
-        run: |
-          tong=$(python3 .github/scripts/dem_test_trx.py artifacts/tenant-isolation)
+          # Script tự đọc trait từ trx, KHÔNG tin vào việc `--filter` ở trên còn nguyên.
+          # Xoá dòng --filter đi thì con số này không đổi — đó là điều kiện để cổng này
+          # thật sự là cổng, chứ không phải một phép đếm ăn theo một dòng ở chỗ khác.
+          tong=$(python3 .github/scripts/dem_test_trx.py artifacts/tenant-isolation TenantIsolationTests)
           echo "Số test mang trait Category=TenantIsolation đã chạy: $tong"
 
           if [ "$tong" -eq 0 ]; then

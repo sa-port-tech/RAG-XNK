@@ -18,6 +18,30 @@ public static class DocumentsEndpoints
     private const int _kichThuocTrangMacDinh = 20;
     private const int _kichThuocTrangToiDa = 100;
 
+    /// <summary>
+    /// Trần của <c>OFFSET</c>, tức <c>(page - 1) * pageSize</c>.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Đây không phải một con số chọn cho đẹp: <c>Queryable.Skip</c> nhận <see cref="int"/>,
+    /// nên <see cref="int.MaxValue"/> là trần thật của API này chứ không phải một quy ước.
+    /// </para>
+    /// <para>
+    /// Vì sao phải kiểm TÍCH chứ không chỉ kiểm từng thừa số: <c>page</c> và
+    /// <c>pageSize</c> đều hợp lệ khi xét riêng — <c>page = 2_000_000_000</c> qua được
+    /// <c>page &lt; 1</c>, <c>pageSize = 100</c> qua được trần trang — nhưng tích của
+    /// chúng tràn <see cref="int"/> thành số ÂM, EF dịch thành <c>OFFSET &lt;âm&gt;</c>, và
+    /// PostgreSQL trả lỗi. Kết quả là <b>500 sinh ra từ đầu vào của người dùng</b>, trên
+    /// một endpoint mà mọi tenant đã xác thực đều gọi được.
+    /// </para>
+    /// <para>
+    /// Bản Python của cùng endpoint này (<c>retrieval/main.py</c>) không tràn vì số nguyên
+    /// Python vô hạn — nó trả 200 với danh sách rỗng. Hai bản cùng một input mà hai hành vi
+    /// là một hợp đồng có hai bản dịch, nên bên kia áp cùng trần này và cùng trả 400.
+    /// </para>
+    /// </remarks>
+    private const long _viTriBatDauToiDa = int.MaxValue;
+
     /// <summary>Gắn nhóm endpoint văn bản vào ứng dụng.</summary>
     public static IEndpointRouteBuilder MapDocumentsEndpoints(this IEndpointRouteBuilder endpoints)
     {
@@ -81,9 +105,22 @@ public static class DocumentsEndpoints
             });
         }
 
+        // Tính bằng long RỒI mới kiểm: tính bằng int là đã tràn trước khi có gì để kiểm.
+        long viTriBatDau = ((long)page - 1) * pageSize;
+        if (viTriBatDau > _viTriBatDauToiDa)
+        {
+            return TypedResults.ValidationProblem(new Dictionary<string, string[]>
+            {
+                ["page"] = [$"page × pageSize vượt trần {_viTriBatDauToiDa}."],
+            });
+        }
+
         IQueryable<Document> truyVan = db.Documents.AsNoTracking();
 
-        int tong = await truyVan.CountAsync(huy);
+        // LongCountAsync chứ không CountAsync: corpus hướng tới cấp Điều/Khoản của toàn bộ
+        // văn bản pháp luật XNK, và CountAsync ném OverflowException khi vượt int. Đổi kiểu
+        // bây giờ rẻ; đổi sau khi client đã đọc trường này thì không.
+        long tong = await truyVan.LongCountAsync(huy);
 
         List<DocumentSummary> muc = await truyVan
             // Thứ tự phải TẤT ĐỊNH, nếu không thì phân trang trùng lặp và bỏ sót bản ghi
@@ -92,7 +129,7 @@ public static class DocumentsEndpoints
             // hợp nhất mang số hiệu khác nhưng cùng nội dung).
             .OrderBy(d => d.DocumentNumber)
             .ThenBy(d => d.Id)
-            .Skip((page - 1) * pageSize)
+            .Skip((int)viTriBatDau)
             .Take(pageSize)
             .Select(d => new DocumentSummary(
                 d.Id,

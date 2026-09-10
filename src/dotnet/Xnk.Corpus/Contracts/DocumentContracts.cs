@@ -14,7 +14,7 @@ namespace Xnk.Corpus.Contracts;
 /// Trả về tổng số thật của bảng sẽ rò rỉ quy mô dữ liệu của tenant khác — một kiểu rò rỉ
 /// không lộ ra nội dung nào nhưng vẫn là rò rỉ.
 /// </remarks>
-public sealed record PagedResult<T>(IReadOnlyList<T> Items, int Page, int PageSize, int TotalCount);
+public sealed record PagedResult<T>(IReadOnlyList<T> Items, int Page, int PageSize, long TotalCount);
 
 /// <summary>Văn bản, ở mức tóm tắt cho danh sách.</summary>
 /// <param name="Id">Khoá chính.</param>

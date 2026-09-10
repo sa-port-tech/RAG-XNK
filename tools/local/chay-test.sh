@@ -39,6 +39,6 @@ MANG="xnk_default"
 echo "▸ Chạy test"
 docker run --rm \
   --network "$MANG" \
-  -e "XNK_TEST_CONNECTION=Host=postgres;Port=5432;Database=$DB_TEST;Username=postgres;Password=xnk-local-dev" \
+  -e "XNK_TEST_DATABASE_URL=postgresql://postgres:xnk-local-dev@postgres:5432/$DB_TEST" \
   -e "TEST_FILTER=$BO_LOC" \
   xnk/test

@@ -39,6 +39,18 @@ _log = logging.getLogger(__name__)
 KICH_THUOC_TRANG_MAC_DINH: Final = 20
 KICH_THUOC_TRANG_TOI_DA: Final = 100
 
+# Trần của OFFSET, tức (page - 1) * page_size.
+#
+# Số nguyên Python vô hạn nên ở đây không có chuyện tràn. Trần này tồn tại vì lý do khác:
+# bản .NET của cùng endpoint (Xnk.Corpus/Endpoints/DocumentsEndpoints.cs) dùng
+# `Queryable.Skip(int)`, nên int.MaxValue là trần THẬT của hợp đồng — và ở đó, quá trần thì
+# phép nhân quấn vòng thành số âm và PostgreSQL trả lỗi, tức là 500 sinh ra từ đầu vào của
+# người dùng.
+#
+# Cùng một URL, cùng một tham số, hai hành vi khác nhau (500 bên .NET, 200-rỗng bên Python)
+# là một hợp đồng có hai bản dịch. Hai bên nay cùng trả 422/400 tại đúng ngưỡng này.
+VI_TRI_BAT_DAU_TOI_DA: Final = 2**31 - 1
+
 
 class HealthStatus(BaseModel):
     """Thân phản hồi của healthcheck.
@@ -190,9 +202,17 @@ async def liet_ke_van_ban(
     ``router_can_xac_thuc``. ``tenant_id`` đến qua ``Depends`` — hàm nhận kết quả, không
     nhận trách nhiệm đi lấy nó.
     """
-    tong = await db.dem_van_ban(engine, tenant_id)
-    ban_ghi = await db.liet_ke_van_ban(
-        engine, tenant_id, limit=page_size, offset=(page - 1) * page_size
+    vi_tri_bat_dau = (page - 1) * page_size
+    if vi_tri_bat_dau > VI_TRI_BAT_DAU_TOI_DA:
+        raise HTTPException(
+            status_code=422,
+            detail=f"page * page_size vượt trần {VI_TRI_BAT_DAU_TOI_DA}.",
+        )
+
+    # Một lời gọi, một ảnh chụp: xem `db.dem_va_liet_ke`. Gọi hai hàm rời nhau ở đây là
+    # cách `total_count` và `items` đọc hai trạng thái khác nhau của cùng một bảng.
+    tong, ban_ghi = await db.dem_va_liet_ke(
+        engine, tenant_id, limit=page_size, offset=vi_tri_bat_dau
     )
 
     return TrangKetQua(

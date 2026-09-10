@@ -155,6 +155,24 @@ public sealed class DocumentsApiTests(PostgresFixture postgres) : IAsyncLifetime
         Assert.Equal(HttpStatusCode.BadRequest, phanHoi.StatusCode);
     }
 
+    [Fact]
+    public async Task Trang_qua_lon_thi_400_chu_khong_phai_500()
+    {
+        // ⚠️ HỒI QUY. `page` và `pageSize` dưới đây đều HỢP LỆ khi xét riêng: page vượt
+        // ngưỡng `page < 1`, pageSize nằm trong trần 100. Tích của chúng thì tràn `int`
+        // thành số âm, EF dịch thành `OFFSET <âm>`, và PostgreSQL từ chối — tức là 500
+        // sinh ra từ tham số truy vấn, trên endpoint mà mọi tenant đã xác thực gọi được.
+        //
+        // Không có test này thì bản vá dễ bị "dọn dẹp" mất: `((long)page - 1) * pageSize`
+        // trông thừa với người đọc không biết vì sao nó ở đó.
+        using HttpClient client = _factory.TaoClientCuaTenant(_tenantA);
+
+        HttpResponseMessage phanHoi = await client.GetAsync(
+            new Uri("/corpus/documents?page=2000000000&pageSize=100", UriKind.Relative));
+
+        Assert.Equal(HttpStatusCode.BadRequest, phanHoi.StatusCode);
+    }
+
     private static async Task<List<string>> LaySoHieu(HttpClient client)
     {
         PagedResult<DocumentSummary>? trang = await client.GetFromJsonAsync<PagedResult<DocumentSummary>>(

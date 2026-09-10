@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Testcontainers.PostgreSql;
+using Xnk.TestSupport;
 using Xnk.Corpus.Data;
 using Xnk.Shared.Tenancy;
 
@@ -20,7 +21,7 @@ namespace Xnk.Corpus.Tests.TenantIsolation;
 /// </para>
 /// <list type="bullet">
 /// <item>
-/// Có biến <c>XNK_TEST_CONNECTION</c> → dùng luôn. Đây là đường đi trên CI: job
+/// Có biến <c>XNK_TEST_DATABASE_URL</c> → dùng luôn. Đây là đường đi trên CI: job
 /// <c>tenant-isolation</c> đã dựng sẵn một service container <c>pgvector/pgvector:pg16</c>
 /// và truyền chuỗi kết nối qua biến này.
 /// </item>
@@ -37,10 +38,11 @@ namespace Xnk.Corpus.Tests.TenantIsolation;
 public sealed class PostgresFixture : IAsyncLifetime
 {
     /// <summary>Biến môi trường mà CI dùng để trỏ tới PostgreSQL có sẵn.</summary>
-    public const string ConnectionEnvironmentVariable = "XNK_TEST_CONNECTION";
+    /// <remarks>Dùng chung với ba service Python — xem <see cref="ChuoiKetNoiTest"/>.</remarks>
+    public const string ConnectionEnvironmentVariable = ChuoiKetNoiTest.TenBienMoiTruong;
 
     /// <summary>Ảnh container, khớp đúng ảnh trong <c>.github/workflows/ci-dotnet.yml</c>.</summary>
-    public const string PostgresImage = "pgvector/pgvector:pg16";
+    public const string PostgresImage = ChuoiKetNoiTest.AnhPostgres;
 
     private PostgreSqlContainer? _container;
 
@@ -50,9 +52,9 @@ public sealed class PostgresFixture : IAsyncLifetime
     /// <inheritdoc />
     public async Task InitializeAsync()
     {
-        string? provided = Environment.GetEnvironmentVariable(ConnectionEnvironmentVariable);
+        string? provided = ChuoiKetNoiTest.TuMoiTruong();
 
-        if (string.IsNullOrWhiteSpace(provided))
+        if (provided is null)
         {
             // Ảnh truyền qua constructor: Testcontainers 4.14 đã bỏ constructor không
             // tham số kèm WithImage.
