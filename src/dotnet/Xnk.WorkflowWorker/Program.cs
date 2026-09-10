@@ -34,6 +34,10 @@ builder.Services.AddHttpClient<CamundaClient>((sp, client) =>
 });
 
 builder.Services.AddSingleton<IExternalTaskHandler, NotifyExpertHandler>();
+// Singleton: worker ghi nhịp, health check đọc nhịp — hai bản khác nhau là hai câu chuyện
+// không liên quan. TimeProvider.System tách được trong test.
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddSingleton<NhipTimWorker>();
 builder.Services.AddHostedService<ExternalTaskWorker>();
 
 builder.Services.AddHealthChecks()

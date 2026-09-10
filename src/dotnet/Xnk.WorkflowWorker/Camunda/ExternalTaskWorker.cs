@@ -25,6 +25,7 @@ public sealed class ExternalTaskWorker(
     CamundaClient client,
     IEnumerable<IExternalTaskHandler> handlers,
     IOptions<CamundaOptions> options,
+    NhipTimWorker nhipTim,
     ILogger<ExternalTaskWorker> log) : BackgroundService
 {
     /// <summary>
@@ -56,9 +57,23 @@ public sealed class ExternalTaskWorker(
     {
         if (_theoTopic.Count == 0)
         {
-            log.LogWarning("Không có handler nào được đăng ký — worker sẽ không lấy task nào.");
-            return;
+            // ⚠️ NÉM, không `return`.
+            //
+            // `return` ở đây kết thúc ExecuteAsync trong khi host vẫn chạy: container sống,
+            // health vẫn xanh, và không một task nào được lấy — mãi mãi. Đó đúng là thứ mà
+            // khối catch cách đây hai mươi dòng gọi tên là "loại hỏng hóc im lặng nhất",
+            // chỉ khác là nó xảy ra ở ngay cửa vào thay vì ở giữa vòng lặp.
+            //
+            // Ném làm host dừng (BackgroundServiceExceptionBehavior.StopHost là mặc định từ
+            // .NET 6), nên ECS thấy task chết và báo deploy hỏng — thông tin đúng, sớm.
+            // Một worker không có handler nào không phải một worker rảnh rỗi; nó là một
+            // cấu hình sai đã lọt qua khâu deploy.
+            throw new InvalidOperationException(
+                "Không có IExternalTaskHandler nào được đăng ký. Worker sẽ không bao giờ "
+                + "lấy được task, nên nó dừng thay vì chạy không.");
         }
+
+        nhipTim.BatDau();
 
         log.LogInformation(
             "Worker {WorkerId} bắt đầu, đăng ký {SoTopic} topic: {Topics}",
@@ -69,6 +84,10 @@ public sealed class ExternalTaskWorker(
             try
             {
                 await MotLuotAsync(stoppingToken);
+
+                // Đập cả khi lượt vừa rồi không có task nào: thứ đang đo là vòng lặp còn
+                // quay, không phải có việc để làm.
+                nhipTim.Dap();
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -89,16 +108,51 @@ public sealed class ExternalTaskWorker(
 
     private async Task MotLuotAsync(CancellationToken huy)
     {
+        DateTimeOffset lucKhoa = nhipTim.BayGio;
+
         IReadOnlyList<ExternalTask> danhSach = await client.FetchAndLockAsync(
             WorkerId, _theoTopic.Keys, options.Value, huy);
 
         foreach (ExternalTask task in danhSach)
         {
-            await XuLyMotTaskAsync(task, huy);
+            // ⚠️ Cửa sổ khoá là của CẢ LÔ, không phải của từng task.
+            //
+            // `fetchAndLock` khoá tối đa `MaxTasks` task trong `LockDurationMs`, và ba
+            // tham số — số task mỗi lô, thời hạn khoá, thời gian một handler chạy — trước
+            // đây không có gì ràng buộc với nhau. Năm task tuần tự, mỗi task mười lăm giây,
+            // là quá cửa sổ sáu mươi giây ở task thứ tư: engine coi worker đã chết và giao
+            // lại cho worker khác **trong khi worker này vẫn đang làm**. Cùng một bước chạy
+            // hai lần, không lỗi nào được ghi ở đâu cả.
+            //
+            // Nên mỗi handler chạy dưới một ngân sách bằng phần khoá CÒN LẠI. Quá ngân
+            // sách thì task được đánh hỏng một cách tường minh (engine ghi lỗi, giảm
+            // retries) thay vì rơi vào chạy trùng im lặng.
+            TimeSpan conLai = NganSachConLai(lucKhoa);
+            if (conLai <= TimeSpan.Zero)
+            {
+                log.LogWarning(
+                    "Hết cửa sổ khoá trước khi xử lý task {TaskId} — bỏ phần còn lại của lô "
+                    + "để engine giao lại. Cân nhắc giảm MaxTasks hoặc tăng LockDurationMs.",
+                    task.Id);
+                return;
+            }
+
+            await XuLyMotTaskAsync(task, conLai, huy);
         }
     }
 
-    private async Task XuLyMotTaskAsync(ExternalTask task, CancellationToken huy)
+    /// <summary>Phần thời hạn khoá còn lại, trừ đi một biên an toàn.</summary>
+    /// <remarks>
+    /// Biên 20%: gọi <c>complete</c> cũng tốn thời gian, và hoàn thành handler đúng vào
+    /// mili giây cuối của cửa sổ vẫn có thể thua engine ở bước báo kết quả.
+    /// </remarks>
+    private TimeSpan NganSachConLai(DateTimeOffset lucKhoa)
+    {
+        TimeSpan tron = TimeSpan.FromMilliseconds(options.Value.LockDurationMs * 0.8);
+        return lucKhoa + tron - nhipTim.BayGio;
+    }
+
+    private async Task XuLyMotTaskAsync(ExternalTask task, TimeSpan nganSach, CancellationToken huy)
     {
         if (!_theoTopic.TryGetValue(task.TopicName, out IExternalTaskHandler? handler))
         {
@@ -108,14 +162,45 @@ public sealed class ExternalTaskWorker(
             return;
         }
 
+        // Ngân sách của handler là phần khoá còn lại; quá thì huỷ và để khối catch bên
+        // dưới báo hỏng cho engine. Truyền `huy` trần vào handler nghĩa là không có gì
+        // ngăn nó chạy quá cửa sổ khoá.
+        using var theoNganSach = CancellationTokenSource.CreateLinkedTokenSource(huy);
+        theoNganSach.CancelAfter(nganSach);
+
         try
         {
-            IReadOnlyDictionary<string, CamundaVariable>? bien = await handler.XuLyAsync(task, huy);
+            IReadOnlyDictionary<string, CamundaVariable>? bien =
+                await handler.XuLyAsync(task, theoNganSach.Token);
+
+            // `complete` dùng `huy`, không dùng token ngân sách: handler đã xong việc rồi,
+            // huỷ ở bước báo kết quả chỉ tạo ra một task chạy xong mà engine không biết.
             await client.CompleteAsync(task.Id, WorkerId, bien, huy);
 
             log.LogInformation(
                 "Hoàn thành task {TaskId} topic {Topic} của instance {Instance}.",
                 task.Id, task.TopicName, task.ProcessInstanceId);
+        }
+        catch (OperationCanceledException) when (!huy.IsCancellationRequested)
+        {
+            // Quá ngân sách khoá — KHÔNG phải worker đang dừng. Báo hỏng tường minh để
+            // engine giảm retries và ghi lại, thay vì im lặng thả task cho worker khác.
+            log.LogError(
+                "Task {TaskId} topic {Topic} vượt ngân sách {NganSach}s của cửa sổ khoá.",
+                task.Id, task.TopicName, nganSach.TotalSeconds);
+
+            int conLaiSauLoi = Math.Max((task.Retries ?? SoLanThuLai + 1) - 1, 0);
+            string thongBao = $"Vượt ngân sách {nganSach.TotalSeconds:F0}s của cửa sổ khoá.";
+            await client.FailureAsync(
+                task.Id,
+                WorkerId,
+                thongBao,
+                $"{thongBao} Cân nhắc giảm MaxTasks ({options.Value.MaxTasks}) hoặc tăng "
+                    + $"LockDurationMs ({options.Value.LockDurationMs}).",
+                conLaiSauLoi,
+                KhoangChoThuLaiMs,
+                huy);
+            return;
         }
         catch (Exception loi) when (loi is not OperationCanceledException)
         {

@@ -124,7 +124,12 @@ public sealed class ExternalTaskWorkerTests : IDisposable
         });
 
         return (
-            new ExternalTaskWorker(client, [handler], options, NullLogger<ExternalTaskWorker>.Instance),
+            new ExternalTaskWorker(
+                client,
+                [handler],
+                options,
+                new NhipTimWorker(TimeProvider.System),
+                NullLogger<ExternalTaskWorker>.Instance),
             http,
             handler);
     }

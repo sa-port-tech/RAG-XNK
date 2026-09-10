@@ -152,6 +152,53 @@ public sealed class ChatApiTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Readiness_liet_ke_tung_check_chu_khong_chi_mot_tu()
+    {
+        // ⚠️ HỒI QUY. Trước đây chat gọi AddHealthChecks() mà KHÔNG đăng ký check nào, nên
+        // /chat/health/ready trả 200 vô điều kiện — nó là liveness với một URL dài hơn.
+        // smoke_test.sh đọc đúng mã 200 đó như bằng chứng deploy thành công.
+        //
+        // Test này khoá lại điều kiện tối thiểu: thân phản hồi phải NÊU ĐÍCH DANH từng
+        // check. Danh sách rỗng khi ấy nhìn thấy được, thay vì trốn sau chữ "Healthy".
+        _factory.Retrieval.TraVe(HttpStatusCode.OK);
+        _factory.Generation.TraVe(HttpStatusCode.OK);
+
+        using HttpClient client = _factory.CreateClient();
+
+        HttpResponseMessage phanHoi = await client.GetAsync(
+            new Uri("/chat/health/ready", UriKind.Relative));
+        string than = await phanHoi.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, phanHoi.StatusCode);
+        Assert.Contains("retrieval", than, StringComparison.Ordinal);
+        Assert.Contains("generation", than, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Phu_thuoc_chet_thi_readiness_van_200_nhung_bao_Degraded()
+    {
+        // Hai vế, và vế nào cũng quan trọng:
+        //
+        // 200 — vì báo not-ready khi generation chết sẽ khiến ALB rút chat khỏi vòng phục
+        // vụ, và người dùng nhận lỗi mạng thay vì một 502 nói rõ chuyện gì đang xảy ra.
+        // Hai service kiểm chéo nhau là công thức để một sự cố nhỏ hạ cả cụm.
+        //
+        // Degraded trong thân — vì "vẫn nhận lưu lượng" không có nghĩa là "mọi thứ đều
+        // tốt", và người trực đêm cần đọc được sự khác nhau đó ở đâu đó.
+        _factory.Retrieval.Nem(new HttpRequestException("retrieval chết."));
+        _factory.Generation.TraVe(HttpStatusCode.OK);
+
+        using HttpClient client = _factory.CreateClient();
+
+        HttpResponseMessage phanHoi = await client.GetAsync(
+            new Uri("/chat/health/ready", UriKind.Relative));
+        string than = await phanHoi.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, phanHoi.StatusCode);
+        Assert.Contains("Degraded", than, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Retrieval_nem_HttpRequestException_thi_502()
     {
         // Nhánh NGOẠI LỆ của đường gọi ra ngoài. Trước đây không test nào chạm tới nó, vì

@@ -64,8 +64,44 @@ public static class ServiceDefaultsExtensions
         endpoints.MapHealthChecks("/health/ready", new HealthCheckOptions
         {
             Predicate = check => check.Tags.Contains(ReadinessTag),
+            ResponseWriter = GhiKetQuaAsync,
         }).AllowAnonymous();
 
         return endpoints;
+    }
+
+    /// <summary>
+    /// Ghi kết quả readiness dưới dạng JSON, liệt kê <b>từng</b> check.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Bộ ghi mặc định chỉ in đúng một từ: <c>Healthy</c>. Với một service không đăng ký
+    /// check nào, từ đó vẫn được in ra — và người đọc không có cách nào phân biệt "đã kiểm
+    /// ba thứ, cả ba đều tốt" với "chưa kiểm gì cả". Chat từng ở đúng trạng thái thứ hai,
+    /// trong khi <c>smoke_test.sh</c> đọc mã 200 của nó như bằng chứng deploy thành công.
+    /// </para>
+    /// <para>
+    /// Liệt kê từng check làm cho danh sách rỗng trở nên <b>nhìn thấy được</b>. Nó cũng là
+    /// chỗ trạng thái <c>Degraded</c> nói được điều gì đó: HTTP vẫn 200 (không rút service
+    /// khỏi vòng phục vụ), nhưng thân phản hồi nêu đích danh phụ thuộc nào đang hỏng.
+    /// </para>
+    /// </remarks>
+    private static Task GhiKetQuaAsync(HttpContext context, HealthReport baoCao)
+    {
+        context.Response.ContentType = "application/json; charset=utf-8";
+
+        var than = new
+        {
+            status = baoCao.Status.ToString(),
+            totalDurationMs = (long)baoCao.TotalDuration.TotalMilliseconds,
+            checks = baoCao.Entries.Select(muc => new
+            {
+                name = muc.Key,
+                status = muc.Value.Status.ToString(),
+                description = muc.Value.Description,
+            }),
+        };
+
+        return context.Response.WriteAsJsonAsync(than);
     }
 }

@@ -1,3 +1,5 @@
+using Xnk.Chat.Health;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 using Xnk.Chat.Clients;
 using Xnk.Chat.Endpoints;
@@ -53,7 +55,36 @@ builder.Services.AddScoped<GenerationClient>();
 // là công thức để một sự cố nhỏ hạ cả cụm.
 //
 // Chat vẫn phục vụ được khi phụ thuộc chết — nó trả 502 kèm lý do, và đó là hành vi đúng.
-builder.Services.AddHealthChecks();
+//
+// Nhưng "không gate readiness vào phụ thuộc" KHÔNG có nghĩa là readiness không kiểm gì.
+// Bản trước gọi AddHealthChecks() rỗng, nên /chat/health/ready trả 200 vô điều kiện — nó
+// là liveness với một URL dài hơn, trong khi smoke_test.sh đọc đúng mã đó như bằng chứng
+// deploy thành công.
+//
+// Hai check dưới đây trả tối đa Degraded, và Degraded vẫn cho ra HTTP 200: ALB không rút
+// chat khỏi vòng phục vụ, còn thân phản hồi thì nêu đích danh phụ thuộc nào đang hỏng.
+// Báo cáo, không phải cổng. Xem DownstreamHealthCheck.
+//
+// Đăng ký qua HealthCheckRegistration với factory nhận IServiceProvider, KHÔNG dựng sẵn
+// instance: dựng sẵn buộc phải gọi BuildServiceProvider() ngay giữa lúc đăng ký, tức là
+// tạo ra một container thứ hai với vòng đời riêng — mọi singleton sau đó tồn tại hai bản.
+builder.Services.AddHealthChecks()
+    .Add(new HealthCheckRegistration(
+        "retrieval",
+        sp => new DownstreamHealthCheck(
+            sp.GetRequiredService<IHttpClientFactory>(),
+            TenClient.Retrieval,
+            "/retrieval/health/ready"),
+        failureStatus: HealthStatus.Degraded,
+        tags: [ServiceDefaultsExtensions.ReadinessTag]))
+    .Add(new HealthCheckRegistration(
+        "generation",
+        sp => new DownstreamHealthCheck(
+            sp.GetRequiredService<IHttpClientFactory>(),
+            TenClient.Generation,
+            "/generation/health/ready"),
+        failureStatus: HealthStatus.Degraded,
+        tags: [ServiceDefaultsExtensions.ReadinessTag]));
 
 builder.Services.AddOpenApi();
 
