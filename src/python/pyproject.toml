@@ -111,6 +111,37 @@ pretty = true
 # ─── pytest ──────────────────────────────────────────────────────────────────────
 # CI truyền đường dẫn service vào nên KHÔNG đặt testpaths ở đây — đặt vào sẽ ghi đè
 # ý định "chỉ chạy test của service bị đụng" và làm matrix mất tác dụng.
+# ─── Vì sao pytest chạy TỪNG SERVICE MỘT ─────────────────────────────────────────────
+#
+# Ba service dùng chung tên gói `tests`, nên `pytest retrieval generation` dừng với
+# `ImportPathMismatchError: ('tests.conftest', …)`. CONTRIBUTING gọi đây là "chạy một
+# service mỗi lần"; review 03/09 gọi đúng tên nó: một xung đột tên gói được ghi vào tài
+# liệu thay vì được sửa.
+#
+# Đã thử gỡ, ghi lại để người sau khỏi thử lại ba lần như đợt 10/09/2026:
+#
+#   1. `--import-mode=importlib` một mình — KHÔNG đủ. `tests/__init__.py` vẫn làm cả ba
+#      gói mang tên `tests`, và pytest đăng ký plugin conftest theo tên module:
+#      `Plugin already registered under a different name`.
+#
+#   2. Bỏ `tests/__init__.py` + importlib — lộ ra một xung đột SÂU HƠN. `src/python/
+#      retrieval/` vừa là thư mục project (thành viên workspace) vừa chứa gói
+#      `retrieval/`; bỏ marker đi thì `from retrieval import db` phân giải vào thư mục
+#      project và chết với `cannot import name 'db' from 'retrieval' (unknown location)`.
+#
+#   3. Một `conftest.py` ở gốc chặn sớm kèm thông báo rõ — không dùng được: pytest nạp
+#      conftest của các đường dẫn trên dòng lệnh TRƯỚC mọi hook mà conftest gốc gắn được
+#      (`pytest_load_initial_conftests` của nó cũng chạy sau). Guard chỉ bắt được một
+#      trong ba dạng lời gọi, và một guard bắt được một phần ba thì tệ hơn không có.
+#
+# Gỡ thật cần đổi bố cục workspace (tách thư mục project khỏi thư mục gói) hoặc đặt tên
+# ba thư mục test khác nhau — một thay đổi kiến trúc, không phải một dòng cấu hình, và
+# không thuộc phạm vi PR khung này. Nó cần một story riêng.
+#
+# Điều này KHÔNG cản CI: ma trận của `ci-python` vốn chạy mỗi service một job, vì mỗi
+# service có coverage và ngưỡng lint riêng. Cái giá thật chỉ là một dòng lệnh dài hơn ở
+# máy dev.
+
 [tool.pytest.ini_options]
 addopts = "-q --strict-markers --strict-config"
 xfail_strict = true

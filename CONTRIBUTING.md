@@ -86,7 +86,13 @@ bash tools/local/chay-test.sh                     # .NET, trong container
 ```
 
 Ba service Python có cùng tên gói `tests`, nên gộp cả ba vào một lần `pytest` sẽ dừng với
-"import file mismatch". CI cũng chạy từng service một qua matrix.
+`ImportPathMismatchError`. **Đây là một xung đột tên gói chưa được gỡ, không phải một quy
+ước** — ba cách gỡ đã thử và vì sao chúng không dùng được, ghi ở đầu khối
+`[tool.pytest.ini_options]` trong `src/python/pyproject.toml`. Gỡ thật cần đổi bố cục
+workspace, tức một story riêng.
+
+CI không vướng: ma trận `ci-python` vốn chạy mỗi service một job vì mỗi service có coverage
+và ngưỡng lint riêng.
 
 ---
 

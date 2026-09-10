@@ -48,3 +48,27 @@ chuyển sang contract-first là việc làm được, và ADR này nên đượ
 **DTO dùng chung trong `Xnk.Shared`.** Đơn giản nhất cho phía .NET, nhưng xoá ranh giới
 giữa các service — đổi một DTO là buộc mọi service phải deploy lại — và không ràng buộc gì
 được phía Python.
+
+## Cách thi hành — và chỗ hiện chưa thi hành được
+
+Review 03/09/2026 nêu đúng: *"API code-first với không một contract test, không client sinh
+ra, không consumer. Quyết định là thật; việc thi hành thì mới là nguyện vọng."*
+
+**Đang thi hành được:**
+
+| Điều | Ai kiểm |
+|---|---|
+| Tài liệu OpenAPI sinh từ mã, không viết tay | `AddOpenApi()` trong `Program.cs` của mỗi service .NET; FastAPI sinh sẵn cho ba service Python |
+| Tài liệu nằm dưới tiền tố của service | Test `Duong_dan_co_tien_to_la_duong_duoc_phuc_vu` và test 404-đường-trần bên Python |
+| Tên trường theo hợp đồng, không theo mặc định của serializer | `PhanHoiToken` trong `TokenEndpointTests` khai `JsonPropertyName` và test đọc bằng đúng tên đó |
+
+**Chưa thi hành được, và không giả vờ ngược lại:**
+
+Chưa có contract test giữa `chat` và hai service phía sau. Hôm nay `chat` là consumer duy
+nhất, và `ChatApiFactory` giả lập phản hồi bằng chuỗi JSON viết tay — nghĩa là đổi tên một
+trường ở `retrieval` sẽ **không** làm bộ test của `chat` đỏ. Nó chỉ đỏ khi hai service gặp
+nhau thật, tức là ở `smoke_test.sh` sau khi deploy.
+
+Đóng lỗ này cần một trong hai: sinh client từ tài liệu OpenAPI rồi để `chat` dùng client
+đó, hoặc một bộ contract test chạy hai service thật trong CI. Cả hai đều là story riêng —
+ghi ra đây để nó không biến mất sau khi ADR được đọc lướt.

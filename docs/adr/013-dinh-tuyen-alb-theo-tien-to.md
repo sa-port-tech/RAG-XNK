@@ -54,3 +54,27 @@ sách kiểm soát chặt ([`docs/00`](../00-ke-hoach-tong-the.md) §3.5), và b
 Loại bỏ vì cần chứng chỉ wildcard và bản ghi DNS cho từng service, trong khi
 `smoke_test.sh` đã được viết theo mô hình tiền tố — đổi sang subdomain là sửa cả script
 lẫn hạ tầng để đổi lấy một lợi ích thẩm mỹ.
+
+## Bốn chỗ cài đặt cùng một quyết định
+
+Review 03/09/2026 nêu: *"Định tuyến theo tiền tố quyết định ở đây; bốn service cài đặt nó
+theo bốn cách khác nhau."* Đúng, và đó là **hệ quả bắt buộc** của việc dùng hai stack — chứ
+không phải bốn ý tưởng khác nhau. Liệt kê ra để ai đọc một chỗ biết ba chỗ kia tồn tại:
+
+| Chỗ | Cơ chế | Vì sao khác nhau |
+|---|---|---|
+| Bốn service .NET | `app.UsePathBase("/<tên>")` | ASP.NET Core cắt tiền tố vào `PathBase`, route vẫn khai `/health/ready` |
+| Ba service Python | `APIRouter(prefix="/<tên>")` | FastAPI không có khái niệm `PathBase`; gắn thẳng vào router là cách duy nhất đúng ở cả ba môi trường |
+| nginx ở local | `tools/local/render_nginx.py` sinh `location /<tên>/` | Tái hiện ALB, và **không** cắt tiền tố — đúng hành vi thật |
+| ALB trên AWS | rule theo path pattern | Không cắt tiền tố, và không có chức năng rewrite |
+
+**Điều giữ bốn chỗ này không lệch nhau:** tiền tố ở cả bốn đều bằng đúng trường `name`
+trong [`.github/services.json`](../../.github/services.json) (ADR-009), và
+`render_nginx.py` **đọc chính file đó** thay vì chép lại danh sách.
+
+**Điều bắt lệch khi nó xảy ra:** mỗi service Python có một test khẳng định đường dẫn
+**không** tiền tố trả 404, và `smoke_test.sh` lặp qua toàn bộ `services.json` sau mỗi lần
+deploy. Đổi `name` mà quên đổi tiền tố trong mã thì test đỏ tại chỗ, không phải đỏ trên dev.
+
+Cái chưa có: không gì bắt được việc một service .NET quên gọi `UsePathBase`. Bốn service
+đó dựa vào test tích hợp của riêng chúng, và ba trong bốn có test ấy.
