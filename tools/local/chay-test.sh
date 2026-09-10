@@ -16,6 +16,28 @@ cd "$GOC"
 
 BO_LOC="${1:-}"
 
+# Bộ lọc gõ sai thì `dotnet test` chạy 0 test và VẪN XANH — một lần chạy "thành công" mà
+# không kiểm gì cả, và người gõ nhầm không có cách nào biết. Đây đúng là lỗ hổng mà
+# `.github/scripts/dem_test_trx.py` tồn tại để bịt ở phía CI; ở phía máy dev thì chưa có gì.
+#
+# Không tự đoán ý người dùng: chỉ chặn khi bộ lọc trông như `Category=...` mà giá trị
+# không nằm trong danh sách trait đang có thật. Mọi cú pháp lọc khác đi thẳng như cũ.
+TRAIT_CO_THAT="TenantIsolation"
+
+case "$BO_LOC" in
+  Category=*)
+    gia_tri="${BO_LOC#Category=}"
+    case " $TRAIT_CO_THAT " in
+      *" $gia_tri "*) ;;
+      *)
+        echo "Trait '$gia_tri' không tồn tại trong repo. Trait đang có: $TRAIT_CO_THAT" >&2
+        echo "Gõ sai trait thì dotnet test chạy 0 test và vẫn báo xanh — nên dừng ở đây." >&2
+        exit 1
+        ;;
+    esac
+    ;;
+esac
+
 # Database RIÊNG cho test. Không dùng chung `xnk` với môi trường dev: bộ test ghi hàng
 # trăm bản ghi rác, và trộn chúng vào dữ liệu seed khiến mọi lần xem thử dữ liệu sau đó
 # đều phải tự lọc trong đầu.

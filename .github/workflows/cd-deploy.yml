@@ -159,7 +159,7 @@ jobs:
           fi
 
       - name: Lấy quyền AWS qua OIDC
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
@@ -167,12 +167,12 @@ jobs:
 
       - name: Đăng nhập ECR
         id: ecr
-        uses: aws-actions/amazon-ecr-login@v2
+        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
       - name: Build và đẩy image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: ${{ steps.svc.outputs.path }}/Dockerfile
@@ -207,21 +207,45 @@ jobs:
       # sẽ tranh nhau. Cũng không chạy từ runner của GitHub Actions — làm vậy buộc phải mở
       # RDS cho dải IP của GitHub, trái với docs/00 §12 (service nằm trong private subnet).
       # Xem ADR-010.
+      # ⚠️ Thiếu cấu hình KHÔNG được đồng nghĩa với thành công.
+      #
+      # Bản trước: biến `ECS_MIGRATION_TASK_DEFINITION` rỗng → ghi một notice rồi bỏ qua
+      # hai bước sau, và job kết thúc `success`. Job `deploy` gate trên
+      # `needs.migrate.result == 'success'`, nên "đã áp migration" và "chưa cấu hình gì
+      # cả" phát ra ĐÚNG MỘT tín hiệu. Xoá nhầm một repository variable là biến
+      # "migration đã chạy" thành "migration bị bỏ qua" mà không ai thấy, và service mới
+      # khởi động trên lược đồ cũ.
+      #
+      # Nay thiếu cấu hình thì job ĐỎ. Muốn deploy khi chưa có hạ tầng migration thì phải
+      # đặt `CHO_PHEP_DEPLOY_KHONG_MIGRATION=true` — một quyết định có tên, có người đặt,
+      # và tra lại được. Vắng mặt cấu hình không còn là một cách bỏ qua nữa.
       - name: Kiểm tra đã có hạ tầng migration chưa
         id: guard
         env:
           TASK_DEF: ${{ vars.ECS_MIGRATION_TASK_DEFINITION }}
+          CHO_PHEP_BO_QUA: ${{ vars.CHO_PHEP_DEPLOY_KHONG_MIGRATION }}
         run: |
-          if [ -z "$TASK_DEF" ]; then
-            echo "ready=false" >> "$GITHUB_OUTPUT"
-            echo "::notice title=migrate::Chưa cấu hình biến ECS_MIGRATION_TASK_DEFINITION — bỏ qua bước migration. Task definition này được tạo trong story E1-06; tới lúc đó đặt biến ở repository variables."
-          else
+          if [ -n "$TASK_DEF" ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
+            exit 0
           fi
+
+          if [ "$CHO_PHEP_BO_QUA" = "true" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=migrate::BỎ QUA migration theo CHO_PHEP_DEPLOY_KHONG_MIGRATION=true. Deploy sẽ chạy trên lược đồ hiện có, KHÔNG có gì bảo đảm nó khớp mã sắp deploy."
+            exit 0
+          fi
+
+          echo "::error title=migrate::Chưa cấu hình ECS_MIGRATION_TASK_DEFINITION. Task definition này được tạo ở story E1-06."
+          echo "::error title=migrate::Deploy bị chặn vì không có cách nào biết lược đồ có khớp mã hay không. Cố ý deploy mà không migration thì đặt repository variable CHO_PHEP_DEPLOY_KHONG_MIGRATION=true."
+          exit 1
 
       - name: Lấy quyền AWS qua OIDC
         if: ${{ steps.guard.outputs.ready == 'true' }}
-        uses: aws-actions/configure-aws-credentials@v4
+        # Ghim theo SHA, không theo tag: tag `v4` có thể trỏ sang commit khác bất cứ lúc
+        # nào, và job này chạy với `id-token: write` — tức là ai đổi được tag đó thì assume
+        # được vai trò AWS của dự án. CodeQL (actions/unpinned-tag) báo đúng chỗ này.
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
@@ -283,7 +307,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Lấy quyền AWS qua OIDC
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
@@ -291,7 +315,7 @@ jobs:
 
       - name: Đăng nhập ECR
         id: ecr
-        uses: aws-actions/amazon-ecr-login@v2
+        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2
 
       - name: Cập nhật task definition và triển khai
         env:
@@ -437,7 +461,7 @@ jobs:
         run: dotnet publish "${{ steps.cfg.outputs.project }}" -c Release -o artifacts/web
 
       - name: Lấy quyền AWS qua OIDC
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}

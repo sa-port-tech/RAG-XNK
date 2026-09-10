@@ -42,9 +42,11 @@ class LlmClient(Protocol):
 
     async def tra_loi(self, cau_hoi: str, ngu_canh: list[str]) -> str:
         """Sinh câu trả lời từ câu hỏi và các trích đoạn văn bản."""
+        ...
 
     async def san_sang(self) -> None:
         """Ném ngoại lệ nếu mô hình chưa gọi được."""
+        ...
 
 
 class OpenAiCompatibleClient:

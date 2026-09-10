@@ -23,15 +23,28 @@ if [ ! -f "$MANIFEST" ]; then
   exit 1
 fi
 
+# ─── Đọc manifest ────────────────────────────────────────────────────────────────
+#
+# MỌI lời gọi jq trong script này phải đi qua hàm dưới đây, không gọi jq trực tiếp.
+#
+# Lý do: jq bản Windows ghi stdout ở chế độ text nên xuống dòng thành CRLF, còn
+# `mapfile -t` và `$(...)` chỉ cắt LF — mỗi giá trị đọc ra còn dính một CR ở cuối. Hệ
+# quả là mọi truy vấn jq sau đó khớp rỗng, và script báo "thiếu health_path" cho cả bảy
+# service trong khi danh mục hoàn toàn bình thường. Trên CI (Linux) không có CR nên
+# lệnh tr vô hại.
+#
+# Bản trước dán tr vào hai chỗ gọi jq. Đúng ở hai chỗ đó, và không có gì nhắc chỗ gọi
+# thứ ba — vốn sẽ được thêm bởi người không biết cái bẫy này tồn tại. Gói vào một hàm
+# là chỗ duy nhất phải nhớ.
+doc_manifest() {
+  jq -r "$@" "$MANIFEST" | tr -d '\r'
+}
+
 # Mặc định kiểm tra mọi service; truyền SERVICES để thu hẹp về những service vừa deploy.
 if [ -n "${SERVICES:-}" ]; then
   read -r -a wanted <<< "$SERVICES"
 else
-  # `tr -d '\r'`: jq bản Windows ghi stdout ở chế độ text nên xuống dòng thành CRLF, và
-  # `mapfile -t` chỉ cắt \n — mỗi tên service còn dính một \r ở cuối. Hệ quả là mọi truy
-  # vấn jq sau đó khớp rỗng, và script báo "thiếu health_path" cho cả bảy service trong
-  # khi danh mục hoàn toàn bình thường. Trên CI (Linux) không có \r nên lệnh này vô hại.
-  mapfile -t wanted < <(jq -r '.services[].name' "$MANIFEST" | tr -d '\r')
+  mapfile -t wanted < <(doc_manifest '.services[].name')
 fi
 
 echo "Smoke test trên $BASE_URL"
@@ -41,7 +54,7 @@ echo
 failed=()
 
 for name in "${wanted[@]}"; do
-  health_path=$(jq -r --arg n "$name" '.services[] | select(.name == $n) | .health_path' "$MANIFEST" | tr -d '\r')
+  health_path=$(doc_manifest --arg n "$name" '.services[] | select(.name == $n) | .health_path')
 
   if [ -z "$health_path" ] || [ "$health_path" = "null" ]; then
     echo "::error::Service '$name' không có trong $MANIFEST hoặc thiếu health_path."

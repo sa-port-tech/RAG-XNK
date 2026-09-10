@@ -50,11 +50,15 @@ bắt đầu bằng số issue sẽ không tự chuyển cột trên board.
 
 ```bash
 cp .env.example .env
+bash tools/local/sinh-khoa.sh
 docker compose --profile app up -d
 BASE_URL=http://localhost:8080 bash .github/scripts/smoke_test.sh
 ```
 
-Lệnh thứ hai dựng 7 service, PostgreSQL, Camunda, Ollama và nginx làm cổng vào. Chi tiết
+Lệnh thứ hai sinh khoá ký JWT của riêng máy bạn; giá trị mẫu trong `.env.example` cố tình
+ngắn hơn ngưỡng 32 byte nên service sẽ từ chối khởi động nếu bỏ qua nó.
+
+Lệnh thứ ba dựng 7 service, PostgreSQL, Camunda, Ollama và nginx làm cổng vào. Chi tiết
 yêu cầu máy và bảng cổng: [`README.md`](README.md).
 
 **Bốn điều dễ vấp, ghi ra để đỡ mất buổi sáng:**
@@ -62,6 +66,7 @@ yêu cầu máy và bảng cổng: [`README.md`](README.md).
 | Triệu chứng | Nguyên nhân |
 |---|---|
 | `required variable ... is missing` | Chưa `cp .env.example .env` |
+| `Khoá ký JWT phải dài tối thiểu 32 byte` | Chưa chạy `bash tools/local/sinh-khoa.sh` |
 | `bind: address already in use` cổng 8080 | Đặt `XNK_HTTP_PORT` khác trong `.env` |
 | Gọi API ra 404 | Thiếu tiền tố tên service: `/corpus/documents`, không phải `/documents`. ALB không cắt tiền tố (ADR-013) và nginx ở local tái hiện đúng vậy |
 | Sửa `db/` hay `tools/local/` mà không thấy đổi | Hai thư mục đó được **đóng gói vào image**, không bind mount. Chạy lại với `--build` |
@@ -129,11 +134,39 @@ phẩm**, trong kho công cụ riêng của đội. Hỏi maintainer để lấy
 
 ---
 
-## Ba việc không được làm
+## Năm việc không được làm
 
 | | Vì sao |
 |---|---|
 | **Java Delegate trong file `.bpmn`** | Khoá quy trình vào Camunda 7 và JVM. `ci-bpmn` chặn |
 | **Nới ngưỡng trong `eval/gates.yml` để PR xanh** | Đó là gian lận với chính mình ([`docs/14`](docs/14-phuong-phap-golden-set.md)) |
 | **Thêm access key AWS vào Secrets** | Dùng OIDC. Rò rỉ một lần là mất cả tài khoản |
+| **Dùng action bên thứ ba theo tag** | Tag trỏ sang commit khác lúc nào cũng được. Ghim SHA 40 ký tự, chú thích tag ở cuối dòng — xem mục ngay dưới |
 | **Commit `.claude/` hay cấu hình trợ lý AI khác** | Xem mục ngay trên — một file đã từng mang theo `gh auth token` và `rm -rf` |
+
+---
+
+## Ghim action theo SHA
+
+Mọi action **không thuộc `actions/` hay `github/`** phải ghim theo SHA 40 ký tự:
+
+```yaml
+uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+```
+
+Tag là một con trỏ có thể dời. Ai dời được tag `v4` thì chạy được mã của họ trong workflow
+của dự án — và job `migrate` của `cd-deploy` chạy với `id-token: write`, tức là quyền assume
+vai trò AWS. CodeQL bắt đúng một dòng trong số đó; mười tám dòng còn lại cùng rủi ro nhưng
+không bị báo, nên đừng chờ CodeQL nhắc.
+
+`actions/*` và `github/codeql-action/*` do chính GitHub sở hữu và giữ theo tag — đó là ranh
+giới, không phải sự lười.
+
+Lấy SHA của một tag:
+
+```bash
+gh api repos/<chu>/<repo>/git/ref/tags/<tag> --jq .object.sha
+```
+
+Tag có chú thích (annotated) trả về SHA của **object tag**, không phải commit — khi ấy tra
+tiếp `gh api repos/<chu>/<repo>/git/tags/<sha> --jq .object.sha`.
