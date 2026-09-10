@@ -51,6 +51,23 @@
     -->
     <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
 
+    <!--
+      Khoá phiên bản gói: mỗi project sinh một `packages.lock.json` và file đó được commit.
+
+      `.gitignore` đã ghi "uv.lock và packages.lock.json PHẢI được commit" từ trước — nhưng
+      không project nào bật cờ này, nên file kia chưa bao giờ tồn tại. Một dòng bảo vệ cho
+      một file không có thật.
+
+      Vì sao cần: `Directory.Packages.props` ghim phiên bản TRỰC TIẾP, không ghim phiên bản
+      TRUYỀN NGƯỠNG. Hai lần restore cách nhau vài tuần có thể kéo về hai đồ thị phụ thuộc
+      khác nhau, và khi ấy "chạy được ở máy tôi" là một câu đúng theo nghĩa đen. Bên Python
+      `uv.lock` đã khoá đủ; nửa .NET thì chưa — đó là điều review gọi là "một nửa repo tái
+      lập được".
+
+      CI restore ở chế độ locked: lock lệch với props thì ĐỎ thay vì âm thầm cập nhật.
+    -->
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+
     <IsPackable>false</IsPackable>
 
     <!--

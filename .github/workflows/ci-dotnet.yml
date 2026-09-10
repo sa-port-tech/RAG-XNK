@@ -107,7 +107,18 @@ jobs:
           restore-keys: nuget-${{ runner.os }}-
 
       - name: Restore
-        run: dotnet restore "${{ steps.gates.outputs.solution }}"
+        # `--locked-mode`: restore ĐỎ nếu packages.lock.json lệch với
+        # Directory.Packages.props, thay vì âm thầm cập nhật lock rồi build một đồ thị phụ
+        # thuộc khác với đồ thị đã được review. Đây là cái làm cho lock file có tác dụng —
+        # không có cờ này thì file lock chỉ là một bản ghi chép.
+        #
+        # Đổi phiên bản gói ở máy: chạy `dotnet restore` (không cờ) rồi commit lock đã đổi.
+        run: dotnet restore "${{ steps.gates.outputs.solution }}" --locked-mode
+
+      - name: Kiểm cấu trúc repo
+        # Ba thứ không cổng nào khác bắt được: cổng local trùng nhau, .csproj vắng mặt
+        # trong Xnk.sln (build bỏ qua, CI vẫn xanh), và service trỏ vào thư mục không có.
+        run: python3 .github/scripts/kiem_cau_truc.py
 
       - name: Kiểm tra định dạng mã
         if: ${{ steps.gates.outputs.enforce_format == 'true' }}

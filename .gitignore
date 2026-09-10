@@ -208,9 +208,17 @@ coverage.cobertura.xml
 # Nhưng corpus/registry/ thì PHẢI được commit — nó chỉ chứa metadata (số hiệu, ngày, nguồn,
 # sha256), tức là bằng chứng truy vết và thước đo, không phải nội dung văn bản.
 # Xem corpus/README.md §1.
+#
+# ⚠️ KHÔNG loại trừ `corpus/` rồi phủ định bằng `!corpus/registry/`. Git không cho phép
+# đưa lại một đường dẫn nằm trong thư mục ĐÃ bị loại — nó không bao giờ đi vào thư mục đó
+# để xét. Chỉ loại trừ đúng hai thư mục cần loại; registry được commit vì không có gì loại
+# nó cả, chứ không nhờ một dòng phủ định.
+#
+# (Ở đây từng có `!corpus/registry/` phủ định một loại trừ KHÔNG TỒN TẠI — một dòng no-op
+# đọc như một biện pháp bảo vệ. Nếu ai đó thêm `corpus/` phía trên, dòng ấy cũng sẽ không
+# cứu được gì, và registry biến khỏi git mà không ai thấy.)
 corpus/raw/
 corpus/derived/
-!corpus/registry/
 
 # ─── Cấu hình trợ lý AI của từng người ───────────────────────────────────────
 # KHÔNG commit. Đây là repo sản phẩm; cấu hình công cụ cá nhân không thuộc về nó.
