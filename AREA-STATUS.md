@@ -1,14 +1,15 @@
 ---
 area_id: G-01/projects/rag-xnk
 health: at-risk
-last_activity: 2026-09-03
-hours_last_7d: 3.63
-key_metric: "Skeleton local XONG: 9/9 mục services.json chạy được, smoke test 7/7, 81 test xanh (48 .NET + 33 Python). Ngày 03/09 thêm bộ skill Scrum đợt 1 — nền chung + /po + /tech-lead + /sprint-review, 637 dòng, commit 3ab9afe 20:16 (MỘT commit duy nhất nên KHÔNG đo được thời lượng bằng khoảng cách commit, khác hẳn 02/09 có 17 commit → 3.63h). Sàn D-013 tính theo ngày, tuần 36 đang 3/4 (31/08 · 02/09 · 03/09; 01/09 là 0) — cần ≥5/7 mới giữ được khối 60'×7"
-next_action: "L0 — rebase nhánh e1-11-skeleton-corpus-retrieval lên origin/main, push (đang ahead 2), mở PR có Closes #n. Toàn bộ công việc vẫn nằm trên một ổ đĩa"
+last_activity: 2026-09-10
+hours_last_7d: 4.34
+key_metric: "10/09: 10 commit 20:05-21:47 (~1.7h theo khoảng cách commit) — ten file migration sinh tự động, refactor 8 Dockerfile → 2 công thức tham số hoá, sửa CI python, registry văn bản corpus, sửa retry/health-check chat & worker, packages.lock.json thật. Khối kế hoạch 21:10-22:10 (60') KHÔNG tick trong file ngày — /checkout ghi theo bằng chứng git. hours_last_7d 4.34h ước theo cụm commit (07/09 1 commit lẻ không đo được · 09/09 hai cụm 08:04-08:35 + 21:56-23:57 ≈2.54h · 10/09 ≈1.7h) — PHƯƠNG PHÁP ước lượng, không phải hours7d.py"
+next_action: "L0 — rebase nhánh e1-11-skeleton-corpus-retrieval lên origin/main, push (đang ahead nhiều commit), mở PR có Closes #n. Toàn bộ công việc vẫn nằm trên một ổ đĩa"
 blockers:
-  - "Nhánh ahead 2 commit chưa push, và .claude/skills/pr-review/SKILL.md đang sửa dở chưa commit. Bộ skill Scrum vừa dựng 03/09 chưa có sprint nào chạy qua nó — công cụ trước, việc sau"
-  - "Ngày 03/09 chỉ có 1 commit, đóng đúng lúc 20:16 tức ngay đầu khối 20:15–21:15. Không đo được thời lượng; /review phải loại ô này khỏi phép tính capacity, KHÔNG đọc thành 0"
-updated_at: 2026-09-06
+  - "10/09 làm việc 20:05-21:47 nhưng khối lịch 21:10-22:10 không được tick trong file ngày — nợ tick, không phải nợ làm"
+  - "Nhánh ahead nhiều commit chưa push. Chưa rõ PR #11 hiện đóng bao nhiêu/195 thread — cần đối chiếu lại khi mở phiên trong repo"
+  - "hours_last_7d ở trên là ước lượng bằng khoảng cách commit trong cụm liền nhau, KHÔNG phải hours7d.py (script đó đọc time.csv của DailyTracker, không đọc git log của repo con) — /review nên đối chiếu lại nếu dùng số này cho phép tính capacity"
+updated_at: 2026-09-10
 ---
 
 # Dự án RAG XNK
