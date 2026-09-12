@@ -6,10 +6,11 @@ hours_last_7d: 4.34
 key_metric: "10/09: 10 commit 20:05-21:47 (~1.7h theo khoảng cách commit) — ten file migration sinh tự động, refactor 8 Dockerfile → 2 công thức tham số hoá, sửa CI python, registry văn bản corpus, sửa retry/health-check chat & worker, packages.lock.json thật. Khối kế hoạch 21:10-22:10 (60') KHÔNG tick trong file ngày — /checkout ghi theo bằng chứng git. hours_last_7d 4.34h ước theo cụm commit (07/09 1 commit lẻ không đo được · 09/09 hai cụm 08:04-08:35 + 21:56-23:57 ≈2.54h · 10/09 ≈1.7h) — PHƯƠNG PHÁP ước lượng, không phải hours7d.py"
 next_action: "L0 — rebase nhánh e1-11-skeleton-corpus-retrieval lên origin/main, push (đang ahead nhiều commit), mở PR có Closes #n. Toàn bộ công việc vẫn nằm trên một ổ đĩa"
 blockers:
+  - "11/09 NGƯỢC CHIỀU với 10/09: hai khối 09:50-10:50 và 10:50-11:50 (2.00h, đợt ngày nghỉ) TICK ĐỦ mà repo có 0 commit, cây làm việc sạch. Bằng chứng duy nhất là .pytest_cache 11:26-11:28 — có chạy test, chưa tới chỗ commit được. Khối 3/3 (13:20-14:20) không tick. Cùng repo này hôm 10/09 sinh 10 commit trong 1.7h; hours_actual của cả ba khối để TRỐNG theo I-010"
   - "10/09 làm việc 20:05-21:47 nhưng khối lịch 21:10-22:10 không được tick trong file ngày — nợ tick, không phải nợ làm"
   - "Nhánh ahead nhiều commit chưa push. Chưa rõ PR #11 hiện đóng bao nhiêu/195 thread — cần đối chiếu lại khi mở phiên trong repo"
   - "hours_last_7d ở trên là ước lượng bằng khoảng cách commit trong cụm liền nhau, KHÔNG phải hours7d.py (script đó đọc time.csv của DailyTracker, không đọc git log của repo con) — /review nên đối chiếu lại nếu dùng số này cho phép tính capacity"
-updated_at: 2026-09-10
+updated_at: 2026-09-11
 ---
 
 # Dự án RAG XNK
