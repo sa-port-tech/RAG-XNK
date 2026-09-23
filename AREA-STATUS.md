@@ -2,19 +2,20 @@
 area_id: G-01/projects/rag-xnk
 health: at-risk
 last_activity: 2026-09-10
-hours_last_7d: 4.34
+hours_last_7d: 0.0       # trang_thai.py 22/09 23:22, cửa sổ 21–27/09 (tuần ISO 39, mới 2 ngày) — 0 ô chưa đo, nên 0.0 nghĩa là ĐO ĐƯỢC LÀ KHÔNG LÀM, không phải chưa đo. Thay số 4.34h cũ vốn là ƯỚC LƯỢNG theo cụm commit của cửa sổ 07–10/09, không phải cùng phép đo
 key_metric: "10/09: 10 commit 20:05-21:47 (~1.7h theo khoảng cách commit) — ten file migration sinh tự động, refactor 8 Dockerfile → 2 công thức tham số hoá, sửa CI python, registry văn bản corpus, sửa retry/health-check chat & worker, packages.lock.json thật. Khối kế hoạch 21:10-22:10 (60') KHÔNG tick trong file ngày — /checkout ghi theo bằng chứng git. hours_last_7d 4.34h ước theo cụm commit (07/09 1 commit lẻ không đo được · 09/09 hai cụm 08:04-08:35 + 21:56-23:57 ≈2.54h · 10/09 ≈1.7h) — PHƯƠNG PHÁP ước lượng, không phải hours7d.py"
 next_action: "L0 — rebase nhánh e1-11-skeleton-corpus-retrieval lên origin/main, push (đang ahead nhiều commit), mở PR có Closes #n. Toàn bộ công việc vẫn nằm trên một ổ đĩa"
 blockers:
+  - "22/09: NGÀY THỨ 12 REPO IM LẶNG (commit cuối 10/09/2026). Hai khối 20:10-21:10 và 21:10-22:05 (1.92h, PR #11 khối 1/2 và 2/2) KHÔNG TICK và 0 commit. Điểm mới so với các ca 11, 12, 19/09: 55' của khối thứ hai được /checkin lấy từ khối Bảo trì hệ thống (30') và Tập thể dục (25') đã CẮT BỎ sáng nay — nên lần này cái giá không chỉ là 1.92h không chạy, mà còn là hai khối khác bị xoá khỏi lịch để nhường chỗ. Cắt xong không dùng"
   - "19/09: LẦN THỨ BA khối 'sàn ≥1 commit mã thật, đóng đợt 1/2 tuần' (19:55-20:55) TICK mà repo 0 commit — sau 11/09 và 12/09. Hai khối làm việc thật ngay trước (17:10-19:10, 2h kế hoạch) cũng không tick, cây làm việc sạch ngoài AREA-STATUS.md. Repo im lặng liên tục từ commit cuối 10/09/2026 — 9 ngày không một dòng code, trong khi lịch tuần vẫn xếp đều 3h/ngày cho mảng này"
   - "11/09 NGƯỢC CHIỀU với 10/09: hai khối 09:50-10:50 và 10:50-11:50 (2.00h, đợt ngày nghỉ) TICK ĐỦ mà repo có 0 commit, cây làm việc sạch. Bằng chứng duy nhất là .pytest_cache 11:26-11:28 — có chạy test, chưa tới chỗ commit được. Khối 3/3 (13:20-14:20) không tick. Cùng repo này hôm 10/09 sinh 10 commit trong 1.7h; hours_actual của cả ba khối để TRỐNG theo I-010"
   - "10/09 làm việc 20:05-21:47 nhưng khối lịch 21:10-22:10 không được tick trong file ngày — nợ tick, không phải nợ làm"
   - "Nhánh ahead nhiều commit chưa push. Chưa rõ PR #11 hiện đóng bao nhiêu/195 thread — cần đối chiếu lại khi mở phiên trong repo"
   - "hours_last_7d ở trên là ước lượng bằng khoảng cách commit trong cụm liền nhau, KHÔNG phải hours7d.py (script đó đọc time.csv của DailyTracker, không đọc git log của repo con) — /review nên đối chiếu lại nếu dùng số này cho phép tính capacity"
-updated_at: 2026-09-19
+updated_at: 2026-09-22
 so_lieu:                      # KHỐI MÁY GHI — người và Claude không sửa tay
   nguon: "trang_thai.py"
-  tinh_luc: "2026-09-22 00:26"
+  tinh_luc: "2026-09-22 23:17"
   gio_nap_7d: 0.0
   gio_that_7d: 0.0
   dao_phut_7d: 0
@@ -23,7 +24,7 @@ so_lieu:                      # KHỐI MÁY GHI — người và Claude không s
   san_chi_tieu: null
   san_thuc: null
   san_dat: null
-  commit_7d: 1
+  commit_7d: 2
 ---
 
 # Dự án RAG XNK
