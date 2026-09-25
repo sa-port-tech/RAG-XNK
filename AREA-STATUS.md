@@ -1,8 +1,8 @@
 ---
 area_id: G-01/projects/rag-xnk
-health: at-risk
+health: stalled          # commit mã cuối 10/09 → 24/09 là ngày thứ 14, chạm đúng ngưỡng (G-01/CLAUDE.md L-115). Ba commit gần nhất của repo là "status: dong bo tu /checkout" — bút toán máy do /checkout ghi, không phải mã
 last_activity: 2026-09-10
-hours_last_7d: 0.0       # trang_thai.py 22/09 23:22, cửa sổ 21–27/09 (tuần ISO 39, mới 2 ngày) — 0 ô chưa đo, nên 0.0 nghĩa là ĐO ĐƯỢC LÀ KHÔNG LÀM, không phải chưa đo. Thay số 4.34h cũ vốn là ƯỚC LƯỢNG theo cụm commit của cửa sổ 07–10/09, không phải cùng phép đo
+hours_last_7d: 0.0       # giờ THẬT, trang_thai.py 25/09 09:41, cửa sổ 21–27/09 (tuần ISO 39, mới 4 ngày) — 0 ô chưa đo, nên 0.0 nghĩa là ĐO ĐƯỢC LÀ KHÔNG LÀM. Cả BỐN khối rag-xnk của tuần 39 (T2 22/09, T3, T4 23/09, T5 24/09) đều không tick và 0 commit mã, không phải chưa đo. Thay số 4.34h cũ vốn là ƯỚC LƯỢNG theo cụm commit của cửa sổ 07–10/09, không phải cùng phép đo
 key_metric: "10/09: 10 commit 20:05-21:47 (~1.7h theo khoảng cách commit) — ten file migration sinh tự động, refactor 8 Dockerfile → 2 công thức tham số hoá, sửa CI python, registry văn bản corpus, sửa retry/health-check chat & worker, packages.lock.json thật. Khối kế hoạch 21:10-22:10 (60') KHÔNG tick trong file ngày — /checkout ghi theo bằng chứng git. hours_last_7d 4.34h ước theo cụm commit (07/09 1 commit lẻ không đo được · 09/09 hai cụm 08:04-08:35 + 21:56-23:57 ≈2.54h · 10/09 ≈1.7h) — PHƯƠNG PHÁP ước lượng, không phải hours7d.py"
 next_action: "L0 — rebase nhánh e1-11-skeleton-corpus-retrieval lên origin/main, push (đang ahead nhiều commit), mở PR có Closes #n. Toàn bộ công việc vẫn nằm trên một ổ đĩa"
 blockers:
@@ -12,10 +12,10 @@ blockers:
   - "10/09 làm việc 20:05-21:47 nhưng khối lịch 21:10-22:10 không được tick trong file ngày — nợ tick, không phải nợ làm"
   - "Nhánh ahead nhiều commit chưa push. Chưa rõ PR #11 hiện đóng bao nhiêu/195 thread — cần đối chiếu lại khi mở phiên trong repo"
   - "hours_last_7d ở trên là ước lượng bằng khoảng cách commit trong cụm liền nhau, KHÔNG phải hours7d.py (script đó đọc time.csv của DailyTracker, không đọc git log của repo con) — /review nên đối chiếu lại nếu dùng số này cho phép tính capacity"
-updated_at: 2026-09-22
+updated_at: 2026-09-24
 so_lieu:                      # KHỐI MÁY GHI — người và Claude không sửa tay
   nguon: "trang_thai.py"
-  tinh_luc: "2026-09-23 22:42"
+  tinh_luc: "2026-09-25 09:42"
   gio_nap_7d: 0.0
   gio_that_7d: 0.0
   dao_phut_7d: 0
@@ -24,7 +24,7 @@ so_lieu:                      # KHỐI MÁY GHI — người và Claude không s
   san_chi_tieu: null
   san_thuc: null
   san_dat: null
-  commit_7d: 3
+  commit_7d: 4
 ---
 
 # Dự án RAG XNK
