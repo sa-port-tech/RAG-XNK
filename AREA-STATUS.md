@@ -15,7 +15,7 @@ blockers:
 updated_at: 2026-09-24
 so_lieu:                      # KHỐI MÁY GHI — người và Claude không sửa tay
   nguon: "trang_thai.py"
-  tinh_luc: "2026-09-25 09:42"
+  tinh_luc: "2026-09-26 22:33"
   gio_nap_7d: 0.0
   gio_that_7d: 0.0
   dao_phut_7d: 0
