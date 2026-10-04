@@ -15,7 +15,7 @@ blockers:
 updated_at: 2026-10-04
 so_lieu:                      # KHỐI MÁY GHI — người và Claude không sửa tay
   nguon: "trang_thai.py"
-  tinh_luc: "2026-10-04 12:53"
+  tinh_luc: "2026-10-05 00:31"
   gio_nap_7d: 0.0
   gio_that_7d: 0.0
   dao_phut_7d: 0
@@ -24,7 +24,7 @@ so_lieu:                      # KHỐI MÁY GHI — người và Claude không s
   san_chi_tieu: null
   san_thuc: null
   san_dat: null
-  commit_7d: 0
+  commit_7d: 1
 ---
 
 # Dự án RAG XNK
