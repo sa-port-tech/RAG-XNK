@@ -1,0 +1,57 @@
+# cd-deploy.yml build với `context: .` — tức là TOÀN BỘ repo được gửi sang Docker daemon
+# cho mỗi service, mỗi lần deploy. Không có file này thì mỗi lần build phải đẩy cả .git/,
+# docs/, eval/ và mọi thư mục bin/obj — chậm, và tệ hơn là kéo lịch sử git vào lớp build.
+
+.git
+.github
+.claude
+.vs
+
+# Ngoại lệ: danh mục service là NGUỒN SỰ THẬT cho định tuyến (ADR-009), và image
+# `nginx-conf` sinh cấu hình nginx từ chính nó (tools/local/Dockerfile). Không mở lại đúng
+# một file này thì lệnh COPY hỏng với thông báo "file not found" trỏ vào một file đang nằm
+# ngay trong repo — mất một lúc mới nghĩ ra thủ phạm là .dockerignore.
+!.github/services.json
+.idea
+
+# Tài liệu và dữ liệu — không có gì trong đó đi vào image
+docs
+eval
+bpmn
+prompts
+
+# Ngoại lệ: định nghĩa quy trình là ARTIFACT TRIỂN KHAI, không phải tài liệu. Image Camunda
+# đóng gói sẵn chúng (bpmn/Dockerfile) để phiên bản engine và phiên bản quy trình đi cùng
+# nhau. Không mở lại thì build hỏng với "lstat /bpmn: no such file or directory".
+!bpmn/*.bpmn
+
+# Kết quả build của .NET
+**/bin
+**/obj
+artifacts
+
+# Môi trường ảo và cache của Python
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/*.pyc
+
+# Cấu hình và bí mật của máy local
+#
+# `.env*` chứ không phải `.env`: mẫu cũ chỉ khớp đúng một đường dẫn, nên `.env.example`
+# vẫn đi vào build context. Hôm nay chưa Dockerfile nào `COPY . .` — các file .NET chép
+# từng đường dẫn, file Python chép `src/python/` — nên không có ảnh nào thực sự mang nó
+# theo. Đó là tính chất của hôm nay, không phải của mẫu loại trừ; một `COPY . .` thêm vào
+# sau này sẽ đổi kết cục mà không ai sửa file này.
+.env*
+docker-compose.yml
+**/appsettings.Development.json
+
+# Linh tinh
+*.md
+!README.md
+.editorconfig
+.gitattributes
+.gitignore

@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Nhóm test của Xnk.IdentityTenant.
+
+    Hai nhóm bên trong, khác nhau về thứ chúng bảo vệ:
+
+    · Security/  — băm mật khẩu. Trong đó có một test giữ HỢP ĐỒNG LIÊN NGÔN NGỮ với
+                   tools/local/sinh_seed.py: đổi định dạng chuỗi băm ở một phía mà quên
+                   phía kia thì không ai đăng nhập được ở local, và triệu chứng trông hệt
+                   như "sai mật khẩu".
+    · Api/       — endpoint phát token, chạy qua HTTP thật.
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>Xnk.IdentityTenant.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Xnk.IdentityTenant/Xnk.IdentityTenant.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+
+  <ItemGroup>
+    <!-- Link, không chép: xem đầu ChuoiKetNoiTest.cs. Hai bộ test dùng chung phần đọc
+         biến môi trường và quy đổi DSN, nhưng vẫn giữ fixture riêng của mình. -->
+    <Compile Include="../TestSupport/ChuoiKetNoiTest.cs" Link="TestSupport/ChuoiKetNoiTest.cs" />
+  </ItemGroup>
+
+</Project>

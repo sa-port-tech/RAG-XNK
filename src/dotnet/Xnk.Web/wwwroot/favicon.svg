@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="XNK">
+  <!-- Favicon thật, 1 file, ~400 byte. Chỗ này từng là href="data:," — một data URI rỗng
+       để trình duyệt thôi báo 404. Nó im được tiếng chuông mà không giải quyết gì, và tab
+       của người dùng hiện một ô trắng. SVG chứ không .ico: text nên diff đọc được, và
+       không cần công cụ nào để sửa. -->
+  <rect width="32" height="32" rx="6" fill="#0b3d5c" />
+  <text x="16" y="21" font-family="system-ui, sans-serif" font-size="13" font-weight="700"
+        text-anchor="middle" fill="#ffffff">XNK</text>
+</svg>

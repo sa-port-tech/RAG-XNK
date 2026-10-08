@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Thư viện dùng chung cho các service .NET. Khai báo trong .github/services.json ở mục
+    "libraries" — không deploy, chỉ được tham chiếu.
+
+    Phạm vi có chủ đích hẹp: những thứ MỌI service đều cần và phải giống hệt nhau —
+    ngữ cảnh tenant, xác thực, healthcheck, envelope lỗi. DTO nghiệp vụ KHÔNG thuộc về
+    đây; đưa chúng vào là xoá ranh giới giữa các service và biến monorepo thành monolith
+    có nhiều thư mục.
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>Xnk.Shared</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Cần kiểu của ASP.NET Core (HttpContext, IServiceCollection, health check). -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!--
+      Xác thực JWT sống ở đây chứ không ở từng service: mọi service phải kiểm tra cùng
+      một bộ tham số (issuer, audience, claim tenant). Để mỗi service tự cấu hình thì
+      sớm muộn sẽ có một service kiểm lỏng hơn phần còn lại, và đó là lỗ hổng không ai
+      nhìn thấy trong diff.
+    -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
+  </ItemGroup>
+
+</Project>

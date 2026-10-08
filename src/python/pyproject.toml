@@ -1,0 +1,159 @@
+# uv workspace cho ba service Python.
+#
+# ci-python chạy toàn bộ lệnh từ thư mục này (`working-directory: src/python`) và gọi
+# `uv sync --all-extras --dev` một lần cho mọi service. Vì vậy đây là nơi duy nhất khai
+# công cụ (ruff, mypy, pytest) — mỗi service chỉ khai phụ thuộc runtime của riêng nó.
+#
+# ⚠️ Vì sao cả ba service đều phải tồn tại, kể cả khi mới chỉ làm `retrieval`:
+# ci-python gom cả ba vào matrix khi PR chạm file này hoặc uv.lock (xem "shared" trong
+# paths-filter), rồi thất bại nếu thư mục service không có. Xoá bớt một thư mục ở đây là
+# làm đỏ CI của mọi PR sau đó.
+
+[project]
+name = "xnk-python"
+version = "0.0.0"
+description = "Workspace gốc — không phải package cài được, chỉ để gom ba service."
+requires-python = "==3.12.*"
+dependencies = [
+    "ingestion",
+    "retrieval",
+    "generation",
+]
+
+[tool.uv]
+# Gốc workspace không tự đóng gói; nó chỉ tồn tại để `uv sync` cài cả ba member.
+package = false
+
+[tool.uv.workspace]
+members = ["ingestion", "retrieval", "generation"]
+
+[tool.uv.sources]
+ingestion = { workspace = true }
+retrieval = { workspace = true }
+generation = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "ruff>=0.8.0",
+    "mypy>=1.13.0",
+    "pytest>=8.3.0",
+    "pytest-cov>=6.0.0",
+    # TestClient của Starlette chạy trên httpx2 (Starlette 1.6 đã bỏ httpx bản 0.x và
+    # phát cảnh báo deprecation khi thấy nó).
+    "httpx2>=2.10.0",
+    # Fixture của retrieval phải áp lược đồ bằng engine async trước khi test chạy, nên
+    # từ nay có fixture async. (Bản thân các test vẫn đồng bộ — TestClient tự chạy vòng
+    # lặp sự kiện — nên chỉ cần plugin cho fixture.)
+    "pytest-asyncio>=0.24.0",
+    # Bằng vai Testcontainers.PostgreSql bên .NET: `uv run pytest` chạy được ngay sau khi
+    # clone, không cần dựng gì trước. Trên CI thì XNK_TEST_DATABASE_URL đã trỏ sẵn vào
+    # service container nên nhánh này không chạy.
+    "testcontainers[postgres]>=4.9.0",
+]
+
+# ─── ruff ────────────────────────────────────────────────────────────────────────
+# CI gọi `ruff check <service>` và `ruff format --check --diff <service>` từ thư mục này.
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes
+    "I",        # isort — thứ tự import ổn định, bớt xung đột merge vô nghĩa
+    "N",        # pep8-naming
+    "UP",       # pyupgrade
+    "B",        # bugbear
+    "A",        # che khuất builtin
+    "C4",       # comprehension
+    "SIM",      # đơn giản hoá
+    "TID",      # import tuyệt đối
+    "RUF",
+    # Bắt lỗi đặc thù async — nhóm này tồn tại vì lệnh blocking trong hàm async là
+    # loại lỗi chỉ lộ ra dưới tải, tức là ở production chứ không phải ở CI.
+    "ASYNC",
+]
+ignore = [
+    # Xung đột trực tiếp với ruff format.
+    "E501",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Test được phép dùng assert trần và tên dài mô tả tình huống.
+"**/tests/**" = ["S101"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.isort]
+# Không khai thì ruff xếp `retrieval` chung nhóm với `fastapi`, và dòng trống ngăn cách
+# giữa thư viện ngoài với mã của chính dự án bị coi là lỗi định dạng.
+known-first-party = ["ingestion", "retrieval", "generation"]
+
+# ─── mypy ────────────────────────────────────────────────────────────────────────
+# quality-gates.yml đặt python.enforce_types = true, nên mypy là cổng chặn merge.
+# Bật strict ngay từ đầu: nới ra sau này thì dễ, siết vào sau khi đã có 10.000 dòng
+# không chú thích kiểu thì gần như không ai làm.
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+warn_unused_ignores = true
+show_error_codes = true
+pretty = true
+# ⚠️ KHÔNG bật explicit_package_bases ở đây. Bố cục là `<service>/<service>/` — với
+# explicit_package_bases, mypy lấy src/python làm gốc và thấy cùng một file dưới hai tên
+# ("retrieval" và "retrieval.retrieval"), rồi dừng với lỗi "Source file found twice".
+# Để mặc định thì mypy suy ra gốc package bằng cách đi ngược theo __init__.py, ra đúng
+# một tên module cho mỗi file.
+
+# ─── pytest ──────────────────────────────────────────────────────────────────────
+# CI truyền đường dẫn service vào nên KHÔNG đặt testpaths ở đây — đặt vào sẽ ghi đè
+# ý định "chỉ chạy test của service bị đụng" và làm matrix mất tác dụng.
+# ─── Vì sao pytest chạy TỪNG SERVICE MỘT ─────────────────────────────────────────────
+#
+# Ba service dùng chung tên gói `tests`, nên `pytest retrieval generation` dừng với
+# `ImportPathMismatchError: ('tests.conftest', …)`. CONTRIBUTING gọi đây là "chạy một
+# service mỗi lần"; review 03/09 gọi đúng tên nó: một xung đột tên gói được ghi vào tài
+# liệu thay vì được sửa.
+#
+# Đã thử gỡ, ghi lại để người sau khỏi thử lại ba lần như đợt 10/09/2026:
+#
+#   1. `--import-mode=importlib` một mình — KHÔNG đủ. `tests/__init__.py` vẫn làm cả ba
+#      gói mang tên `tests`, và pytest đăng ký plugin conftest theo tên module:
+#      `Plugin already registered under a different name`.
+#
+#   2. Bỏ `tests/__init__.py` + importlib — lộ ra một xung đột SÂU HƠN. `src/python/
+#      retrieval/` vừa là thư mục project (thành viên workspace) vừa chứa gói
+#      `retrieval/`; bỏ marker đi thì `from retrieval import db` phân giải vào thư mục
+#      project và chết với `cannot import name 'db' from 'retrieval' (unknown location)`.
+#
+#   3. Một `conftest.py` ở gốc chặn sớm kèm thông báo rõ — không dùng được: pytest nạp
+#      conftest của các đường dẫn trên dòng lệnh TRƯỚC mọi hook mà conftest gốc gắn được
+#      (`pytest_load_initial_conftests` của nó cũng chạy sau). Guard chỉ bắt được một
+#      trong ba dạng lời gọi, và một guard bắt được một phần ba thì tệ hơn không có.
+#
+# Gỡ thật cần đổi bố cục workspace (tách thư mục project khỏi thư mục gói) hoặc đặt tên
+# ba thư mục test khác nhau — một thay đổi kiến trúc, không phải một dòng cấu hình, và
+# không thuộc phạm vi PR khung này. Nó cần một story riêng.
+#
+# Điều này KHÔNG cản CI: ma trận của `ci-python` vốn chạy mỗi service một job, vì mỗi
+# service có coverage và ngưỡng lint riêng. Cái giá thật chỉ là một dòng lệnh dài hơn ở
+# máy dev.
+
+[tool.pytest.ini_options]
+addopts = "-q --strict-markers --strict-config"
+xfail_strict = true
+filterwarnings = ["error"]
+# Fixture async của retrieval cần plugin chạy ở chế độ tự động; không đặt thì pytest bỏ
+# qua chúng và test nhận về một generator thay vì giá trị, với thông báo khó lần.
+asyncio_mode = "auto"
+# Vòng lặp sự kiện dùng chung cho cả session: fixture `engine` có scope session, và mặc
+# định (scope function) sẽ đóng vòng lặp sau test đầu tiên rồi mọi test sau đó hỏng vì
+# engine gắn với một vòng lặp đã chết.
+asyncio_default_fixture_loop_scope = "session"
+
+[tool.coverage.run]
+branch = true
+omit = ["*/tests/*"]

@@ -149,17 +149,41 @@ jobs:
           {
             echo "path=$(jq -r --arg n '${{ matrix.service }}' '.services[] | select(.name==$n) | .path' .github/services.json)"
             echo "ecr=$(jq -r --arg n '${{ matrix.service }}' '.services[] | select(.name==$n) | .ecr_repository' .github/services.json)"
+            echo "stack=$(jq -r --arg n '${{ matrix.service }}' '.services[] | select(.name==$n) | .stack' .github/services.json)"
           } >> "$GITHUB_OUTPUT"
+
+      # MỘT Dockerfile cho mỗi stack, tham số hoá bằng build-arg — không còn một file cho
+      # mỗi service. Bốn bản .NET trước đây khác nhau đúng ở tên project, và chúng đã bắt
+      # đầu trôi: một đoạn giải thích có ở bản này, mất ở ba bản kia.
+      - name: Xác định Dockerfile và tham số build
+        id: dockerfile
+        run: |
+          case "${{ steps.svc.outputs.stack }}" in
+            dotnet)
+              du_an=$(basename "${{ steps.svc.outputs.path }}")
+              echo "file=src/dotnet/Dockerfile" >> "$GITHUB_OUTPUT"
+              echo "args=DU_AN=${du_an}" >> "$GITHUB_OUTPUT"
+              ;;
+            python)
+              goi=$(basename "${{ steps.svc.outputs.path }}")
+              echo "file=src/python/Dockerfile" >> "$GITHUB_OUTPUT"
+              echo "args=GOI=${goi}" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::error::Stack '${{ steps.svc.outputs.stack }}' của ${{ matrix.service }} không có Dockerfile dùng chung."
+              exit 1
+              ;;
+          esac
 
       - name: Kiểm tra Dockerfile tồn tại
         run: |
-          if [ ! -f "${{ steps.svc.outputs.path }}/Dockerfile" ]; then
-            echo "::error::Thiếu ${{ steps.svc.outputs.path }}/Dockerfile — mỗi service phải tự mô tả cách đóng gói (story E1-11)."
+          if [ ! -f "${{ steps.dockerfile.outputs.file }}" ]; then
+            echo "::error::Thiếu ${{ steps.dockerfile.outputs.file }}."
             exit 1
           fi
 
       - name: Lấy quyền AWS qua OIDC
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
@@ -167,15 +191,15 @@ jobs:
 
       - name: Đăng nhập ECR
         id: ecr
-        uses: aws-actions/amazon-ecr-login@v2
+        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
       - name: Build và đẩy image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
-          file: ${{ steps.svc.outputs.path }}/Dockerfile
+          file: ${{ steps.dockerfile.outputs.file }}
           push: true
           provenance: false
           tags: |
@@ -184,13 +208,115 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
           build-args: |
+            ${{ steps.dockerfile.outputs.args }}
             VERSION=${{ needs.plan.outputs.version }}
             GIT_SHA=${{ github.sha }}
 
-  deploy:
-    name: Deploy ${{ needs.plan.outputs.environment }}
+  migrate:
+    name: Áp migration lược đồ
     needs: [plan, build]
     if: ${{ always() && needs.plan.outputs.services != '[]' && needs.build.result == 'success' }}
+    runs-on: ubuntu-latest
+    # Cùng environment với deploy: với `production`, cổng duyệt phải chặn TRƯỚC khi lược
+    # đồ bị đổi, không phải sau. Migration là thay đổi khó lùi nhất trong cả quy trình.
+    environment:
+      name: ${{ needs.plan.outputs.environment }}
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      # Vì sao là ECS one-off task chứ không phải Database.Migrate() lúc service khởi
+      # động: một service có nhiều replica, và nhiều replica cùng chạy migration lúc boot
+      # sẽ tranh nhau. Cũng không chạy từ runner của GitHub Actions — làm vậy buộc phải mở
+      # RDS cho dải IP của GitHub, trái với docs/00 §12 (service nằm trong private subnet).
+      # Xem ADR-010.
+      # ⚠️ Thiếu cấu hình KHÔNG được đồng nghĩa với thành công.
+      #
+      # Bản trước: biến `ECS_MIGRATION_TASK_DEFINITION` rỗng → ghi một notice rồi bỏ qua
+      # hai bước sau, và job kết thúc `success`. Job `deploy` gate trên
+      # `needs.migrate.result == 'success'`, nên "đã áp migration" và "chưa cấu hình gì
+      # cả" phát ra ĐÚNG MỘT tín hiệu. Xoá nhầm một repository variable là biến
+      # "migration đã chạy" thành "migration bị bỏ qua" mà không ai thấy, và service mới
+      # khởi động trên lược đồ cũ.
+      #
+      # Nay thiếu cấu hình thì job ĐỎ. Muốn deploy khi chưa có hạ tầng migration thì phải
+      # đặt `CHO_PHEP_DEPLOY_KHONG_MIGRATION=true` — một quyết định có tên, có người đặt,
+      # và tra lại được. Vắng mặt cấu hình không còn là một cách bỏ qua nữa.
+      - name: Kiểm tra đã có hạ tầng migration chưa
+        id: guard
+        env:
+          TASK_DEF: ${{ vars.ECS_MIGRATION_TASK_DEFINITION }}
+          CHO_PHEP_BO_QUA: ${{ vars.CHO_PHEP_DEPLOY_KHONG_MIGRATION }}
+        run: |
+          if [ -n "$TASK_DEF" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "$CHO_PHEP_BO_QUA" = "true" ]; then
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=migrate::BỎ QUA migration theo CHO_PHEP_DEPLOY_KHONG_MIGRATION=true. Deploy sẽ chạy trên lược đồ hiện có, KHÔNG có gì bảo đảm nó khớp mã sắp deploy."
+            exit 0
+          fi
+
+          echo "::error title=migrate::Chưa cấu hình ECS_MIGRATION_TASK_DEFINITION. Task definition này được tạo ở story E1-06."
+          echo "::error title=migrate::Deploy bị chặn vì không có cách nào biết lược đồ có khớp mã hay không. Cố ý deploy mà không migration thì đặt repository variable CHO_PHEP_DEPLOY_KHONG_MIGRATION=true."
+          exit 1
+
+      - name: Lấy quyền AWS qua OIDC
+        if: ${{ steps.guard.outputs.ready == 'true' }}
+        # Ghim theo SHA, không theo tag: tag `v4` có thể trỏ sang commit khác bất cứ lúc
+        # nào, và job này chạy với `id-token: write` — tức là ai đổi được tag đó thì assume
+        # được vai trò AWS của dự án. CodeQL (actions/unpinned-tag) báo đúng chỗ này.
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+          role-session-name: cd-migrate-${{ github.run_id }}
+
+      - name: Chạy migration bằng một task rời
+        if: ${{ steps.guard.outputs.ready == 'true' }}
+        env:
+          CLUSTER: ${{ vars.ECS_CLUSTER }}
+          TASK_DEF: ${{ vars.ECS_MIGRATION_TASK_DEFINITION }}
+          SUBNETS: ${{ vars.ECS_SUBNET_IDS }}
+          SECURITY_GROUPS: ${{ vars.ECS_SECURITY_GROUP_IDS }}
+        run: |
+          set -euo pipefail
+
+          # assignPublicIp=ENABLED vì prototype chạy single-AZ public subnet, không có NAT
+          # Gateway (docs/00 §3.3). Khi lên production có NAT thì đổi thành DISABLED.
+          arn=$(aws ecs run-task \
+            --cluster "$CLUSTER" \
+            --task-definition "$TASK_DEF" \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[$SUBNETS],securityGroups=[$SECURITY_GROUPS],assignPublicIp=ENABLED}" \
+            --started-by "cd-deploy-${GITHUB_RUN_ID}" \
+            --query 'tasks[0].taskArn' --output text)
+
+          echo "Task: $arn"
+          aws ecs wait tasks-stopped --cluster "$CLUSTER" --tasks "$arn"
+
+          exit_code=$(aws ecs describe-tasks --cluster "$CLUSTER" --tasks "$arn" \
+            --query 'tasks[0].containers[0].exitCode' --output text)
+          reason=$(aws ecs describe-tasks --cluster "$CLUSTER" --tasks "$arn" \
+            --query 'tasks[0].stoppedReason' --output text)
+
+          # `aws ecs wait` xanh khi task DỪNG, không phải khi task THÀNH CÔNG. Không kiểm
+          # tra exit code ở đây thì một migration hỏng vẫn cho deploy chạy tiếp, và service
+          # mới sẽ khởi động trên một lược đồ dở dang.
+          if [ "$exit_code" != "0" ]; then
+            echo "::error title=migrate::Migration thất bại (exit=$exit_code): $reason"
+            exit 1
+          fi
+          echo "✓ Migration áp xong."
+
+  deploy:
+    name: Deploy ${{ needs.plan.outputs.environment }}
+    needs: [plan, build, migrate]
+    if: ${{ always() && needs.plan.outputs.services != '[]' && needs.build.result == 'success' && needs.migrate.result == 'success' }}
     runs-on: ubuntu-latest
     # GitHub Environment là nơi cắm luật duyệt. Với `production`, environment có
     # required reviewers nên job này DỪNG chờ người bấm duyệt — và không có cách nào
@@ -206,7 +332,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Lấy quyền AWS qua OIDC
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
@@ -214,7 +340,7 @@ jobs:
 
       - name: Đăng nhập ECR
         id: ecr
-        uses: aws-actions/amazon-ecr-login@v2
+        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2
 
       - name: Cập nhật task definition và triển khai
         env:
@@ -360,7 +486,7 @@ jobs:
         run: dotnet publish "${{ steps.cfg.outputs.project }}" -c Release -o artifacts/web
 
       - name: Lấy quyền AWS qua OIDC
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}

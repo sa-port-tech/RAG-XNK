@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+  <!--
+    web — giao diện Blazor WebAssembly (docs/00 §5).
+
+    Khai báo trong .github/services.json ở mục "sites": phân phối qua S3 + CloudFront chứ
+    không phải ECS, nên nó không có Dockerfile kiểu service và không có healthcheck.
+
+    ⚠️ Ngân sách kích thước gói: .github/quality-gates.yml → blazor.bundle_budget_brotli_kb
+    (3500KB sau nén Brotli). Căn cứ: nhân viên tra cứu tại cảng/kho dùng mạng di động
+    (docs/00 §6). Vượt ngân sách thì ci-blazor đỏ — xử bằng trimming/lazy loading, không
+    bằng cách nới ngưỡng.
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>Xnk.Web</RootNamespace>
+    <!--
+      Trimming bật sẵn: đây là ứng dụng tải qua mạng, mỗi KB là thời gian chờ của người
+      đứng ở bãi container. Bật từ đầu cũng rẻ hơn nhiều so với bật sau khi đã có mã phụ
+      thuộc vào reflection.
+    -->
+    <PublishTrimmed>true</PublishTrimmed>
+
+    <InvariantGlobalization>true</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Extensions.Http" />
+  </ItemGroup>
+
+</Project>

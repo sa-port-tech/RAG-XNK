@@ -1,0 +1,83 @@
+/* Giao diện tối giản, không khung CSS nào.
+   Telerik vào ở Sprint 3 (docs/01); tới lúc đó file này bị thay, nên đầu tư thêm vào đây
+   là đầu tư vào thứ sắp bỏ. */
+
+:root {
+    --muc: #1b1b1f;
+    --nhat: #6b6b76;
+    --vien: #d8d8e0;
+    --nen-dau: #f5f5f7;
+    --do: #a4262c;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    /* Khai CẢ màu chữ lẫn màu nền. Chỉ đặt `color` thì trình duyệt ở chế độ tối vẫn dùng
+       nền tối của nó, và chữ màu #1b1b1f nằm trên nền đen — không đọc được gì.
+       `color-scheme: light` báo cho trình duyệt biết trang này là giao diện sáng, để các
+       control mặc định (input, scrollbar) cũng vẽ theo. */
+    color: var(--muc);
+    background: #fff;
+    color-scheme: light;
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1.25rem;
+    border-bottom: 1px solid var(--vien);
+    background: var(--nen-dau);
+}
+
+header .ten { font-weight: 600; }
+header .nguoi-dung { margin-left: auto; color: var(--nhat); }
+
+main { padding: 1.25rem; max-width: 70rem; }
+
+h1 { font-size: 1.35rem; margin: 0 0 1rem; }
+
+table { border-collapse: collapse; width: 100%; }
+th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--vien); vertical-align: top; }
+th { font-weight: 600; background: var(--nen-dau); }
+td.so-hieu { white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+.thong-bao { color: var(--nhat); }
+.loi { color: var(--do); }
+
+.dang-nhap { display: flex; flex-direction: column; gap: 0.75rem; max-width: 22rem; }
+.dang-nhap label { display: flex; flex-direction: column; gap: 0.25rem; }
+
+input, button {
+    font: inherit;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid var(--vien);
+    border-radius: 4px;
+    background: #fff;
+}
+
+button { cursor: pointer; }
+button:disabled { cursor: default; color: var(--nhat); }
+
+button.lien-ket {
+    border: none;
+    background: none;
+    color: var(--nhat);
+    text-decoration: underline;
+    padding: 0;
+}
+
+#blazor-error-ui {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    padding: 0.6rem 1.25rem;
+    background: #ffe9c9;
+    border-top: 1px solid #e0c79a;
+}

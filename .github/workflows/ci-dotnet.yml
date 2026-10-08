@@ -31,7 +31,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3
         id: filter
         with:
           filters: |
@@ -107,7 +107,18 @@ jobs:
           restore-keys: nuget-${{ runner.os }}-
 
       - name: Restore
-        run: dotnet restore "${{ steps.gates.outputs.solution }}"
+        # `--locked-mode`: restore ĐỎ nếu packages.lock.json lệch với
+        # Directory.Packages.props, thay vì âm thầm cập nhật lock rồi build một đồ thị phụ
+        # thuộc khác với đồ thị đã được review. Đây là cái làm cho lock file có tác dụng —
+        # không có cờ này thì file lock chỉ là một bản ghi chép.
+        #
+        # Đổi phiên bản gói ở máy: chạy `dotnet restore` (không cờ) rồi commit lock đã đổi.
+        run: dotnet restore "${{ steps.gates.outputs.solution }}" --locked-mode
+
+      - name: Kiểm cấu trúc repo
+        # Ba thứ không cổng nào khác bắt được: cổng local trùng nhau, .csproj vắng mặt
+        # trong Xnk.sln (build bỏ qua, CI vẫn xanh), và service trỏ vào thư mục không có.
+        run: python3 .github/scripts/kiem_cau_truc.py
 
       - name: Kiểm tra định dạng mã
         if: ${{ steps.gates.outputs.enforce_format == 'true' }}
@@ -167,7 +178,7 @@ jobs:
           --health-cmd "pg_isready -U postgres"
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
-      XNK_TEST_CONNECTION: "Host=localhost;Port=5432;Database=xnk_test;Username=postgres;Password=ci-only-not-a-secret"
+      XNK_TEST_DATABASE_URL: "postgresql://postgres:ci-only-not-a-secret@localhost:5432/xnk_test"
     steps:
       - uses: actions/checkout@v4
 
@@ -195,15 +206,39 @@ jobs:
 
       - name: Chạy nhóm test cách ly tenant
         run: |
-          # TreatNoTestsAsError=true là cố ý. "Không có test nào khớp bộ lọc" phải là
-          # ĐỎ chứ không phải xanh — nếu không, cổng cách ly tenant sẽ tự tắt trong im
-          # lặng đúng vào lúc nó cần thiết nhất. PR .NET đầu tiên phải kèm ít nhất một
-          # test gắn [Trait("Category", "TenantIsolation")].
+          # Ý đồ của cổng, giữ nguyên: "không có test BR-11 nào ở ĐÂU CẢ" phải là ĐỎ,
+          # nếu không thì lớp cách ly tenant tự tắt trong im lặng đúng lúc cần nhất.
+          #
+          # Nhưng KHÔNG dùng TreatNoTestsAsError=true trên cả solution được nữa: cờ đó
+          # bắt MỌI assembly test phải có test mang trait, nên project test thứ hai được
+          # thêm vào — dù hoàn toàn hợp lệ — cũng làm đỏ cổng. Đó là ý đồ khác hẳn.
+          #
+          # Cách đúng: chạy trên cả solution, ghi kết quả ra trx, rồi đòi TỔNG số test
+          # đã chạy phải > 0. Test BR-11 hỏng vẫn làm đỏ, nhờ chính `dotnet test`.
+          #
+          # Không đặt LogFileName: bốn assembly cùng ghi một tên thì chúng đè lên nhau,
+          # và tổng đếm được sẽ phụ thuộc assembly nào chạy cuối.
           dotnet test "${{ steps.gates.outputs.solution }}" \
             --configuration Release \
             --filter "Category=TenantIsolation" \
             --logger "console;verbosity=normal" \
-            -- RunConfiguration.TreatNoTestsAsError=true
+            --logger "trx" \
+            --results-directory artifacts/tenant-isolation \
+            -- RunConfiguration.TreatNoTestsAsError=false
+
+      - name: Bảo đảm cổng BR-11 không rỗng
+        run: |
+          # Script tự đọc trait từ trx, KHÔNG tin vào việc `--filter` ở trên còn nguyên.
+          # Xoá dòng --filter đi thì con số này không đổi — đó là điều kiện để cổng này
+          # thật sự là cổng, chứ không phải một phép đếm ăn theo một dòng ở chỗ khác.
+          tong=$(python3 .github/scripts/dem_test_trx.py artifacts/tenant-isolation TenantIsolationTests)
+          echo "Số test mang trait Category=TenantIsolation đã chạy: $tong"
+
+          if [ "$tong" -eq 0 ]; then
+            echo "::error::Không có test nào mang trait Category=TenantIsolation trong toàn solution."
+            echo "::error::BR-11 là ranh giới bảo mật và là required check (docs/16 §3). Mọi PR .NET phải giữ ít nhất một test như vậy."
+            exit 1
+          fi
 
   ci-dotnet:
     # Job tổng hợp — ĐÂY là context được khai báo required trong ruleset.

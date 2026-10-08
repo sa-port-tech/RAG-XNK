@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    workflow-worker — External Task Worker cho các bước .NET trong BPMN (docs/00 §4.2).
+    KHÔNG sở hữu dữ liệu nào, nên không có DbContext và không có vai trò database.
+
+    Vì sao là Sdk.Web chứ không phải Worker Service thuần: .github/services.json khai
+    service này có `health_path` và `container_port` 8080, và `smoke_test.sh` gọi tới đó
+    sau mỗi lần deploy. Một tiến trình nền không có cổng HTTP thì không trả lời được, và
+    khi ấy mọi lần deploy đều báo đỏ ở đúng một service.
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>Xnk.WorkflowWorker</RootNamespace>
+    <UserSecretsId>xnk-workflow-worker-dev</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Xnk.Shared/Xnk.Shared.csproj" />
+  </ItemGroup>
+
+</Project>

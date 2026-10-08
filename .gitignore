@@ -179,3 +179,55 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+# ─── .NET ────────────────────────────────────────────────────────────────────────
+# .gitignore gốc của repo lấy từ template Python nên không có phần này. Thiếu nó thì
+# mỗi PR .NET kéo theo hàng chục file build output vào diff, và review mất tác dụng.
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+*.user
+*.suo
+*.userprefs
+.vs/
+artifacts/
+*.trx
+*.coverage
+coverage.cobertura.xml
+# uv.lock và packages.lock.json PHẢI được commit — không thêm chúng vào đây.
+
+# ─── Môi trường local ────────────────────────────────────────────────────────────
+# .env chứa giá trị thật; .env.example là bản mẫu và được commit.
+.env
+!.env.example
+
+# ─── Corpus ──────────────────────────────────────────────────────────────────────
+# docs/00 §8.1 và §18: nội dung corpus KHÔNG nằm trong git. Văn bản pháp luật đi qua quy
+# trình P1 và sống trong RDS/S3; git chỉ giữ code, prompt, BPMN và golden set.
+#
+# Nhưng corpus/registry/ thì PHẢI được commit — nó chỉ chứa metadata (số hiệu, ngày, nguồn,
+# sha256), tức là bằng chứng truy vết và thước đo, không phải nội dung văn bản.
+# Xem corpus/README.md §1.
+#
+# ⚠️ KHÔNG loại trừ `corpus/` rồi phủ định bằng `!corpus/registry/`. Git không cho phép
+# đưa lại một đường dẫn nằm trong thư mục ĐÃ bị loại — nó không bao giờ đi vào thư mục đó
+# để xét. Chỉ loại trừ đúng hai thư mục cần loại; registry được commit vì không có gì loại
+# nó cả, chứ không nhờ một dòng phủ định.
+#
+# (Ở đây từng có `!corpus/registry/` phủ định một loại trừ KHÔNG TỒN TẠI — một dòng no-op
+# đọc như một biện pháp bảo vệ. Nếu ai đó thêm `corpus/` phía trên, dòng ấy cũng sẽ không
+# cứu được gì, và registry biến khỏi git mà không ai thấy.)
+corpus/raw/
+corpus/derived/
+
+# ─── Cấu hình trợ lý AI của từng người ───────────────────────────────────────
+# KHÔNG commit. Đây là repo sản phẩm; cấu hình công cụ cá nhân không thuộc về nó.
+#
+# `.claude/settings.local.json` là lý do cụ thể: nó từng nằm trong git với quyền
+# pre-approve `Bash(gh auth *)` — tức `gh auth token`, in ra credential GitHub còn
+# hiệu lực — và một lệnh `rm -rf` trỏ vào ổ đĩa đồng bộ. Ai clone nhánh rồi chạy
+# Claude Code trong đó là thừa hưởng cả hai, không cần bấm đồng ý lần nào.
+#
+# Bộ skill dùng chung (pr-review, po, tech-lead, sprint-review…) sống ngoài repo
+# này — xem CONTRIBUTING.md mục "Công cụ trợ lý AI".
+.claude/

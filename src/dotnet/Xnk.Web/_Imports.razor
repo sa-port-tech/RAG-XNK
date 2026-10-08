@@ -1,0 +1,11 @@
+@* Using dùng chung cho mọi file .razor.
+
+   Chỉ giữ những namespace mà .razor THẬT SỰ dùng — kiểm bằng cách bỏ đi rồi build.
+   System.Net.Http và Microsoft.JSInterop từng nằm ở đây và không file .razor nào
+   chạm tới: hai lớp dùng chúng (XnkApiClient, PhienDangNhap) là file .cs và tự khai
+   using của mình. *@
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.AspNetCore.Components.Web
+@using Xnk.Web
+@using Xnk.Web.Layout
+@using Xnk.Web.Services

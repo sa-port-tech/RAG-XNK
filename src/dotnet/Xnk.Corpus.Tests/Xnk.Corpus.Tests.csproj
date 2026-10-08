@@ -1,0 +1,49 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Nhóm test của Xnk.Corpus.
+
+    ⚠️ Project này chứa cổng bảo mật của cả hệ thống: job `tenant-isolation` trong
+    ci-dotnet chạy `dotnet test` lọc theo trait "Category=TenantIsolation", với
+    RunConfiguration.TreatNoTestsAsError bật. Nếu không còn test nào mang trait đó thì CI
+    ĐỎ, và đó là chủ đích. Đừng "sửa" bằng cách bỏ bộ lọc; hãy sửa bằng cách giữ test.
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>Xnk.Corpus.Tests</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <!--
+      Dựng ứng dụng thật trong tiến trình test và gọi qua HTTP. Cần cho nhóm test Api/:
+      cách ly tenant phải còn tác dụng sau khi đi qua middleware xác thực và HttpTenantContext,
+      chứ không chỉ ở tầng SQL.
+    -->
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <!-- Ký token test tại chỗ, không kéo identity-tenant vào bộ test của corpus. -->
+    <PackageReference Include="Microsoft.IdentityModel.JsonWebTokens" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Xnk.Corpus/Xnk.Corpus.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+
+  <ItemGroup>
+    <!-- Link, không chép: xem đầu ChuoiKetNoiTest.cs. Hai bộ test dùng chung phần đọc
+         biến môi trường và quy đổi DSN, nhưng vẫn giữ fixture riêng của mình. -->
+    <Compile Include="../TestSupport/ChuoiKetNoiTest.cs" Link="TestSupport/ChuoiKetNoiTest.cs" />
+  </ItemGroup>
+
+</Project>

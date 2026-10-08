@@ -1,0 +1,56 @@
+@inject PhienDangNhap Phien
+@inject XnkApiClient Api
+
+<h1>Đăng nhập</h1>
+
+<form class="dang-nhap" @onsubmit="GuiAsync" @onsubmit:preventDefault="true">
+    <label>
+        Email
+        <input type="email" @bind="_email" @bind:event="oninput" autocomplete="username" required />
+    </label>
+    <label>
+        Mật khẩu
+        <input type="password" @bind="_matKhau" @bind:event="oninput" autocomplete="current-password" required />
+    </label>
+
+    @if (_loi is not null)
+    {
+        <p class="loi">@_loi</p>
+    }
+
+    <button type="submit" disabled="@_dangGui">@(_dangGui ? "Đang gửi…" : "Đăng nhập")</button>
+</form>
+
+@code {
+    /// <summary>Gọi sau khi đăng nhập thành công, để trang cha tải dữ liệu.</summary>
+    [Parameter]
+    public EventCallback OnDangNhapXong { get; set; }
+
+    private string _email = string.Empty;
+    private string _matKhau = string.Empty;
+    private string? _loi;
+    private bool _dangGui;
+
+    private async Task GuiAsync()
+    {
+        _dangGui = true;
+        _loi = null;
+
+        KetQua<string> ketQua = await Api.DangNhapAsync(_email, _matKhau);
+
+        if (!ketQua.ThanhCong || ketQua.GiaTri is null)
+        {
+            _loi = ketQua.Loi ?? "Đăng nhập thất bại.";
+            _dangGui = false;
+            return;
+        }
+
+        // Xoá mật khẩu khỏi bộ nhớ ngay khi không cần nữa. Không chống được kẻ đã chạy được
+        // mã trong trang, nhưng cũng không có lý do gì để giữ nó lại.
+        _matKhau = string.Empty;
+
+        await Phien.DatAsync(ketQua.GiaTri);
+        _dangGui = false;
+        await OnDangNhapXong.InvokeAsync();
+    }
+}

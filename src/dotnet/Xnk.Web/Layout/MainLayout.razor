@@ -1,0 +1,30 @@
+@inherits LayoutComponentBase
+@inject PhienDangNhap Phien
+@implements IDisposable
+
+<header>
+    <span class="ten">RAG XNK</span>
+    @if (Phien.DaDangNhap)
+    {
+        <span class="nguoi-dung">@Phien.EmailHienThi()</span>
+        <button class="lien-ket" @onclick="DangXuatAsync">Đăng xuất</button>
+    }
+</header>
+
+<main>
+    @Body
+</main>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        Phien.DaDoi += VeLai;
+        await Phien.NapAsync();
+    }
+
+    private void VeLai() => StateHasChanged();
+
+    private async Task DangXuatAsync() => await Phien.XoaAsync();
+
+    public void Dispose() => Phien.DaDoi -= VeLai;
+}

@@ -1,0 +1,92 @@
+<Project>
+
+  <!--
+    Thuộc tính chung cho mọi project .NET trong repo.
+
+    Vì sao tập trung ở đây thay vì lặp trong từng .csproj: ci-dotnet build với
+    `-warnaserror -p:EnableNETAnalyzers=true -p:AnalysisLevel=latest`. Nếu máy dev không
+    có cùng thiết lập, cảnh báo sẽ chỉ xuất hiện trên CI — tức là phát hiện muộn nhất
+    có thể, sau khi đã mở PR. File này làm cho `dotnet build` ở máy khắt khe đúng bằng CI.
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- Khớp đúng cờ mà ci-dotnet truyền vào, để local và CI cho cùng kết quả. -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+
+    <!-- Build tái lập được: cùng nguồn cho ra cùng nhị phân. -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+
+    <!--
+      Container không cài dữ liệu ICU. Bật InvariantGlobalization tránh việc service
+      chết lúc khởi động với một thông báo không nhắc gì tới globalization.
+      ⚠️ Khi nào bắt đầu so sánh/sắp xếp chuỗi tiếng Việt theo văn hoá, phải xem lại
+      quyết định này — invariant culture sắp xếp sai dấu tiếng Việt.
+    -->
+    <InvariantGlobalization>true</InvariantGlobalization>
+
+    <!--
+      Phép tính số nguyên tràn thì NÉM, không quấn vòng.
+
+      Mặc định của C# là quấn vòng im lặng: `int.MaxValue + 1` cho ra số âm, không lỗi,
+      không cảnh báo. Đó chính là cách `(page - 1) * pageSize` trong DocumentsEndpoints
+      biến một tham số truy vấn hợp lệ thành `OFFSET` âm và một lỗi 500.
+
+      File này bật `TreatWarningsAsErrors` và analyzer ở mức cao nhất, tức là đã chọn
+      hướng "thà đỏ sớm còn hơn sai muộn". Thiếu đúng cờ này là một lỗ hổng trong chính
+      hướng đó — và là lỗ hổng mà không cảnh báo nào chỉ ra được, vì quấn vòng là hành vi
+      ĐÚNG theo đặc tả ngôn ngữ.
+
+      Cái giá: một phép tính cố ý quấn vòng (băm tự viết, checksum) sẽ ném. Không có chỗ
+      nào trong repo làm thế; nếu sau này có, gói riêng chỗ đó trong `unchecked { }` chứ
+      đừng tắt cờ này cho cả solution.
+    -->
+    <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
+
+    <!--
+      Khoá phiên bản gói: mỗi project sinh một `packages.lock.json` và file đó được commit.
+
+      `.gitignore` đã ghi "uv.lock và packages.lock.json PHẢI được commit" từ trước — nhưng
+      không project nào bật cờ này, nên file kia chưa bao giờ tồn tại. Một dòng bảo vệ cho
+      một file không có thật.
+
+      Vì sao cần: `Directory.Packages.props` ghim phiên bản TRỰC TIẾP, không ghim phiên bản
+      TRUYỀN NGƯỠNG. Hai lần restore cách nhau vài tuần có thể kéo về hai đồ thị phụ thuộc
+      khác nhau, và khi ấy "chạy được ở máy tôi" là một câu đúng theo nghĩa đen. Bên Python
+      `uv.lock` đã khoá đủ; nửa .NET thì chưa — đó là điều review gọi là "một nửa repo tái
+      lập được".
+
+      CI restore ở chế độ locked: lock lệch với props thì ĐỎ thay vì âm thầm cập nhật.
+    -->
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
+
+    <IsPackable>false</IsPackable>
+
+    <!--
+      Không sinh apphost (file .exe gốc của từng nền tảng).
+
+      Hai lý do, cả hai đều thật:
+
+      1. Repo nằm trên Google Drive (`G:\My Drive\...`). Client đồng bộ giữ một
+         memory-mapped section trên file .exe vừa ghi, và bước CreateAppHost chết với
+         "The requested operation cannot be performed on a file with a user-mapped
+         section open" — một thông báo không nhắc gì tới Google Drive, nên rất tốn thời
+         gian để lần ra.
+
+      2. Service chạy trong container bằng `dotnet Xnk.Corpus.dll`, không bao giờ gọi
+         file .exe. Sinh ra một artifact không ai dùng chỉ để nó gây lỗi build là lỗ vốn.
+
+      `dotnet run`, `dotnet test` và `dotnet ef` đều hoạt động bình thường khi tắt.
+    -->
+    <UseAppHost>false</UseAppHost>
+  </PropertyGroup>
+
+</Project>

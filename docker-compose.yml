@@ -1,0 +1,371 @@
+# Môi trường chạy local.
+#
+# `docker compose up -d` mặc định CHỈ khởi PostgreSQL. LocalStack và Jaeger nằm sau profile
+# riêng vì chúng kéo thêm ảnh mà phần lớn buổi làm việc không dùng tới. Bật khi cần:
+#
+# ⚠️ KHÔNG có profile `workflow`. Khối này từng ghi `--profile workflow up -d # thêm
+# Camunda 7`, nhưng không service nào khai profile đó — lệnh ấy khởi động ĐÚNG KHÔNG
+# CONTAINER NÀO và thoát với mã 0. Camunda nằm trong profile `app`, cùng lý do đã ghi ở
+# khối `ollama`: `workflow-worker` có phụ thuộc thật vào nó.
+#
+#   docker compose --profile app up -d           # ★ toàn bộ hệ thống: 7 service + nginx
+#   docker compose --profile aws up -d           # thêm LocalStack
+#   docker compose --profile tracing up -d       # thêm Jaeger
+#   docker compose --profile full up -d          # tất cả
+#
+# Profile `app` tự chạy migration, vai trò và seed qua service `migrate` — không cần bước
+# thủ công nào. Nếu chỉ khởi Postgres trần thì áp lược đồ bằng: bash db/apply-migrations.sh
+#
+# ⚠️ Phiên bản PostgreSQL và ảnh pgvector ở đây phải khớp đúng với ci-dotnet
+# (job tenant-isolation) và với PostgresFixture trong test. Lệch phiên bản là cách tạo ra
+# loại lỗi chỉ đỏ trên CI mà không ai tái hiện được ở máy.
+
+name: xnk
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: xnk-postgres
+    environment:
+      POSTGRES_DB: xnk
+      POSTGRES_USER: postgres
+      # Không phải bí mật — chỉ dùng cho máy local, và trùng với appsettings.Development.json.
+      POSTGRES_PASSWORD: xnk-local-dev
+    ports:
+      # Chỉ loopback. `"5432:5432"` mở PostgreSQL ra MỌI interface của máy — kèm mật khẩu
+      # nằm ngay phía trên — nên trên một mạng Wi-Fi công cộng đây là một database mở. Mẫu
+      # đúng đã có sẵn ở service `nginx` phía dưới; chỗ này chỉ là chưa theo.
+      #
+      # Container gọi nhau qua mạng nội bộ của compose, không qua cổng này. Cổng này chỉ
+      # để psql/DBeaver trên máy nối vào, và cả hai đều chạy trên chính máy đó.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d xnk"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Cụm RDS riêng cho Camunda (docs/00 §4.4) — engine có mô hình khoá và nhịp ghi rất
+  # khác, dùng chung database với dữ liệu nghiệp vụ là tự chuốc lấy tranh chấp khoá.
+  camunda-postgres:
+    image: postgres:16
+    container_name: xnk-camunda-postgres
+    profiles: ["app", "full"]
+    environment:
+      POSTGRES_DB: camunda
+      POSTGRES_USER: camunda
+      POSTGRES_PASSWORD: camunda-local-dev
+    volumes:
+      - camunda-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U camunda -d camunda"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ⚠️ Chỉ dùng External Task pattern với engine này. Java Delegate bị cấm (docs/00 §1.2
+  # điểm 4) và ci-bpmn chặn ở CI — Camunda 7 đang trong lộ trình kết thúc hỗ trợ, nên mọi
+  # logic phải nằm ngoài engine để còn đường chuyển đổi.
+  camunda:
+    # Build chứ không dùng ảnh gốc: định nghĩa quy trình được đóng gói vào image, xem
+    # bpmn/Dockerfile.
+    build:
+      context: .
+      dockerfile: bpmn/Dockerfile
+    container_name: xnk-camunda
+    profiles: ["app", "full"]
+    depends_on:
+      camunda-postgres:
+        condition: service_healthy
+    healthcheck:
+      # Engine sẵn sàng khi REST API trả lời — đó cũng chính là thứ workflow-worker cần.
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/engine-rest/version || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    environment:
+      DB_DRIVER: org.postgresql.Driver
+      DB_URL: jdbc:postgresql://camunda-postgres:5432/camunda
+      DB_USERNAME: camunda
+      DB_PASSWORD: camunda-local-dev
+      # Tắt hai quy trình mẫu (Invoice Receipt, Review Invoice) mà ảnh Camunda Run deploy
+      # sẵn. Để lại thì Cockpit hiện lẫn lộn quy trình của dự án với quy trình demo, và
+      # người mới vào không biết cái nào là thật.
+      CAMUNDA_BPM_RUN_EXAMPLE_ENABLED: "false" 
+    ports:
+      # 8080 trên máy đã dành cho service .NET khi chạy `dotnet run`, nên Camunda ra 8090.
+      - "8090:8080"
+
+  localstack:
+    image: localstack/localstack:3
+    container_name: xnk-localstack
+    profiles: ["aws", "full"]
+    environment:
+      # Chỉ những dịch vụ dự án thật sự dùng ở prototype (docs/00 §4.3).
+      SERVICES: s3,sqs,eventbridge,secretsmanager
+      DEBUG: "0"
+    ports:
+      - "4566:4566"
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.62
+    container_name: xnk-jaeger
+    profiles: ["tracing", "full"]
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"  # giao diện web
+      - "4317:4317"    # OTLP gRPC
+
+  # ══════════════════════════════════════════════════════════════════════════════════════
+  # Profile `app` — toàn bộ hệ thống chạy được ở local
+  # ══════════════════════════════════════════════════════════════════════════════════════
+  #
+  #   docker compose --profile app up -d
+  #
+  # Giá trị cấu hình lấy từ `.env` (chép từ `.env.example`). Không đặt giá trị mặc định
+  # ngay trong file này: hai nơi cùng khai một chuỗi kết nối thì sớm muộn chúng lệch nhau,
+  # và cái lệch đó chỉ lộ ra khi có người chạy `dotnet run` ngoài container rồi thấy hành
+  # vi khác. Thiếu `.env` thì compose dừng ngay với thông báo nói rõ phải làm gì.
+
+  # Migration + vai trò + seed. Chạy một lần rồi thoát, đúng hình dạng ECS one-off task
+  # mà cd-deploy dùng trước bước deploy (ADR-010).
+  migrate:
+    build:
+      context: .
+      dockerfile: db/Dockerfile
+    container_name: xnk-migrate
+    profiles: ["app", "full"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Migration chạy bằng CHỦ SỞ HỮU lược đồ, không phải bằng vai trò của service. Các
+      # vai trò trong db/roles.sql cố ý không có quyền DDL — service tự đổi lược đồ lúc
+      # chạy là thứ phải bất khả thi, không phải thứ trông cậy vào kỷ luật.
+      DATABASE_URL: postgres://postgres:xnk-local-dev@postgres:5432/xnk
+    restart: "no"
+
+  identity-tenant:
+    build:
+      # Context là GỐC REPO — xem chú thích đầu mỗi Dockerfile.
+      context: .
+      dockerfile: src/dotnet/Dockerfile
+      args:
+        DU_AN: Xnk.IdentityTenant
+    container_name: xnk-identity-tenant
+    profiles: ["app", "full"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      ConnectionStrings__Identity: ${XNK_IDENTITY_CONNECTION:?Thiếu .env — chạy `cp .env.example .env`}
+      Jwt__Issuer: ${XNK_JWT_ISSUER:?Thiếu .env}
+      Jwt__Audience: ${XNK_JWT_AUDIENCE:?Thiếu .env}
+      Jwt__SigningKey: ${XNK_JWT_SIGNING_KEY:?Thiếu .env}
+
+  corpus:
+    build:
+      context: .
+      dockerfile: src/dotnet/Dockerfile
+      args:
+        DU_AN: Xnk.Corpus
+    container_name: xnk-corpus
+    profiles: ["app", "full"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      ConnectionStrings__Corpus: ${XNK_CORPUS_CONNECTION:?Thiếu .env — chạy `cp .env.example .env`}
+      Jwt__Issuer: ${XNK_JWT_ISSUER:?Thiếu .env}
+      Jwt__Audience: ${XNK_JWT_AUDIENCE:?Thiếu .env}
+      Jwt__SigningKey: ${XNK_JWT_SIGNING_KEY:?Thiếu .env}
+
+  ingestion:
+    build:
+      context: .
+      dockerfile: src/python/Dockerfile
+      args:
+        GOI: ingestion
+    container_name: xnk-ingestion
+    profiles: ["app", "full"]
+    environment:
+      # Không có chuỗi kết nối database ở đây, và đó là ranh giới chứ không phải thiếu
+      # sót: ingestion ghi qua API của corpus-service (docs/00 §4.2).
+      CORPUS_BASE_URL: ${CORPUS_BASE_URL:?Thiếu .env}
+
+  retrieval:
+    build:
+      context: .
+      dockerfile: src/python/Dockerfile
+      args:
+        GOI: retrieval
+    container_name: xnk-retrieval
+    profiles: ["app", "full"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      # Vai trò xnk_retrieval chỉ có SELECT trên schema `corpus` — ngoại lệ ADR-012, được
+      # thực thi ở tầng database chứ không chỉ ghi trong tài liệu.
+      DATABASE_URL: ${DATABASE_URL:?Thiếu .env}
+      XNK_JWT_ISSUER: ${XNK_JWT_ISSUER:?Thiếu .env}
+      XNK_JWT_AUDIENCE: ${XNK_JWT_AUDIENCE:?Thiếu .env}
+      XNK_JWT_SIGNING_KEY: ${XNK_JWT_SIGNING_KEY:?Thiếu .env}
+
+  generation:
+    build:
+      context: .
+      dockerfile: src/python/Dockerfile
+      args:
+        GOI: generation
+    container_name: xnk-generation
+    profiles: ["app", "full"]
+    depends_on:
+      ollama-pull:
+        condition: service_completed_successfully
+    environment:
+      # Giao thức tương thích OpenAI (ADR-015): local trỏ Ollama, cloud sẽ trỏ Bedrock qua
+      # một lớp cài đặt khác của cùng interface. Khác nhau ở CẤU HÌNH, không ở nhánh mã.
+      LLM_BASE_URL: ${LLM_BASE_URL:?Thiếu .env}
+      LLM_MODEL: ${LLM_MODEL:?Thiếu .env}
+
+  chat:
+    build:
+      context: .
+      dockerfile: src/dotnet/Dockerfile
+      args:
+        DU_AN: Xnk.Chat
+    container_name: xnk-chat
+    profiles: ["app", "full"]
+    # `chat` gọi retrieval và generation ở mọi câu hỏi, nên nó phải khai hai phụ thuộc đó.
+    # Thiếu `depends_on`, `docker compose up` khởi chat trước hai service kia và mọi câu
+    # hỏi trong vài giây đầu trả 502 — một lỗi trông y hệt sự cố thật.
+    #
+    # `service_started` chứ không `service_healthy`: chat cố tình KHÔNG chết theo phụ
+    # thuộc (xem Xnk.Chat/Program.cs), nên chờ chúng khoẻ hẳn là mâu thuẫn với chính
+    # quyết định đó — chỉ cần chúng đã được khởi.
+    depends_on:
+      retrieval:
+        condition: service_started
+      generation:
+        condition: service_started
+    environment:
+      Jwt__Issuer: ${XNK_JWT_ISSUER:?Thiếu .env}
+      Jwt__Audience: ${XNK_JWT_AUDIENCE:?Thiếu .env}
+      Jwt__SigningKey: ${XNK_JWT_SIGNING_KEY:?Thiếu .env}
+      # Địa chỉ nội bộ, cổng 8000 theo `container_port` của hai service Python.
+      Downstream__RetrievalBaseUrl: http://retrieval:8000
+      Downstream__GenerationBaseUrl: http://generation:8000
+
+  # Mô hình ngôn ngữ chạy tại chỗ.
+  #
+  # ⚠️ Nằm trong profile `app` chứ không phải một profile riêng, và đó là quyết định có
+  # cân nhắc: `generation` có phụ thuộc thật vào nó, nên nếu để ngoài thì lệnh trong README
+  # cho ra một hệ thống mà `/generation/health/ready` trả 503 và `/chat/ask` trả 502. Một
+  # "hệ thống chạy được" mà hai service báo lỗi thì không phải hệ thống chạy được.
+  #
+  # Cái giá: thêm khoảng 2GB đĩa. Dev nào đã chạy Ollama sẵn trên máy thì trỏ LLM_BASE_URL
+  # vào đó và `docker compose stop ollama`.
+  ollama:
+    image: ollama/ollama:0.5.7
+    container_name: xnk-ollama
+    profiles: ["app", "full"]
+    volumes:
+      - ollama-data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # Tải mô hình về rồi thoát. Không gộp vào `ollama` bằng entrypoint tuỳ biến: gộp lại thì
+  # container chính khởi động lại là tải lại, và mất mấy phút mỗi lần.
+  ollama-pull:
+    image: ollama/ollama:0.5.7
+    container_name: xnk-ollama-pull
+    profiles: ["app", "full"]
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    # Cùng biến LLM_MODEL mà `generation` dùng — một nguồn sự thật cho tên mô hình.
+    entrypoint: ["ollama", "pull", "${LLM_MODEL:?Thiếu .env}"]
+    restart: "no"
+
+  workflow-worker:
+    build:
+      context: .
+      dockerfile: src/dotnet/Dockerfile
+      args:
+        DU_AN: Xnk.WorkflowWorker
+    container_name: xnk-workflow-worker
+    profiles: ["app", "full"]
+    depends_on:
+      camunda:
+        condition: service_healthy
+    environment:
+      Camunda__BaseUrl: http://camunda:8080/engine-rest
+
+  # Giao diện Blazor WASM: chép nội dung tĩnh vào volume rồi thoát. Xem
+  # src/dotnet/Xnk.Web/Dockerfile để biết vì sao không phải một web server.
+  web:
+    build:
+      context: .
+      dockerfile: src/dotnet/Xnk.Web/Dockerfile
+    container_name: xnk-web
+    profiles: ["app", "full"]
+    volumes:
+      - web-dist:/dich
+    restart: "no"
+
+  # Sinh cấu hình nginx từ .github/services.json rồi thoát. Xem tools/local/render_nginx.py
+  # để biết vì sao cấu hình được sinh mỗi lần `up` thay vì commit vào repo.
+  nginx-conf:
+    build:
+      context: .
+      dockerfile: tools/local/Dockerfile
+    container_name: xnk-nginx-conf
+    profiles: ["app", "full"]
+    volumes:
+      - nginx-conf:/etc/nginx/conf.d
+    restart: "no"
+
+  # Cổng vào duy nhất, đóng vai ALB: định tuyến theo tiền tố và KHÔNG cắt tiền tố
+  # (ADR-013). Nhờ nó, smoke_test.sh chạy ở local với cùng một BASE_URL như trên môi
+  # trường thật.
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: xnk-nginx
+    profiles: ["app", "full"]
+    depends_on:
+      nginx-conf:
+        condition: service_completed_successfully
+      web:
+        condition: service_completed_successfully
+    ports:
+      # Cổng BÊN TRONG luôn là 8080 — cấu hình nginx sinh ra cố định như vậy, và mọi
+      # service gọi nhau qua mạng nội bộ của compose đều dùng nó.
+      #
+      # Cổng phía HOST đặt được qua XNK_HTTP_PORT trong `.env`, vì 8080 là cổng bận nhất
+      # trên máy lập trình viên. Không có lối thoát này thì người bị trùng cổng phải sửa
+      # docker-compose.yml — tức là mang một thay đổi cục bộ của máy mình vào git.
+      - "${XNK_HTTP_PORT:-8080}:8080"
+    volumes:
+      - nginx-conf:/etc/nginx/conf.d:ro
+      - web-dist:/usr/share/nginx/html:ro
+
+volumes:
+  postgres-data:
+  camunda-data:
+  # Trọng số mô hình. Để trong volume để `down` (không `-v`) không bắt tải lại vài trăm MB.
+  ollama-data:
+  # Cấu hình nginx sinh lúc khởi động — không phải dữ liệu, chỉ là chỗ để hai container
+  # trao file cho nhau.
+  nginx-conf:
+  # Nội dung tĩnh của Blazor WASM. Rỗng cho tới khi Xnk.Web được dựng; khi đó nginx trả
+  # 404 ở `/` — đúng sự thật, không phải trang giả.
+  web-dist:

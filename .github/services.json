@@ -1,11 +1,4 @@
 {
-  "$comment": [
-    "Danh mục service — nguồn sự thật duy nhất cho path filter của CI và ma trận build của CD.",
-    "Thêm service mới thì sửa đúng file này; không sửa rải rác trong từng workflow.",
-    "docs/00 §8.1 (cấu trúc monorepo) và docs/09 E1-11 (skeleton 7 service, mỗi service có healthcheck).",
-    "Xnk.Shared là thư viện dùng chung, không deploy — nằm ở mục libraries.",
-    "Xnk.Web là Blazor WASM, phân phối qua S3 + CloudFront chứ không phải ECS — nằm ở mục sites."
-  ],
   "services": [
     {
       "name": "identity-tenant",
@@ -15,7 +8,8 @@
       "ecr_repository": "xnk/identity-tenant",
       "ecs_service": "xnk-identity-tenant",
       "health_path": "/health/ready",
-      "container_port": 8080
+      "container_port": 8080,
+      "local_port": 5063
     },
     {
       "name": "chat",
@@ -25,7 +19,8 @@
       "ecr_repository": "xnk/chat",
       "ecs_service": "xnk-chat",
       "health_path": "/health/ready",
-      "container_port": 8080
+      "container_port": 8080,
+      "local_port": 5064
     },
     {
       "name": "corpus",
@@ -35,7 +30,8 @@
       "ecr_repository": "xnk/corpus",
       "ecs_service": "xnk-corpus",
       "health_path": "/health/ready",
-      "container_port": 8080
+      "container_port": 8080,
+      "local_port": 5062
     },
     {
       "name": "workflow-worker",
@@ -45,7 +41,8 @@
       "ecr_repository": "xnk/workflow-worker",
       "ecs_service": "xnk-workflow-worker",
       "health_path": "/health/ready",
-      "container_port": 8080
+      "container_port": 8080,
+      "local_port": 5065
     },
     {
       "name": "ingestion",
@@ -54,7 +51,8 @@
       "ecr_repository": "xnk/ingestion",
       "ecs_service": "xnk-ingestion",
       "health_path": "/health/ready",
-      "container_port": 8000
+      "container_port": 8000,
+      "local_port": 8002
     },
     {
       "name": "retrieval",
@@ -63,7 +61,8 @@
       "ecr_repository": "xnk/retrieval",
       "ecs_service": "xnk-retrieval",
       "health_path": "/health/ready",
-      "container_port": 8000
+      "container_port": 8000,
+      "local_port": 8001
     },
     {
       "name": "generation",
@@ -72,8 +71,16 @@
       "ecr_repository": "xnk/generation",
       "ecs_service": "xnk-generation",
       "health_path": "/health/ready",
-      "container_port": 8000
+      "container_port": 8000,
+      "local_port": 8003
     }
+  ],
+  "$comment": [
+    "Danh mục service — nguồn sự thật duy nhất cho path filter của CI và ma trận build của CD.",
+    "Thêm service mới thì sửa đúng file này; không sửa rải rác trong từng workflow.",
+    "docs/00 §8.1 (cấu trúc monorepo) và docs/09 E1-11 (skeleton 7 service, mỗi service có healthcheck).",
+    "Xnk.Shared là thư viện dùng chung, không deploy — nằm ở mục libraries.",
+    "Xnk.Web là Blazor WASM, phân phối qua S3 + CloudFront chứ không phải ECS — nằm ở mục sites."
   ],
   "sites": [
     {

@@ -1,0 +1,18 @@
+@* Bộ định tuyến.
+
+   Đường dẫn lạ hiển thị một thông báo 404 tối giản trong khối <NotFound> bên dưới — KHÔNG
+   chuyển hướng về danh sách văn bản. Chuyển hướng im lặng làm người dùng tưởng mình gõ
+   đúng đường dẫn, rồi bookmark một URL không tồn tại.
+
+   (Dòng chú thích cũ ở đây khẳng định ngược lại cả hai vế: "không có trang 404 riêng" và
+   "về thẳng danh sách văn bản" — sai so với chính sáu dòng ngay bên dưới nó.) *@
+<Router AppAssembly="@typeof(Program).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+    </Found>
+    <NotFound>
+        <LayoutView Layout="@typeof(MainLayout)">
+            <p class="thong-bao">Không có trang này.</p>
+        </LayoutView>
+    </NotFound>
+</Router>

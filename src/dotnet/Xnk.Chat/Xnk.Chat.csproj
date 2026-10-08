@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!--
+    chat-orchestrator — vòng đời hội thoại, điều phối `retrieval` → `generation`
+    (docs/00 §4.2). Sở hữu schema `conversation`.
+
+    ⚠️ Chưa có DbContext nào ở đây. Lát cắt hiện tại là hỏi–đáp không trạng thái; lưu lịch
+    sử hội thoại thuộc epic E5. Vai trò `xnk_chat` và dòng cấp quyền trên schema
+    `conversation` đã có sẵn trong db/roles.sql và sẽ tự có hiệu lực khi schema xuất hiện.
+
+    Khai báo trong .github/services.json: cổng 8080, healthcheck /health/ready.
+  -->
+
+  <PropertyGroup>
+    <RootNamespace>Xnk.Chat</RootNamespace>
+    <UserSecretsId>xnk-chat-dev</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Xnk.Shared/Xnk.Shared.csproj" />
+  </ItemGroup>
+
+</Project>

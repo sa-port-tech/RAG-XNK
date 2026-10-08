@@ -1,0 +1,68 @@
+# Ánh xạ tên cơ quan ban hành — bản máy đọc được của docs/04 §6.
+#
+# Bối cảnh (docs/00 §1.2 cảnh báo 1): bộ máy hành chính đã được tổ chức lại trong năm 2025.
+# Tổng cục Hải quan được tổ chức lại thành Cục Hải quan trực thuộc Bộ Tài chính; Cục Hải quan
+# tỉnh/thành phố chuyển thành Chi cục Hải quan khu vực; một số bộ đã sáp nhập.
+#
+# Hệ quả với hệ thống: văn bản cũ mang tên cơ quan cũ. Người dùng tra cứu bằng tên hiện hành.
+# Không có bảng ánh xạ thì:
+#   · metadata `co_quan_ban_hanh` sai so với thực tế hiện nay
+#   · BM25 trượt khi người dùng gõ tên cơ quan mới (E3-03)
+#   · câu trả lời hiển thị tên cơ quan không còn tồn tại
+#
+# ─────────────────────────────────────────────────────────────────────────────────────
+# 🔴 BA KHÔNG TỰ SUY LUẬN TÊN CƠ QUAN SAU TÁI CƠ CẤU.
+#    docs/04 §6: "đây là thông tin phải tra từ văn bản tổ chức bộ máy."
+#    Bảng dưới đây là KHUNG TRỐNG kèm danh sách cơ quan cần tra, không phải kết luận.
+# ─────────────────────────────────────────────────────────────────────────────────────
+
+phien_ban: 1
+cap_nhat_lan_cuoi: 2026-08-17
+
+# Nguyên tắc hiển thị đã chốt (docs/04 §6):
+#   Hiển thị tên TẠI THỜI ĐIỂM BAN HÀNH cho phần trích dẫn (đó là sự thật lịch sử),
+#   kèm tên hiện hành trong ngoặc khi tên đã đổi.
+nguyen_tac_hien_thi: "ten_tai_thoi_diem_ban_hanh (ten_hien_hanh)"
+
+anh_xa:
+  # Mỗi dòng: chuyên gia điền, ghi nguồn là văn bản tổ chức bộ máy đã tra.
+  - ten_tai_thoi_diem_ban_hanh: null
+    ten_hien_hanh: null
+    hieu_luc_tu: null
+    van_ban_can_cu: null        # số hiệu văn bản tổ chức bộ máy
+    nguon: null
+    xac_minh: { da_xac_minh: false, nguoi: null, ngay: null }
+
+# ─────────────────────────────────────────────────────────────────────────────────────
+# DANH SÁCH CƠ QUAN CẦN TRA
+#
+# Rút từ hai chỗ: (a) trường `co_quan_ban_hanh` đã điền trong van-ban.yaml,
+#                 (b) cột "Nguồn" của docs/00 §9.1.
+# Đây là danh sách việc phải làm, không phải khẳng định cơ quan nào đã đổi tên.
+# ─────────────────────────────────────────────────────────────────────────────────────
+
+can_tra:
+  - ten: "Quốc hội"
+    xuat_hien_o: ["54-2014-QH13", "slot dòng 10", "slot dòng 14"]
+    kha_nang_doi_ten: "thấp"
+  - ten: "Văn phòng Quốc hội"
+    xuat_hien_o: ["54-VBHN-VPQH"]
+    kha_nang_doi_ten: "thấp"
+  - ten: "Chính phủ"
+    xuat_hien_o: ["08-2015-ND-CP", "59-2018-ND-CP", "slot dòng 11", "slot dòng 12", "slot dòng 15"]
+    kha_nang_doi_ten: "thấp"
+  - ten: "Bộ Tài chính"
+    xuat_hien_o: ["38-2015-TT-BTC", "39-2018-TT-BTC", "25-VBHN-BTC", "slot dòng 7", "slot dòng 8"]
+    kha_nang_doi_ten: "cần kiểm tra"
+    ghi_chu: "Cơ quan hải quan nằm dưới Bộ Tài chính — chịu tác động trực tiếp của tái cơ cấu 2025."
+  - ten: "Bộ Công Thương"
+    xuat_hien_o: ["slot dòng 13"]
+    kha_nang_doi_ten: "cần kiểm tra"
+    ghi_chu: "docs/00 §1.2: một số bộ đã sáp nhập. Cần xác nhận Bộ Công Thương có nằm trong diện đó không."
+  - ten: "Tổng cục Hải quan"
+    xuat_hien_o: ["slot công văn hướng dẫn"]
+    kha_nang_doi_ten: "cao"
+    ghi_chu: >-
+      docs/00 §1.2 nêu đích danh: Tổng cục Hải quan được tổ chức lại thành Cục Hải quan
+      trực thuộc Bộ Tài chính. Công văn hướng dẫn trong corpus nhiều khả năng mang tên cũ.
+      Đây là dòng có tác động thực tế lớn nhất trong bảng này.
